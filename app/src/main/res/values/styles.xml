@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#4255C5</item>
+        <item name="android:navigationBarColor">#F5F8F5</item>
+        <item name="android:windowBackground">#F5F8F5</item>
+    </style>
+    <style name="Theme.Study.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#F5F8F5</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/AppTheme</item>
+    </style>
+</resources>

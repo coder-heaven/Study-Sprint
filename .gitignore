@@ -1,0 +1,24 @@
+# Android / Gradle
+.gradle/
+.kotlin/
+**/build/
+local.properties
+*.iml
+.idea/
+.vscode/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing and Firebase configuration
+key.properties
+*.jks
+*.keystore
+app/google-services.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

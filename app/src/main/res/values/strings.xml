@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Study Sprint</string>
+    <string name="blocker_description">Enforces only the daily limits and focus blocks you choose. It observes the foreground app package and does not read or enter screen content.</string>
+
+</resources>
