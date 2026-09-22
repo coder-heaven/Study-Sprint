@@ -95,19 +95,25 @@ internal fun savedQuestions(prefs: SharedPreferences): List<PracticeQuestion> = 
 @Composable
 internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack: () -> Unit) {
     val context = LocalContext.current
+    val course = remember { context.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE)
+        .getString("exam", "CET") ?: "CET" }
+    val scheme = remember(course) { markingSchemeFor(course) }
+    val scrollState = rememberScrollState()
     var index by remember(questions) { mutableIntStateOf(0) }
-    var score by remember(questions) { mutableIntStateOf(0) }
+    var marks by remember(questions, course) { mutableIntStateOf(0) }
+    var correctCount by remember(questions) { mutableIntStateOf(0) }
     var selected by remember(index) { mutableIntStateOf(-1) }
     var revealed by remember(index) { mutableStateOf(false) }
     LaunchedEffect(index) {
+        if (index > 0) scrollState.scrollTo(0)
         if (index == questions.size && questions.isNotEmpty()) {
-            StudyData.events(context).recordPractice(questions.size, score)
+            StudyData.events(context).recordPractice(questions.size, correctCount)
         }
     }
     Column(
         Modifier.fillMaxSize()
             .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         TextButton(onClick = onBack) { Text("‹  Back to practice") }
@@ -131,11 +137,15 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
                     AppHeading("Practice complete", "Nice work showing up today.")
                     Spacer(Modifier.height(20.dp))
                     StudyCard {
-                        Text("$score / ${questions.size}", fontSize = 43.sp,
+                        Text("$marks / ${questions.size * scheme.correct}", fontSize = 43.sp,
                             fontWeight = FontWeight.Bold, color = Pine)
-                        Text("Correct answers", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("marks · $correctCount correct · ${questions.size - correctCount} wrong",
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("$course marking: ${scheme.label()}", fontSize = 13.sp,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 5.dp))
                         Spacer(Modifier.height(18.dp))
-                        Button(onClick = { index = 0; score = 0 }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { index = 0; marks = 0; correctCount = 0 }, modifier = Modifier.fillMaxWidth()) {
                             Text("Try this set again")
                         }
                     }
@@ -143,7 +153,7 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
             } else {
                 val question = questions[page]
                 Column {
-                    AppHeading(title, "Question ${page + 1} of ${questions.size} · ${question.subject}")
+                    AppHeading(title, "Question ${page + 1} of ${questions.size} · ${question.subject} · ${scheme.label()}")
                     Spacer(Modifier.height(16.dp))
                     StudyCard {
                         Text(question.prompt, fontSize = 19.sp, fontWeight = FontWeight.SemiBold,
@@ -172,9 +182,11 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
                         }
                         if (revealed) {
                             Spacer(Modifier.height(8.dp))
-                            Text(if (selected == question.answer) "Correct!" else "Correct answer: ${'A' + question.answer}",
+                            val isCorrect = selected == question.answer
+                            val delta = scheme.score(isCorrect)
+                            Text(if (isCorrect) "Correct! +${scheme.correct}" else "Correct answer: ${'A' + question.answer} · $delta",
                                 fontWeight = FontWeight.Bold,
-                                color = if (selected == question.answer) androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                color = if (isCorrect) androidx.compose.material3.MaterialTheme.colorScheme.primary
                                 else androidx.compose.material3.MaterialTheme.colorScheme.error)
                             Text(question.explanation, fontSize = 14.sp,
                                 color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
@@ -185,7 +197,9 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
                                 if (!revealed) {
                                     if (selected >= 0) {
                                         revealed = true
-                                        if (selected == question.answer) score++
+                                        val isCorrect = selected == question.answer
+                                        marks += scheme.score(isCorrect)
+                                        if (isCorrect) correctCount++
                                     }
                                 } else index++
                             },

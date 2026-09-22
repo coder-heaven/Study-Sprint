@@ -11,6 +11,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -34,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -46,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -55,6 +60,7 @@ private data class McqDraft(
     val answer: Int = 0
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun McqEditorScreen(
     prefs: SharedPreferences,
@@ -63,6 +69,7 @@ internal fun McqEditorScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val questionRequester = remember { BringIntoViewRequester() }
     val drafts = remember {
         val saved = savedQuestions(prefs)
         mutableStateListOf<McqDraft>().apply {
@@ -83,6 +90,16 @@ internal fun McqEditorScreen(
     var message by remember { mutableStateOf<String?>(null) }
     var messageIsError by remember { mutableStateOf(false) }
     var pdfBusy by remember { mutableStateOf(false) }
+    var importedReady by remember { mutableStateOf(false) }
+    var bringQuestionIntoView by remember { mutableStateOf(false) }
+
+    LaunchedEffect(index) {
+        if (bringQuestionIntoView) {
+            yield()
+            questionRequester.bringIntoView()
+            bringQuestionIntoView = false
+        }
+    }
 
     val aiFilePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) {
@@ -99,6 +116,7 @@ internal fun McqEditorScreen(
     val pdfPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             pdfBusy = true
+            importedReady = false
             message = "Reading PDF…"
             messageIsError = false
             try {
@@ -113,6 +131,7 @@ internal fun McqEditorScreen(
                 }
                 index = 0
                 val remaining = 10 - result.questions.size
+                importedReady = result.questions.size == 10
                 message = buildString {
                     append("Imported ${result.questions.size} MCQ")
                     if (result.questions.size != 1) append("s")
@@ -223,7 +242,7 @@ internal fun McqEditorScreen(
         )
         LinearProgressIndicator(
             progress = { (index + 1) / 10f },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().bringIntoViewRequester(questionRequester)
         )
         Text(
             "Question ${index + 1} of 10",
@@ -289,6 +308,13 @@ internal fun McqEditorScreen(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 10.dp)
             )
+            if (importedReady && !messageIsError) {
+                Button(
+                    onClick = { save() },
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(50.dp),
+                    shape = RoundedCornerShape(15.dp)
+                ) { Text("Save & start imported quiz") }
+            }
         }
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -300,11 +326,15 @@ internal fun McqEditorScreen(
             ) { Text("Previous") }
             Button(
                 onClick = {
-                    if (index < 9) { index++; clearMessage() } else save()
+                    if (index < 9) {
+                        bringQuestionIntoView = true
+                        index++
+                        clearMessage()
+                    } else save()
                 },
                 modifier = Modifier.weight(1f).height(50.dp),
                 shape = RoundedCornerShape(15.dp)
-            ) { Text(if (index == 9) "Save all" else "Next") }
+            ) { Text(if (index == 9) "Save & start quiz" else "Next") }
         }
         Spacer(Modifier.height(24.dp))
     }

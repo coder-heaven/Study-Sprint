@@ -56,7 +56,7 @@ private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Un
 @Composable
 internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (String) -> Unit, refresh: () -> Unit) {
     val context = LocalContext.current
-    val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.2.0" }
+    val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.2.0" }
     var theme by remember { mutableStateOf(prefs.getString("theme_mode", "system") ?: "system") }
     var goal by remember { mutableIntStateOf(prefs.getInt("daily_focus_goal", 120)) }
     var studyReminder by remember { mutableStateOf(StudyReminders.enabled(context, StudyReminders.STUDY)) }

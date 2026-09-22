@@ -346,8 +346,11 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
                 } }
                 composable("arihant") { ArihantPracticeScreen(prefs, onBack = { go("practice") }) }
                 composable("mcq_editor") { McqEditorScreen(prefs, onBack = { go("practice") }) {
-                    refresh(); go("practice")
+                    refresh(); go("my_quiz")
                 } }
+                composable("my_quiz") {
+                    QuizScreen("My questions", savedQuestions(prefs), onBack = { go("practice") })
+                }
                 composable("plan") { PlannerScreen(prefs, revision) }
                 composable("focus") { FocusScreen(prefs, onBack = { go("home") }, onLegacy = { go("limits") }) }
                 composable("settings") { SettingsScreen(prefs, ::go, refresh) }
@@ -524,7 +527,7 @@ internal fun ProfileAvatar(name: String, size: androidx.compose.ui.unit.Dp, onCl
 @Composable
 private fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String, String) -> Unit) {
     val context = LocalContext.current
-    val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.2.0" }
+    val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.2.0" }
     val scope = rememberCoroutineScope()
     val webClientId = stringResource(R.string.default_web_client_id).trim()
     var name by remember { mutableStateOf(prefs.getString("profile_name", "").orEmpty()) }

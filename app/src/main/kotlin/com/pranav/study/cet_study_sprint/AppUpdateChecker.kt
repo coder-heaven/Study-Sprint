@@ -136,7 +136,9 @@ internal object AppUpdateChecker {
 internal fun UpdatePromptHost() {
     val context = androidx.compose.ui.platform.LocalContext.current
     var update by remember { mutableStateOf<AppUpdateInfo?>(null) }
-    LaunchedEffect(Unit) { update = AppUpdateChecker.check(context) }
+    // Force one network check for every cold app start so a newly published
+    // GitHub release is not hidden by an earlier interval check.
+    LaunchedEffect(Unit) { update = AppUpdateChecker.check(context, force = true) }
     update?.let { item ->
         AlertDialog(
             onDismissRequest = { AppUpdateChecker.snooze(context, item.tag); update = null },
@@ -151,8 +153,11 @@ internal fun UpdatePromptHost() {
                 }
             },
             confirmButton = {
-                Button(onClick = { AppUpdateChecker.openDownload(context, item) }) {
-                    Text("Download update")
+                Button(onClick = {
+                    AppUpdateChecker.openDownload(context, item)
+                    update = null
+                }) {
+                    Text("Download & update")
                 }
             },
             dismissButton = {
