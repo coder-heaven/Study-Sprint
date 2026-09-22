@@ -2,13 +2,13 @@
 <resources>
     <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#85D7BC</item>
-        <item name="android:windowBackground">#10221E</item>
-        <item name="android:navigationBarColor">#10221E</item>
+        <item name="android:colorAccent">#B9C4FF</item>
+        <item name="android:windowBackground">#0D1020</item>
+        <item name="android:navigationBarColor">#0D1020</item>
     </style>
     <style name="Theme.Study.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#10221E</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher</item>
+        <item name="windowSplashScreenBackground">#0D1020</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/study_sprint_logo_v110</item>
         <item name="postSplashScreenTheme">@style/AppTheme</item>
     </style>
 </resources>

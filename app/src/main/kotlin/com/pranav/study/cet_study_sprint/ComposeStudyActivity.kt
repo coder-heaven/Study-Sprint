@@ -30,6 +30,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -60,12 +62,14 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-internal val Pine = Color(0xFF157C6D)
-internal val DeepPine = Color(0xFF17463C)
-internal val MintBackground = Color(0xFFF5F8F5)
-internal val LeafMint = Color(0xFFE5F3E9)
-internal val MutedInk = Color(0xFF668076)
-internal val WarmCream = Color(0xFFFFFCF2)
+internal val BrandBlue = Color(0xFF3155E7)
+internal val BrandIndigo = Color(0xFF5A4FE3)
+internal val Pine = BrandBlue
+internal val DeepPine = Color(0xFF171B34)
+internal val MintBackground = Color(0xFFF7F8FF)
+internal val LeafMint = Color(0xFFE3E8FF)
+internal val MutedInk = Color(0xFF60657D)
+internal val WarmCream = Color(0xFFFDFDFF)
 
 class ComposeStudyActivity : ComponentActivity() {
     private val prefs by lazy { getSharedPreferences("study_sprint", MODE_PRIVATE) }
@@ -75,10 +79,10 @@ class ComposeStudyActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             StudyTheme(prefs, revision) {
-                var ready by remember { mutableStateOf(prefs.getBoolean("onboarding_v2", false)) }
+                var ready by remember { mutableStateOf(prefs.getBoolean("onboarding_v3", false)) }
                 if (!ready) WelcomeScreen(prefs) { name, course, grade ->
                     prefs.edit().putString("profile_name", name.trim()).putString("exam", course)
-                        .putString("grade", grade).putBoolean("onboarding_v2", true).apply()
+                        .putString("grade", grade).putBoolean("onboarding_v3", true).apply()
                     ready = true; revision++
                 } else StudyRoot(prefs, revision, onLegacy = { destination ->
                     startActivity(Intent(this, MainActivity::class.java).putExtra("legacy_screen", destination))
@@ -97,30 +101,74 @@ private fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compos
         "light" -> false
         else -> androidx.compose.foundation.isSystemInDarkTheme()
     }
+    val colors = if (dark) darkColorScheme(
+        primary = Color(0xFFB9C4FF),
+        onPrimary = Color(0xFF06237A),
+        primaryContainer = Color(0xFF203FAE),
+        onPrimaryContainer = Color(0xFFE0E5FF),
+        secondary = Color(0xFFC9C0FF),
+        onSecondary = Color(0xFF30256C),
+        secondaryContainer = Color(0xFF473D84),
+        onSecondaryContainer = Color(0xFFE7E0FF),
+        tertiary = Color(0xFF87D1FF),
+        onTertiary = Color(0xFF00344D),
+        background = Color(0xFF0D1020),
+        onBackground = Color(0xFFF1F2FF),
+        surface = Color(0xFF161A2C),
+        onSurface = Color(0xFFF1F2FF),
+        surfaceVariant = Color(0xFF24283D),
+        onSurfaceVariant = Color(0xFFC5C8DA),
+        outline = Color(0xFF9094AA),
+        outlineVariant = Color(0xFF3D4259),
+        error = Color(0xFFFFB4AB),
+        errorContainer = Color(0xFF93000A),
+        onErrorContainer = Color(0xFFFFDAD6)
+    ) else lightColorScheme(
+        primary = BrandBlue,
+        onPrimary = Color.White,
+        primaryContainer = LeafMint,
+        onPrimaryContainer = Color(0xFF0D247C),
+        secondary = BrandIndigo,
+        onSecondary = Color.White,
+        secondaryContainer = Color(0xFFE8E2FF),
+        onSecondaryContainer = Color(0xFF271B68),
+        tertiary = Color(0xFF00668A),
+        onTertiary = Color.White,
+        background = MintBackground,
+        onBackground = DeepPine,
+        surface = Color(0xFFFFFFFF),
+        onSurface = DeepPine,
+        surfaceVariant = Color(0xFFEEF0F9),
+        onSurfaceVariant = MutedInk,
+        outline = Color(0xFF777C95),
+        outlineVariant = Color(0xFFDDE1F0),
+        error = Color(0xFFBA1A1A),
+        errorContainer = Color(0xFFFFDAD6),
+        onErrorContainer = Color(0xFF410002)
+    )
     val view = LocalView.current
     SideEffect {
         val activity = view.context as? android.app.Activity
         activity?.window?.let { window ->
-            val bar = if (dark) android.graphics.Color.rgb(16, 34, 30)
-                else android.graphics.Color.rgb(245, 248, 245)
-            window.statusBarColor = bar
-            window.navigationBarColor = bar
+            window.statusBarColor = colors.background.toArgb()
+            window.navigationBarColor = colors.surface.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
             WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !dark
         }
     }
-    val colors = if (dark) darkColorScheme(
-        primary = Color(0xFF85D7BC), onPrimary = Color(0xFF063E32),
-        background = Color(0xFF10221E), surface = Color(0xFF18302A),
-        onSurface = Color(0xFFE1F2E9), primaryContainer = Color(0xFF225344)
-    ) else lightColorScheme(
-        primary = Pine, onPrimary = Color.White, primaryContainer = LeafMint,
-        onPrimaryContainer = DeepPine, secondary = Color(0xFF4E9C78),
-        background = MintBackground, surface = Color.White, onSurface = DeepPine
+    MaterialTheme(
+        colorScheme = colors,
+        typography = Typography(),
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(8.dp),
+            small = RoundedCornerShape(12.dp),
+            medium = RoundedCornerShape(18.dp),
+            large = RoundedCornerShape(26.dp),
+            extraLarge = RoundedCornerShape(32.dp)
+        ),
+        content = content
     )
-    MaterialTheme(colorScheme = colors, typography = Typography(), content = content)
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String) -> Unit, refresh: () -> Unit) {
@@ -220,7 +268,13 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
                     } },
                     actions = { IconButton(onClick = { go("settings") }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    } }
+                    } },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground,
+                        navigationIconContentColor = MaterialTheme.colorScheme.primary,
+                        actionIconContentColor = MaterialTheme.colorScheme.primary
+                    )
                 )
             },
             bottomBar = {
@@ -246,7 +300,14 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
                                     else Icon(painterResource(res), contentDescription = item, modifier = Modifier.size(22.dp))
                                 },
                                 label = { Text(item.replaceFirstChar { it.uppercase() }, fontSize = 9.sp, maxLines = 1) },
-                                alwaysShowLabel = true
+                                alwaysShowLabel = true,
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
                         }
                     }
@@ -300,6 +361,7 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
             }
         }
     }
+    UpdatePromptHost()
 }
 
 @Composable
@@ -318,8 +380,19 @@ internal fun AppHeading(title: String, subtitle: String? = null, trailing: @Comp
 internal fun StudyCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
         Column(Modifier.padding(16.dp)) { content() }
+    }
+}
+
+@Composable
+internal fun BlueHeroCard(content: @Composable ColumnScope.() -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+            .background(Brush.linearGradient(listOf(BrandBlue, BrandIndigo)))
+    ) {
+        Column(Modifier.padding(20.dp), content = content)
     }
 }
 
@@ -367,17 +440,18 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
             ProfileAvatar(name, 44.dp) { go("profile") }
         }
         Spacer(Modifier.height(18.dp))
-        StudyCard {
+        BlueHeroCard {
             Text("$course • CLASS $grade", style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary)
-            Text("$days days to your exam", style = MaterialTheme.typography.titleLarge,
+                color = Color.White.copy(alpha = 0.82f))
+            Text("$days days to your exam", style = MaterialTheme.typography.titleLarge, color = Color.White,
                 fontWeight = FontWeight.Bold)
             Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(examDate)),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.78f))
             Spacer(Modifier.height(10.dp))
             LinearProgressIndicator(progress = { if (total == 0) 0f else done.toFloat() / total },
-                modifier = Modifier.fillMaxWidth())
-            Text("$done of $total chapters complete", style = MaterialTheme.typography.bodySmall)
+                modifier = Modifier.fillMaxWidth(), color = Color.White,
+                trackColor = Color.White.copy(alpha = 0.24f))
+            Text("$done of $total chapters complete", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.86f))
         }
         SectionLabel("Today")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -450,6 +524,7 @@ internal fun ProfileAvatar(name: String, size: androidx.compose.ui.unit.Dp, onCl
 @Composable
 private fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String, String) -> Unit) {
     val context = LocalContext.current
+    val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.2.0" }
     val scope = rememberCoroutineScope()
     val webClientId = stringResource(R.string.default_web_client_id).trim()
     var name by remember { mutableStateOf(prefs.getString("profile_name", "").orEmpty()) }
@@ -457,81 +532,168 @@ private fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String,
     var grade by remember { mutableStateOf(prefs.getString("grade", "11") ?: "11") }
     var authMessage by remember { mutableStateOf<String?>(null) }
     var authLoading by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-        .verticalScroll(rememberScrollState()).padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally) {
-        Spacer(Modifier.height(30.dp))
-        Box(Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)).background(Pine),
-            contentAlignment = Alignment.Center) {
-            Text("S", style = MaterialTheme.typography.headlineMedium, color = Color.White,
-                fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(24.dp))
-        Text("Welcome to Study Sprint", style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
-        Text("Plan smarter. Focus better. Keep improving.",
-            style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(24.dp))
-        OutlinedTextField(name, { name = it }, label = { Text("Your name") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true)
-        SectionLabel("Choose your exam")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("CET", "JEE", "NEET").forEach {
-                FilterChip(selected = course == it, onClick = { course = it }, label = { Text(it) })
+    val loginBlue = Color(0xFF1828E8)
+    val loginIndigo = Color(0xFF4E46DF)
+
+    Column(
+        Modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            Modifier.fillMaxWidth().height(310.dp)
+                .background(Brush.linearGradient(listOf(loginBlue, loginIndigo))),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                Modifier.size(width = 310.dp, height = 96.dp)
+                    .offset(x = (-110).dp, y = (-82).dp)
+                    .graphicsLayer(rotationZ = -12f, alpha = 0.12f)
+                    .background(Color.White, RoundedCornerShape(36.dp))
+            )
+            Box(
+                Modifier.size(width = 280.dp, height = 88.dp)
+                    .offset(x = 130.dp, y = 105.dp)
+                    .graphicsLayer(rotationZ = -16f, alpha = 0.11f)
+                    .background(Color.White, RoundedCornerShape(36.dp))
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Image(
+                    painter = painterResource(R.drawable.study_sprint_logo_v110),
+                    contentDescription = "Study Sprint logo",
+                    modifier = Modifier.size(126.dp).clip(RoundedCornerShape(30.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(Modifier.height(10.dp))
+                Text("Study Sprint", color = Color.White, fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineMedium)
+                Text("Focus • Practice • Progress", color = Color.White.copy(alpha = 0.82f),
+                    style = MaterialTheme.typography.bodyMedium)
             }
         }
-        SectionLabel("Your class")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("11", "12").forEach {
-                FilterChip(selected = grade == it, onClick = { grade = it }, label = { Text("Class $it") })
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = { onContinue(name, course, grade) }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Text("Continue without account")
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = {
-                scope.launch {
-                    authLoading = true
-                    try {
-                        val account = GoogleAccountAuth.signIn(context, webClientId)
-                        val chosenName = name.trim().ifBlank { account.displayName }
-                        prefs.edit()
-                            .putBoolean("google_signed_in", true)
-                            .putString("account_email", account.email)
-                            .putString("account_name", account.displayName)
-                            .putString("account_photo_url", account.photoUrl)
-                            .apply()
-                        onContinue(chosenName, course, grade)
-                    } catch (error: Throwable) {
-                        authMessage = GoogleAccountAuth.userMessage(error)
-                    } finally {
-                        authLoading = false
+
+        Surface(
+            modifier = Modifier.fillMaxWidth().offset(y = (-28).dp),
+            shape = RoundedCornerShape(topStart = 34.dp, topEnd = 34.dp),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 8.dp
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Log in", style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text("Set up your learning path and continue your study journey.",
+                    style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 20.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Your name") },
+                    placeholder = { Text("Student name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp)
+                )
+
+                Text("Choose your exam", fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 22.dp, bottom = 8.dp), color = MaterialTheme.colorScheme.onSurface)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("CET", "JEE", "NEET").forEach { option ->
+                        FilterChip(
+                            selected = course == option,
+                            onClick = { course = option },
+                            label = { Text(option) }
+                        )
                     }
                 }
-            },
-            enabled = !authLoading,
-            modifier = Modifier.fillMaxWidth().height(50.dp)
-        ) {
-            if (authLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(10.dp))
-                Text("Opening Google…")
-            } else Text("Continue with Google")
+
+                Text("Your class", fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 18.dp, bottom = 8.dp), color = MaterialTheme.colorScheme.onSurface)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("11", "12").forEach { option ->
+                        FilterChip(
+                            selected = grade == option,
+                            onClick = { grade = option },
+                            label = { Text("Class $option") }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+                Button(
+                    onClick = {
+                        scope.launch {
+                            authLoading = true
+                            try {
+                                val account = GoogleAccountAuth.signIn(context, webClientId)
+                                val chosenName = name.trim().ifBlank { account.displayName }
+                                prefs.edit()
+                                    .putBoolean("google_signed_in", true)
+                                    .putString("account_email", account.email)
+                                    .putString("account_name", account.displayName)
+                                    .putString("account_photo_url", account.photoUrl)
+                                    .apply()
+                                onContinue(chosenName, course, grade)
+                            } catch (error: Throwable) {
+                                authMessage = GoogleAccountAuth.userMessage(error)
+                            } finally {
+                                authLoading = false
+                            }
+                        }
+                    },
+                    enabled = !authLoading,
+                    colors = ButtonDefaults.buttonColors(containerColor = loginBlue, contentColor = Color.White),
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    if (authLoading) {
+                        CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Opening Google…")
+                    } else {
+                        Text("Sign in with Google")
+                    }
+                }
+
+                Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    HorizontalDivider(Modifier.weight(1f))
+                    Text("  OR  ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    HorizontalDivider(Modifier.weight(1f))
+                }
+
+                OutlinedButton(
+                    onClick = { onContinue(name.trim().ifBlank { "Student" }, course, grade) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Continue as guest", color = MaterialTheme.colorScheme.primary)
+                }
+                Text(
+                    "Google sign-in is optional. Guest mode keeps your study data on this phone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+                Text("Study Sprint • v$appVersion",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 18.dp))
+            }
         }
-        TextButton(onClick = {
-            authMessage = "Email sign-in needs a secure authentication backend. Google sign-in can be enabled with an OAuth Web client ID."
-        }) { Text("Continue with email") }
-        Text("Guest mode works fully offline. Google sign-in adds your account identity; cloud sync requires Firebase.",
-            style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 16.dp))
     }
-    if (authMessage != null) AlertDialog(onDismissRequest = { authMessage = null },
-        title = { Text("Google sign-in") }, text = { Text(authMessage.orEmpty()) },
-        confirmButton = { TextButton(onClick = { authMessage = null }) { Text("OK") } })
-}@Composable
+
+    if (authMessage != null) AlertDialog(
+        onDismissRequest = { authMessage = null },
+        title = { Text("Google sign-in") },
+        text = { Text(authMessage.orEmpty()) },
+        confirmButton = { TextButton(onClick = { authMessage = null }) { Text("OK") } }
+    )
+}
+@Composable
 private fun ProfileScreen(prefs: SharedPreferences, refresh: () -> Unit, go: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

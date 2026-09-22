@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -15,7 +16,8 @@
 
     <application
         android:label="Study Sprint"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@drawable/study_sprint_logo_v110"
+        android:roundIcon="@drawable/study_sprint_logo_v110"
         android:allowBackup="true"
         android:usesCleartextTraffic="false">
         <activity

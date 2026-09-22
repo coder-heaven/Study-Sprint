@@ -46,29 +46,6 @@ class StudyBlockerService : AccessibilityService() {
             .putExtra("limit_minutes", limit))
     }
 
-    private fun usedToday(target: String): Long {
-        val start = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        val end = System.currentTimeMillis()
-        val events = getSystemService(UsageStatsManager::class.java).queryEvents(start, end) ?: return 0
-        val event = UsageEvents.Event()
-        var openedAt: Long? = null
-        var total = 0L
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            if (event.packageName != target) continue
-            when (event.eventType) {
-                UsageEvents.Event.ACTIVITY_RESUMED -> if (openedAt == null) openedAt = event.timeStamp
-                UsageEvents.Event.ACTIVITY_PAUSED, UsageEvents.Event.ACTIVITY_STOPPED -> {
-                    openedAt?.let { total += (event.timeStamp - it).coerceAtLeast(0) }
-                    openedAt = null
-                }
-            }
-        }
-        openedAt?.let { total += (end - it).coerceAtLeast(0) }
-        return total
-    }
+    private fun usedToday(target: String): Long = DailyUsage.usedToday(this, target)
     override fun onInterrupt() = Unit
 }

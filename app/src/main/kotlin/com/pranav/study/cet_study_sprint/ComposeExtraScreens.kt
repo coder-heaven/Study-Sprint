@@ -1,6 +1,7 @@
 package com.pranav.study.cet_study_sprint
 
 import android.app.AppOpsManager
+import android.app.TimePickerDialog
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.Manifest
@@ -9,6 +10,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
+import android.net.Uri
 import android.os.Process
 import android.provider.Settings
 import android.text.format.DateUtils
@@ -31,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
@@ -53,10 +56,13 @@ private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Un
 @Composable
 internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (String) -> Unit, refresh: () -> Unit) {
     val context = LocalContext.current
+    val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.2.0" }
     var theme by remember { mutableStateOf(prefs.getString("theme_mode", "system") ?: "system") }
     var goal by remember { mutableIntStateOf(prefs.getInt("daily_focus_goal", 120)) }
     var studyReminder by remember { mutableStateOf(StudyReminders.enabled(context, StudyReminders.STUDY)) }
     var planReminder by remember { mutableStateOf(StudyReminders.enabled(context, StudyReminders.PLAN)) }
+    var studyTime by remember { mutableStateOf(StudyReminders.timeLabel(context, StudyReminders.STUDY)) }
+    var planTime by remember { mutableStateOf(StudyReminders.timeLabel(context, StudyReminders.PLAN)) }
     var pendingReminder by remember { mutableStateOf(StudyReminders.STUDY) }
     var info by remember { mutableStateOf("") }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -68,12 +74,30 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
     fun setReminder(kind: String, enabled: Boolean) {
         if (enabled && Build.VERSION.SDK_INT >= 33 &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            pendingReminder = kind; notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            pendingReminder = kind
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             StudyReminders.setEnabled(context, kind, enabled)
             if (kind == StudyReminders.STUDY) studyReminder = enabled else planReminder = enabled
         }
     }
+    fun chooseReminderTime(kind: String) {
+        TimePickerDialog(
+            context,
+            { _, hour, minute ->
+                StudyReminders.setTime(context, kind, hour, minute)
+                if (kind == StudyReminders.STUDY) {
+                    studyTime = StudyReminders.timeLabel(context, kind)
+                } else {
+                    planTime = StudyReminders.timeLabel(context, kind)
+                }
+            },
+            StudyReminders.hour(context, kind),
+            StudyReminders.minute(context, kind),
+            android.text.format.DateFormat.is24HourFormat(context)
+        ).show()
+    }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         AppHeading("Settings", "Make your study space yours.")
         SectionLabel("Study")
@@ -90,13 +114,24 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         SettingsRow("App Usage Statistics") { go("statistics") }
         SectionLabel("Notifications")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text("Daily study reminder"); Text("Around 6 PM", style = MaterialTheme.typography.bodySmall) }
+            Column(Modifier.weight(1f)) {
+                Text("Daily study reminder")
+                TextButton(onClick = { chooseReminderTime(StudyReminders.STUDY) }, contentPadding = PaddingValues(0.dp)) {
+                    Text("$studyTime  •  Change time")
+                }
+            }
             Switch(studyReminder, onCheckedChange = { setReminder(StudyReminders.STUDY, it) })
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { Text("Plan reminder"); Text("Around 8 PM", style = MaterialTheme.typography.bodySmall) }
+            Column(Modifier.weight(1f)) {
+                Text("Plan reminder")
+                TextButton(onClick = { chooseReminderTime(StudyReminders.PLAN) }, contentPadding = PaddingValues(0.dp)) {
+                    Text("$planTime  •  Change time")
+                }
+            }
             Switch(planReminder, onCheckedChange = { setReminder(StudyReminders.PLAN, it) })
         }
+
         SectionLabel("Appearance")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("system", "light", "dark").forEach { option ->
@@ -107,12 +142,14 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         }
         SectionLabel("Account")
         SettingsRow("Profile", "Local profile") { go("profile") }
-        Text("Account sync is unavailable until a secure sign-in backend is configured.",
+        Text("Google sign-in is available. Study history and settings remain stored on this device.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         SectionLabel("Data & privacy")
         SettingsRow("Local data", "Study history stays on this phone") { info = "Data is stored locally on this device. Account sync and export are not configured yet." }
         SectionLabel("About")
-        SettingsRow("About Study Sprint", "Version 1.0.0") { info = "Study Sprint helps you plan, focus, practice and track your exam preparation. Version 1.0.0." }
+        SettingsRow("About Study Sprint", "Version $appVersion") { info = "Study Sprint helps you plan, focus, practice and track your exam preparation. Version $appVersion." }
+        Spacer(Modifier.height(12.dp))
+        UpdateSettingsCard()
         Spacer(Modifier.height(24.dp))
     }
     if (info.isNotEmpty()) AlertDialog(onDismissRequest = { info = "" },
@@ -128,15 +165,24 @@ private data class AppRecord(val pkg: String, val label: String, val usedMs: Lon
 private fun appRecords(context: Context, days: Int = 1): List<AppRecord> {
     val pm = context.packageManager
     val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-    val today = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
-    val usage = if (usageAllowed(context)) context.getSystemService(UsageStatsManager::class.java)
-        .queryAndAggregateUsageStats(Calendar.getInstance().apply { timeInMillis = today; add(Calendar.DAY_OF_YEAR, -(days - 1)) }.timeInMillis, System.currentTimeMillis()) else emptyMap()
+    val today = DailyUsage.startOfLocalDay()
+    val usage: Map<String, Long> = if (!usageAllowed(context)) {
+        emptyMap()
+    } else if (days == 1) {
+        DailyUsage.usedByPackageToday(context)
+    } else {
+        context.getSystemService(UsageStatsManager::class.java)
+            .queryAndAggregateUsageStats(
+                Calendar.getInstance().apply { timeInMillis = today; add(Calendar.DAY_OF_YEAR, -(days - 1)) }.timeInMillis,
+                System.currentTimeMillis()
+            ).mapValues { it.value.totalTimeInForeground }
+    }
     val prefs = context.getSharedPreferences(StudyBlockerService.PREFS, Context.MODE_PRIVATE)
     val protected = Protection.packages(context)
     return pm.queryIntentActivities(intent, 0).mapNotNull { info ->
         val pkg = info.activityInfo.packageName
         if (pkg in protected) null else AppRecord(pkg, info.loadLabel(pm).toString(),
-            usage[pkg]?.totalTimeInForeground ?: 0L, prefs.getInt("limit_$pkg", 0))
+            usage[pkg] ?: 0L, prefs.getInt("limit_$pkg", 0))
     }.distinctBy { it.pkg }.sortedWith(compareByDescending<AppRecord> { it.limit > 0 }.thenByDescending { it.usedMs }.thenBy { it.label })
 }
 @OptIn(ExperimentalMaterial3Api::class)
@@ -144,7 +190,14 @@ private fun appRecords(context: Context, days: Int = 1): List<AppRecord> {
 internal fun AppLimitsScreen(go: (String) -> Unit) {
     val context = LocalContext.current
     var revision by remember { mutableIntStateOf(0) }
+    var showBlockingGuide by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { revision++ }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(DailyUsage.millisUntilNextDay().coerceAtLeast(1_000L))
+            revision++
+        }
+    }
     var search by remember { mutableStateOf("") }
     var onlyLimited by remember { mutableStateOf(false) }
     var chosen by remember { mutableStateOf<AppRecord?>(null) }
@@ -178,12 +231,16 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
         if (!accessibility) {
             Spacer(Modifier.height(8.dp))
             StudyCard {
-                Text("App blocking", fontWeight = FontWeight.Bold)
-                Text("Allow the accessibility service to interrupt apps when a limit is reached.",
-                    style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) {
-                    Text("Enable app blocking")
-                }
+                Text("App blocking is optional", fontWeight = FontWeight.Bold)
+                Text(
+                    "You can set and track limits now. To automatically close an app at its limit, finish Android's protected Accessibility setup.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(
+                    onClick = { showBlockingGuide = true },
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                ) { Text("Guided setup") }
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -225,6 +282,41 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                     }
                 }
             }
+        }
+    }
+    if (showBlockingGuide) ModalBottomSheet(onDismissRequest = { showBlockingGuide = false }) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 30.dp)) {
+            Text("Enable app blocking", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Android 13 and newer restrict sensitive permissions for apps installed from GitHub. This is an Android safety requirement; Study Sprint cannot switch it on for you.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp, bottom = 18.dp)
+            )
+            Text("1  Allow restricted settings", fontWeight = FontWeight.Bold)
+            Text("Open App info, tap the three-dot menu (⋮), then tap Allow restricted settings.",
+                style = MaterialTheme.typography.bodySmall)
+            Button(
+                onClick = {
+                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${context.packageName}")))
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) { Text("Open Study Sprint app info") }
+            Spacer(Modifier.height(18.dp))
+            Text("2  Turn on Study Sprint app limits", fontWeight = FontWeight.Bold)
+            Text("Return here, open Accessibility, select Study Sprint app limits, and turn it on.",
+                style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(
+                onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) { Text("Open Accessibility settings") }
+            Text(
+                "Only enable this if you trust this copy of Study Sprint. The service observes which app opens so it can enforce the limits you set.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 16.dp)
+            )
         }
     }
     if (chosen != null) ModalBottomSheet(onDismissRequest = { chosen = null }) {
