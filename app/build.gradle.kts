@@ -13,8 +13,8 @@ android {
         applicationId = "com.pranav.study.cet_study_sprint"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "2.2.0"
+        versionCode = 6
+        versionName = "2.2.1"
     }
 
     compileOptions {
