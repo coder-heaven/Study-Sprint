@@ -3,6 +3,8 @@ package com.pranav.study.cet_study_sprint
 import android.app.AppOpsManager
 import android.app.TimePickerDialog
 import android.app.usage.UsageStatsManager
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.view.accessibility.AccessibilityManager
 import android.content.Context
 import android.Manifest
 import android.os.Build
@@ -179,11 +181,33 @@ private fun appRecords(context: Context, days: Int = 1): List<AppRecord> {
     }
     val prefs = context.getSharedPreferences(StudyBlockerService.PREFS, Context.MODE_PRIVATE)
     val protected = Protection.packages(context)
-    return pm.queryIntentActivities(intent, 0).mapNotNull { info ->
-        val pkg = info.activityInfo.packageName
-        if (pkg in protected) null else AppRecord(pkg, info.loadLabel(pm).toString(),
-            usage[pkg] ?: 0L, prefs.getInt("limit_$pkg", 0))
-    }.distinctBy { it.pkg }.sortedWith(compareByDescending<AppRecord> { it.limit > 0 }.thenByDescending { it.usedMs }.thenBy { it.label })
+    val launcherLabels = pm.queryIntentActivities(intent, 0)
+        .associate { it.activityInfo.packageName to it.loadLabel(pm).toString() }
+    // Usage events include apps hidden from the launcher; keep saved limits visible too.
+    val savedPackages = prefs.all.keys.mapNotNull { key ->
+        when {
+            key.startsWith("limit_") && !key.startsWith("limit_days_") -> key.removePrefix("limit_")
+            key.startsWith("focus_block_") -> key.removePrefix("focus_block_")
+            else -> null
+        }
+    }
+    val packages = launcherLabels.keys + usage.filterValues { it > 0 }.keys + savedPackages
+    return packages.asSequence().filter { it !in protected && it.isNotBlank() }
+        .map { pkg ->
+            val label = launcherLabels[pkg] ?: runCatching {
+                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+            }.getOrDefault(pkg)
+            AppRecord(pkg, label, usage[pkg] ?: 0L, prefs.getInt("limit_$pkg", 0))
+        }.distinctBy { it.pkg }
+        .sortedWith(compareByDescending<AppRecord> { it.limit > 0 }.thenByDescending { it.usedMs }.thenBy { it.label })
+        .toList()
+}
+
+private fun blockerEnabled(context: Context): Boolean {
+    val manager = context.getSystemService(AccessibilityManager::class.java)
+    return manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        .any { it.resolveInfo.serviceInfo.packageName == context.packageName &&
+            it.resolveInfo.serviceInfo.name == StudyBlockerService::class.java.name }
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -222,12 +246,7 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                 context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             }) { Text("Enable usage access") }
         }
-        val accessibility = remember(revision) {
-            try {
-                val enabled = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
-                enabled.contains(context.packageName, ignoreCase = true)
-            } catch (_: Exception) { false }
-        }
+        val accessibility = remember(revision) { blockerEnabled(context) }
         if (!accessibility) {
             Spacer(Modifier.height(8.dp))
             StudyCard {
@@ -244,6 +263,8 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
             }
         }
         Spacer(Modifier.height(14.dp))
+        if (allowed) Text("Hidden apps appear after they have been used. Apps in a separate private profile may not be visible here.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MetricCardLocal("${apps.sumOf { it.usedMs } / 60000}m", "App use", Modifier.weight(1f))
             MetricCardLocal("${apps.count { it.limit > 0 }}", "Limited", Modifier.weight(1f))
@@ -257,7 +278,10 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
             FilterChip(selected = onlyLimited, onClick = { onlyLimited = true }, label = { Text("Limited") })
             TextButton(onClick = { revision++ }) { Text("Refresh") }
         }
-        val visible = apps.filter { it.label.contains(search, ignoreCase = true) && (!onlyLimited || it.limit > 0) }
+        val visible = apps.filter {
+            (it.label.contains(search, ignoreCase = true) || it.pkg.contains(search, ignoreCase = true)) &&
+                (!onlyLimited || it.limit > 0)
+        }
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(visible, key = { it.pkg }) { app ->
                 StudyCard(Modifier.clickable { chosen = app }) {

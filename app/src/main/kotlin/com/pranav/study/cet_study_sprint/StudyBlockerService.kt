@@ -1,10 +1,10 @@
 package com.pranav.study.cet_study_sprint
 
 import android.accessibilityservice.AccessibilityService
-import android.app.usage.UsageEvents
-import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import java.util.Calendar
 
@@ -12,10 +12,29 @@ class StudyBlockerService : AccessibilityService() {
     companion object { const val PREFS = "study_blocker" }
     private var lastBlockAt = 0L
     private var lastPackage = ""
+    private var foregroundPackage: String? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private val checkWhileOpen = object : Runnable {
+        override fun run() {
+            foregroundPackage?.let(::checkLimit)
+            handler.postDelayed(this, 5_000L)
+        }
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        handler.removeCallbacks(checkWhileOpen)
+        handler.post(checkWhileOpen)
+    }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
+        foregroundPackage = pkg
+        checkLimit(pkg)
+    }
+
+    private fun checkLimit(pkg: String) {
         if (pkg in Protection.packages(this)) return
         val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
@@ -48,4 +67,9 @@ class StudyBlockerService : AccessibilityService() {
 
     private fun usedToday(target: String): Long = DailyUsage.usedToday(this, target)
     override fun onInterrupt() = Unit
+
+    override fun onDestroy() {
+        handler.removeCallbacks(checkWhileOpen)
+        super.onDestroy()
+    }
 }
