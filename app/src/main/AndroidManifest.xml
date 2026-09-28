@@ -5,6 +5,8 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 
     <queries>
@@ -20,6 +22,12 @@
         android:roundIcon="@drawable/study_sprint_logo_v110"
         android:allowBackup="true"
         android:usesCleartextTraffic="false">
+        <provider android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/chapter_file_paths" />
+        </provider>
         <activity
             android:name=".BlockedActivity"
             android:excludeFromRecents="true"
@@ -44,6 +52,9 @@
         <receiver android:name=".StudyReminderReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
         </receiver>
+        <receiver android:name=".FocusAlarmReceiver" android:exported="false">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+        </receiver>
         <service
             android:name=".StudyBlockerService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -54,7 +65,4 @@
         </service>
     </application>
 </manifest>
-
-
-
 
