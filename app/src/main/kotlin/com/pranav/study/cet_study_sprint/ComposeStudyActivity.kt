@@ -79,14 +79,16 @@ class ComposeStudyActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             StudyTheme(prefs, revision) {
-                var ready by remember { mutableStateOf(prefs.getBoolean("onboarding_v3", false)) }
-                if (!ready) WelcomeScreen(prefs) { name, course, grade ->
-                    prefs.edit().putString("profile_name", name.trim()).putString("exam", course)
-                        .putString("grade", grade).putBoolean("onboarding_v3", true).apply()
-                    ready = true; revision++
-                } else StudyRoot(prefs, revision, onLegacy = { destination ->
-                    startActivity(Intent(this, MainActivity::class.java).putExtra("legacy_screen", destination))
-                }, refresh = { revision++ })
+                RequiredUpdateGate(revision) {
+                    var ready by remember { mutableStateOf(prefs.getBoolean("onboarding_v3", false)) }
+                    if (!ready) WelcomeScreen(prefs) { name, course, grade ->
+                        prefs.edit().putString("profile_name", name.trim()).putString("exam", course)
+                            .putString("grade", grade).putBoolean("onboarding_v3", true).apply()
+                        ready = true; revision++
+                    } else StudyRoot(prefs, revision, onLegacy = { destination ->
+                        startActivity(Intent(this, MainActivity::class.java).putExtra("legacy_screen", destination))
+                    }, refresh = { revision++ })
+                }
             }
         }
     }
@@ -364,7 +366,6 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
             }
         }
     }
-    UpdatePromptHost()
 }
 
 @Composable

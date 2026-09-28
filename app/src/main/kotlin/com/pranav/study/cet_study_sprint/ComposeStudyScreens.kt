@@ -1,6 +1,9 @@
 package com.pranav.study.cet_study_sprint
 
 import android.content.SharedPreferences
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -23,6 +26,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +35,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -38,15 +44,37 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int) {
+    val context = LocalContext.current
+    val store = remember { StudyData.events(context) }
+    val scope = rememberCoroutineScope()
     val course = prefs.getString("exam", "CET") ?: "CET"
     val grade = prefs.getString("grade", "11") ?: "11"
     val data = SyllabusData.chapters(course, grade)
     var subject by remember(course, grade) { mutableStateOf(data.keys.firstOrNull().orEmpty()) }
     var filter by remember { mutableStateOf("All") }
     var localRevision by remember { mutableIntStateOf(0) }
+    var editingChapter by remember { mutableStateOf<String?>(null) }
+    var chapterDraft by remember { mutableStateOf("") }
+    var savedChapterNote by remember { mutableStateOf(ChapterNote()) }
+    var pdfError by remember { mutableStateOf("") }
+    val pdfPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val key = editingChapter
+        if (uri != null && key != null) scope.launch {
+            try {
+                val (name, file) = withContext(Dispatchers.IO) { ChapterFiles.importPdf(context, uri) }
+                savedChapterNote = savedChapterNote.copy(pdfName = name, pdfFile = file)
+                store.saveChapterNote(key, savedChapterNote.copy(body = chapterDraft.trim()))
+                pdfError = "PDF saved for this chapter."
+                localRevision++
+            } catch (error: Throwable) { pdfError = error.message ?: "Could not save PDF." }
+        }
+    }
     val redraw = revision + localRevision
     val total = data.values.sumOf { it.size }
     val done = data.entries.sumOf { (name, chapters) ->
@@ -127,10 +155,39 @@ internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int) {
                     Text(chapter, fontSize = 15.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(start = 5.dp))
                 }
+                TextButton(onClick = {
+                    editingChapter = key
+                    savedChapterNote = store.chapterNote(key)
+                    chapterDraft = savedChapterNote.body
+                    pdfError = ""
+                }) { Text(if (store.chapterNote(key).body.isNotBlank() || store.chapterNote(key).pdfFile.isNotBlank())
+                    "Open notes / PDF" else "Add notes / PDF") }
             }
         }
         Spacer(Modifier.height(20.dp))
     }
+    if (editingChapter != null) AlertDialog(
+        onDismissRequest = { editingChapter = null },
+        title = { Text("Chapter notes") },
+        text = { Column {
+            OutlinedTextField(chapterDraft, { chapterDraft = it }, label = { Text("Notes / to do") },
+                modifier = Modifier.fillMaxWidth(), minLines = 3)
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = { pdfPicker.launch(arrayOf("application/pdf")) }) {
+                Text(if (savedChapterNote.pdfFile.isBlank()) "Upload PDF" else "Replace PDF")
+            }
+            if (savedChapterNote.pdfFile.isNotBlank()) TextButton(onClick = {
+                try { ChapterFiles.openPdf(context, savedChapterNote.pdfFile) }
+                catch (error: Throwable) { Toast.makeText(context, error.message ?: "Cannot open PDF", Toast.LENGTH_LONG).show() }
+            }) { Text("Open ${savedChapterNote.pdfName}") }
+            if (pdfError.isNotBlank()) Text(pdfError)
+        } },
+        confirmButton = { TextButton(onClick = {
+            editingChapter?.let { store.saveChapterNote(it, savedChapterNote.copy(body = chapterDraft.trim())) }
+            localRevision++; editingChapter = null
+        }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = { editingChapter = null }) { Text("Close") } }
+    )
 }
 
 @Composable
@@ -138,6 +195,7 @@ internal fun PracticeScreen(prefs: SharedPreferences, revision: Int, onLegacy: (
     val course = prefs.getString("exam", "CET") ?: "CET"
     val originals = remember(course) { originalQuestions(course) }
     val yours = remember(revision) { savedQuestions(prefs) }
+    val chapters = remember(revision) { savedQuizChapters(prefs) }
     var active by remember { mutableStateOf<List<PracticeQuestion>?>(null) }
     var activeTitle by remember { mutableStateOf("Practice") }
     if (active != null) {
@@ -165,10 +223,14 @@ internal fun PracticeScreen(prefs: SharedPreferences, revision: Int, onLegacy: (
                  else "${yours.size} saved questions are ready.", fontSize = 14.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(15.dp))
             if (yours.isNotEmpty()) {
-                Button(onClick = { activeTitle = "My questions"; active = yours },
+                Button(onClick = { activeTitle = prefs.getString("owned_mcqs_chapter", "My questions").orEmpty(); active = yours },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(16.dp)) { Text("Practice my set") }
+                    shape = RoundedCornerShape(16.dp)) { Text("Practice latest: ${prefs.getString("owned_mcqs_chapter", "My questions")}") }
                 Spacer(Modifier.height(9.dp))
+            }
+            chapters.filter { it != prefs.getString("owned_mcqs_chapter", "") }.forEach { chapter ->
+                OutlinedButton(onClick = { activeTitle = chapter; active = savedQuestions(prefs, chapter) },
+                    modifier = Modifier.fillMaxWidth()) { Text("Practice: $chapter") }
             }
             OutlinedButton(onClick = { onLegacy("import") },
                 modifier = Modifier.fillMaxWidth().height(50.dp),

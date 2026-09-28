@@ -16,7 +16,7 @@ import java.util.Calendar
 import java.util.Date
 
 internal object StudyReminders {
-    private const val CHANNEL = "study_reminders"
+    private const val CHANNEL = "study_reminders_sound_v2"
     const val STUDY = "study"
     const val PLAN = "plan"
 
@@ -78,7 +78,10 @@ internal object StudyReminders {
         ) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Study reminders", NotificationManager.IMPORTANCE_DEFAULT)
+            NotificationChannel(CHANNEL, "Study reminders", NotificationManager.IMPORTANCE_HIGH).apply {
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 250, 130, 250)
+            }
         )
         val open = PendingIntent.getActivity(
             context,

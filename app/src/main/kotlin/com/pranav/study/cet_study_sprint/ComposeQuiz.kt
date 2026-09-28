@@ -78,13 +78,22 @@ internal fun originalQuestions(course: String): List<PracticeQuestion> {
     return all.filter { it.subject in subjects }
 }
 
-internal fun savedQuestions(prefs: SharedPreferences): List<PracticeQuestion> = runCatching {
-    val items = JSONArray(prefs.getString("owned_mcqs_json", "[]"))
+internal fun savedQuizChapters(prefs: SharedPreferences): List<String> = runCatching {
+    val sets = org.json.JSONObject(prefs.getString("owned_mcq_sets", "{}"))
+    buildList { val keys = sets.keys(); while (keys.hasNext()) add(keys.next()) }.sorted()
+}.getOrDefault(emptyList())
+
+internal fun savedQuestions(prefs: SharedPreferences, chapter: String? = null): List<PracticeQuestion> = runCatching {
+    val selected = chapter ?: prefs.getString("owned_mcqs_chapter", "My saved MCQs").orEmpty()
+    val sets = org.json.JSONObject(prefs.getString("owned_mcq_sets", "{}"))
+    val items = sets.optJSONArray(selected)
+        ?: if (chapter == null || selected == prefs.getString("owned_mcqs_chapter", "My saved MCQs"))
+            JSONArray(prefs.getString("owned_mcqs_json", "[]")) else JSONArray()
     (0 until items.length()).map { index ->
         val item = items.getJSONObject(index)
         val options = item.getJSONArray("options")
         PracticeQuestion(
-            "My saved MCQs", item.getString("question"),
+            selected, item.getString("question"),
             (0 until options.length()).map { options.getString(it) },
             item.getInt("answer").coerceIn(0, 3),
             "Saved from your own set."

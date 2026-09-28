@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,13 @@ internal object AppUpdateChecker {
             }
         }
 
+    /** A known newer signed release blocks the app until Android installs it. */
+    suspend fun required(context: Context): AppUpdateInfo? = withContext(Dispatchers.IO) {
+        val fetched = runCatching { fetch() }.getOrNull()
+        if (fetched != null) save(context, fetched)
+        (fetched ?: cached(context))?.takeIf { isNewer(it.version, installed(context)) }
+    }
+
     private fun fetch(): AppUpdateInfo {
         val connection = (URL(API).openConnection() as HttpURLConnection).apply {
             connectTimeout = 8_000
@@ -66,6 +74,7 @@ internal object AppUpdateChecker {
                     break
                 }
             }
+            require(apk.isNotBlank()) { "Release has no APK" }
             return AppUpdateInfo(
                 tag, tag.removePrefix("v").removePrefix("V"),
                 json.optString("body").trim().take(500),
@@ -130,6 +139,36 @@ internal object AppUpdateChecker {
         return prefs.getString("snoozed_tag", null) == tag &&
             now < prefs.getLong("snoozed_until", 0)
     }
+}
+
+@Composable
+internal fun RequiredUpdateGate(revision: Int, content: @Composable () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var checking by remember { mutableStateOf(true) }
+    var update by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var retry by remember { mutableIntStateOf(0) }
+    LaunchedEffect(revision, retry) {
+        checking = true
+        update = AppUpdateChecker.required(context)
+        checking = false
+    }
+    if (checking) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    } else if (update != null) {
+        androidx.activity.compose.BackHandler(enabled = true) { }
+        Column(Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Update required", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            Text("Study Sprint ${update!!.tag} is ready. Install it to continue using the app.")
+            Spacer(Modifier.height(12.dp))
+            Text(update!!.notes.take(500))
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = { AppUpdateChecker.openDownload(context, update!!) },
+                modifier = Modifier.fillMaxWidth()) { Text("Download update") }
+            TextButton(onClick = { retry++ }) { Text("I installed it — check again") }
+        }
+    } else content()
 }
 
 @Composable

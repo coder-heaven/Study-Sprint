@@ -1,10 +1,18 @@
 package com.pranav.study.cet_study_sprint
 
 import android.app.Application
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import android.app.AlarmManager
+import android.content.Intent
+import android.provider.Settings
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -93,16 +101,18 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
             remainingSeconds = seconds, completedMinutes = null)
         prefs.edit().putBoolean("focus_active", true).putBoolean("focus_running", true)
             .putBoolean("focus_is_break", isBreak).putInt("focus_remaining", seconds)
-            .putLong("focus_end_at", end).apply()
+            .putLong("focus_end_at", end).putBoolean("focus_alarm_delivered", false).apply()
+        FocusAlarm.schedule(getApplication(), end)
         setBlocking(!isBreak, end)
     }
     fun pause() {
         val current = state.value
         if (!current.active || !current.running) return
         val seconds = StudyTimeMath.remainingSeconds(prefs.getLong("focus_end_at", 0), System.currentTimeMillis())
-        if (seconds == 0) { _state.value = current.copy(remainingSeconds = 0); finish(); return }
+        if (seconds == 0) { _state.value = current.copy(remainingSeconds = 0); finish(true); return }
         _state.value = current.copy(running = false, remainingSeconds = seconds)
         prefs.edit().putBoolean("focus_running", false).putInt("focus_remaining", seconds).apply()
+        FocusAlarm.cancel(getApplication())
         setBlocking(false, 0)
     }
     fun resume() {
@@ -110,11 +120,17 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
         val end = System.currentTimeMillis() + state.value.remainingSeconds * 1000L
         _state.value = state.value.copy(running = true)
         prefs.edit().putBoolean("focus_running", true).putLong("focus_end_at", end).apply()
+        FocusAlarm.schedule(getApplication(), end)
         setBlocking(!state.value.isBreak, end)
     }
-    fun finish() {
+    fun finish(completedNaturally: Boolean = false) {
         val current = state.value
         if (!current.active) return
+        FocusAlarm.cancel(getApplication())
+        if (completedNaturally && !prefs.getBoolean("focus_alarm_delivered", false)) {
+            prefs.edit().putBoolean("focus_alarm_delivered", true).apply()
+            FocusAlarm.notifyFinished(getApplication(), current.isBreak)
+        }
         val elapsed = if (current.isBreak) 0
             else (current.focusMinutes * 60 - current.remainingSeconds).coerceAtLeast(0)
         if (!current.isBreak && elapsed >= 60) {
@@ -134,7 +150,7 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
         if (!current.active || !current.running) return
         val seconds = StudyTimeMath.remainingSeconds(prefs.getLong("focus_end_at", 0), System.currentTimeMillis())
         if (seconds != current.remainingSeconds) _state.value = current.copy(remainingSeconds = seconds)
-        if (seconds == 0) finish()
+        if (seconds == 0) finish(true)
     }
     private fun setBlocking(active: Boolean, end: Long) {
         blocker.edit().putBoolean("focus_block_active", active && state.value.blockApps)
@@ -158,6 +174,9 @@ internal fun FocusScreen(
         value = withContext(Dispatchers.IO) { history.streak() }
     }
     val model: FocusViewModel = viewModel()
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { model.start() }
+    val exactAllowed = Build.VERSION.SDK_INT < 31 ||
+        context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
     val state by model.state.collectAsStateWithLifecycle()
     var custom by remember { mutableStateOf(false) }
     var customBreak by remember { mutableStateOf(false) }
@@ -219,6 +238,9 @@ internal fun FocusScreen(
                 Switch(state.blockApps, onCheckedChange = model::blocking)
             }
             TextButton(onClick = { onLegacy("limits") }) { Text("Manage blocked apps and daily limits") }
+            if (!exactAllowed) TextButton(onClick = {
+                context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+            }) { Text("Allow precise timer alerts in Settings") }
         } else {
             Text(if (state.isBreak) "Take a short rest" else state.task.ifBlank { "Study session" }, style = MaterialTheme.typography.titleMedium, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
             if (!state.isBreak) Text(state.subject, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
@@ -238,11 +260,18 @@ internal fun FocusScreen(
             }
         }
         Spacer(Modifier.height(30.dp))
-        Button(onClick = { when { !state.active -> model.start(); state.running -> model.pause(); else -> model.resume() } },
+        Button(onClick = { when {
+            !state.active && Build.VERSION.SDK_INT >= 33 &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ->
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            !state.active -> model.start()
+            state.running -> model.pause()
+            else -> model.resume()
+        } },
             modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
             Text(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" })
         }
-        if (state.active) TextButton(onClick = model::finish) { Text(if (state.isBreak) "End break" else "Finish session") }
+        if (state.active) TextButton(onClick = { model.finish() }) { Text(if (state.isBreak) "End break" else "Finish session") }
         Spacer(Modifier.height(20.dp))
     }
     if (custom || customBreak) AlertDialog(onDismissRequest = { custom = false; customBreak = false },

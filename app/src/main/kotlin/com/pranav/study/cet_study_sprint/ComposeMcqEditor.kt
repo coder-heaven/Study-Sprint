@@ -69,6 +69,7 @@ internal fun McqEditorScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var chapter by remember { mutableStateOf(prefs.getString("owned_mcqs_chapter", "").orEmpty()) }
     val questionRequester = remember { BringIntoViewRequester() }
     val drafts = remember {
         val saved = savedQuestions(prefs)
@@ -92,6 +93,16 @@ internal fun McqEditorScreen(
     var pdfBusy by remember { mutableStateOf(false) }
     var importedReady by remember { mutableStateOf(false) }
     var bringQuestionIntoView by remember { mutableStateOf(false) }
+    fun loadChapter(name: String) {
+        chapter = name
+        val saved = savedQuestions(prefs, name)
+        repeat(10) { position ->
+            val item = saved.getOrNull(position)
+            drafts[position] = if (item == null) McqDraft() else McqDraft(item.prompt,
+                item.options.take(4) + List((4 - item.options.size).coerceAtLeast(0)) { "" }, item.answer)
+        }
+        index = 0
+    }
 
     LaunchedEffect(index) {
         if (bringQuestionIntoView) {
@@ -154,6 +165,11 @@ internal fun McqEditorScreen(
     }
 
     fun save() {
+        if (chapter.isBlank()) {
+            message = "Enter a chapter name before saving."
+            messageIsError = true
+            return
+        }
         val incomplete = drafts.indexOfFirst { draft ->
             draft.question.isBlank() || draft.options.size != 4 || draft.options.any { it.isBlank() }
         }
@@ -171,7 +187,15 @@ internal fun McqEditorScreen(
                 put("answer", draft.answer)
             })
         }
-        prefs.edit().putString("owned_mcqs_json", json.toString()).apply()
+        val name = chapter.trim()
+        val sets = runCatching { JSONObject(prefs.getString("owned_mcq_sets", "{}")) }.getOrDefault(JSONObject())
+        // Bring older single-set questions into the chapter collection once.
+        val oldName = prefs.getString("owned_mcqs_chapter", "My saved MCQs").orEmpty().ifBlank { "My saved MCQs" }
+        if (!sets.has(oldName) && prefs.contains("owned_mcqs_json"))
+            sets.put(oldName, JSONArray(prefs.getString("owned_mcqs_json", "[]")))
+        sets.put(name, json)
+        prefs.edit().putString("owned_mcq_sets", sets.toString())
+            .putString("owned_mcqs_chapter", name).putString("owned_mcqs_json", json.toString()).apply()
         onSaved()
     }
 
@@ -184,6 +208,15 @@ internal fun McqEditorScreen(
     ) {
         TextButton(onClick = onBack) { Text("‹  Back to practice") }
         AppHeading("Your 10 MCQs", "Type questions, create them with an AI app, or import a PDF.")
+        OutlinedTextField(chapter, { chapter = it }, label = { Text("Chapter name") },
+            modifier = Modifier.fillMaxWidth(), singleLine = true)
+        val chapters = remember { savedQuizChapters(prefs) }
+        if (chapters.isNotEmpty()) {
+            Text("Edit a saved chapter", modifier = Modifier.padding(top = 8.dp))
+            chapters.forEach { name ->
+                TextButton(onClick = { loadChapter(name) }) { Text(name) }
+            }
+        }
         Spacer(Modifier.height(12.dp))
         StudyCard {
             Text("Create a compatible PDF with AI", style = MaterialTheme.typography.titleMedium,

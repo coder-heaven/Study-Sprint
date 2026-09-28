@@ -41,6 +41,7 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int) {
     val completed by produceState(0, localRevision) { value = store.totals(1).tasks }
     var editing by remember { mutableStateOf<String?>(null) }
     var draft by remember { mutableStateOf("") }
+    var taskChapter by remember { mutableStateOf("") }
     var sheet by remember { mutableStateOf(false) }
     var noteExpanded by remember { mutableStateOf(false) }
     var note by remember(day) { mutableStateOf(store.note(day).ifBlank { prefs.getString("journal", "").orEmpty() }) }
@@ -71,7 +72,12 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int) {
                     })
                     Text(task, modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = { editing = task; draft = task; sheet = true }) { Text("Edit") }
+                    TextButton(onClick = {
+                        editing = task
+                        taskChapter = task.substringBefore(" • ", "")
+                        draft = if (" • " in task) task.substringAfter(" • ") else task
+                        sheet = true
+                    }) { Text("Edit") }
                 }
                 if (tasks.size > 1) Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End) {
@@ -91,7 +97,7 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int) {
             }
         }
         Spacer(Modifier.height(14.dp))
-        Button(onClick = { editing = null; draft = ""; sheet = true },
+        Button(onClick = { editing = null; draft = ""; taskChapter = ""; sheet = true },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(16.dp)) { Text("Add study task") }
         SectionLabel("What I learned today")
@@ -128,9 +134,12 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int) {
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(draft, { draft = it }, label = { Text("What will you study?") },
                 modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(taskChapter, { taskChapter = it }, label = { Text("Chapter (optional)") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true)
             Spacer(Modifier.height(16.dp))
             Button(onClick = {
-                val value = draft.trim()
+                val value = if (taskChapter.isBlank()) draft.trim()
+                    else "${taskChapter.trim()} • ${draft.trim()}"
                 if (value.isNotEmpty()) {
                     val updated = if (editing == null) tasks + value
                         else tasks.map { if (it == editing) value else it }

@@ -16,15 +16,30 @@ internal data class StudyTotals(
 )
 
 /** Historical events are separate from legacy preference counters; unknown old durations are never invented. */
-internal class StudyEventStore(context: Context) : SQLiteOpenHelper(context, "study_history.db", null, 2) {
+internal data class ChapterNote(val body: String = "", val pdfName: String = "", val pdfFile: String = "")
+
+internal class StudyEventStore(context: Context) : SQLiteOpenHelper(context, "study_history.db", null, 3) {
     val revision = MutableStateFlow(0)
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, at_ms INTEGER NOT NULL, duration_ms INTEGER NOT NULL DEFAULT 0, subject TEXT NOT NULL DEFAULT '', attempted INTEGER NOT NULL DEFAULT 0, correct INTEGER NOT NULL DEFAULT 0)")
         db.execSQL("CREATE INDEX events_by_time ON events(at_ms)")
         db.execSQL("CREATE TABLE notes (day TEXT PRIMARY KEY, body TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE chapter_notes (chapter_key TEXT PRIMARY KEY, body TEXT NOT NULL DEFAULT '', pdf_name TEXT NOT NULL DEFAULT '', pdf_file TEXT NOT NULL DEFAULT '')")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) db.execSQL("CREATE TABLE IF NOT EXISTS notes (day TEXT PRIMARY KEY, body TEXT NOT NULL)")
+        if (oldVersion < 3) db.execSQL("CREATE TABLE IF NOT EXISTS chapter_notes (chapter_key TEXT PRIMARY KEY, body TEXT NOT NULL DEFAULT '', pdf_name TEXT NOT NULL DEFAULT '', pdf_file TEXT NOT NULL DEFAULT '')")
+    }
+    fun chapterNote(key: String): ChapterNote = readableDatabase.rawQuery(
+        "SELECT body, pdf_name, pdf_file FROM chapter_notes WHERE chapter_key = ?", arrayOf(key)
+    ).use { if (it.moveToFirst()) ChapterNote(it.getString(0), it.getString(1), it.getString(2)) else ChapterNote() }
+    fun saveChapterNote(key: String, note: ChapterNote) {
+        val row = ContentValues().apply {
+            put("chapter_key", key); put("body", note.body)
+            put("pdf_name", note.pdfName); put("pdf_file", note.pdfFile)
+        }
+        writableDatabase.insertWithOnConflict("chapter_notes", null, row, SQLiteDatabase.CONFLICT_REPLACE)
+        revision.value++
     }
     fun saveNote(day: String, body: String) {
         val row = ContentValues().apply { put("day", day); put("body", body) }
