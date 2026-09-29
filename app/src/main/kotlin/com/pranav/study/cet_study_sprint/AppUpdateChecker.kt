@@ -148,7 +148,9 @@ internal fun RequiredUpdateGate(revision: Int, content: @Composable () -> Unit) 
     var update by remember { mutableStateOf<AppUpdateInfo?>(null) }
     var retry by remember { mutableIntStateOf(0) }
     LaunchedEffect(revision, retry) {
-        checking = true
+        // Keep the current navigation tree and ActivityResult launchers alive on
+        // resume. The document picker resumes this activity before delivering
+        // its URI; replacing content with a spinner would discard the editor.
         update = AppUpdateChecker.required(context)
         checking = false
     }
