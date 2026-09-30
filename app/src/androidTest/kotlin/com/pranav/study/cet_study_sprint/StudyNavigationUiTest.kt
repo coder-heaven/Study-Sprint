@@ -58,6 +58,7 @@ class StudyNavigationUiTest {
         listOf("focus", "plan", "statistics", "study").forEach { route ->
             compose.onNodeWithTag("tab_$route").performClick()
             compose.onNodeWithTag("screen_$route").assertIsDisplayed()
+            if (route == "focus") compose.onNodeWithText("Start Focus").assertIsDisplayed()
             capture(route)
             compose.onNodeWithTag("tab_home").performClick()
             compose.onNodeWithTag("screen_home").assertIsDisplayed()
