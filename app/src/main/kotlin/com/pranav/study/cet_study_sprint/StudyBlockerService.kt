@@ -47,7 +47,8 @@ class StudyBlockerService : AccessibilityService() {
             val weekday = StudyTimeMath.weekdayIndex(Calendar.getInstance().get(Calendar.DAY_OF_WEEK))
             val dailyApplies = pkg != YouTubeQuota.PACKAGE && limit > 0 && p.getInt("limit_days_$pkg", 127) and (1 shl weekday) != 0
             val youtube = pkg == YouTubeQuota.PACKAGE
-            val used = if (dailyApplies || youtube) withContext(Dispatchers.IO) {
+            val usageAccess = StrictLimits.usageAllowed(this@StudyBlockerService)
+            val used = if (usageAccess && (dailyApplies || youtube)) withContext(Dispatchers.IO) {
                 DailyUsage.usedToday(this@StudyBlockerService, pkg)
             } else 0L
             if (foregroundPackage != pkg) return@launch
@@ -55,7 +56,7 @@ class StudyBlockerService : AccessibilityService() {
             val focus = StrictLimits.focusBlocked(p, pkg, now)
             val reason = when {
                 focus -> "focus"
-                youtube && !StrictLimits.usageAllowed(this@StudyBlockerService) -> "permission"
+                (dailyApplies || youtube) && !usageAccess -> "permission"
                 youtube && used >= 600_000L -> "youtube_daily"
                 dailyApplies && used >= limit * 60_000L -> "daily"
                 youtube && StrictLimits.remainingYouTube(this@StudyBlockerService, now) == 0L -> "youtube_session"

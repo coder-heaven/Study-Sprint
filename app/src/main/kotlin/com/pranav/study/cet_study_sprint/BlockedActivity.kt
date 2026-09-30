@@ -38,7 +38,7 @@ class BlockedActivity : ComponentActivity() {
                     "focus" -> "Your focus session is still running. Come back when it finishes."
                     "youtube_daily" -> "YouTube's 10-minute daily allowance is finished. New sessions are available tomorrow."
                     "youtube_session" -> "Start a five-minute window below. You get two windows per day, with no extensions."
-                    "permission" -> "Finish Usage Access setup in App Limits before starting YouTube."
+                    "permission" -> "Finish Usage Access setup in App Limits before opening $label."
                     else -> "Your daily limit for $label is reached. There is no extra-time bypass."
                 }
                 BackHandler { home() }
@@ -57,7 +57,7 @@ class BlockedActivity : ComponentActivity() {
                     Button(onClick = { home() }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Return to home screen") }
                     OutlinedButton(onClick = {
                         startActivity(Intent(this@BlockedActivity, ComposeStudyActivity::class.java)
-                            .setAction(AlertNavigation.ACTION).putExtra(AlertNavigation.ROUTE, "focus"))
+                            .setAction(AlertNavigation.ACTION).putExtra(AlertNavigation.ROUTE, if (current?.getStringExtra("reason") == "permission") "limits" else "focus"))
                         finish()
                     }, modifier = Modifier.fillMaxWidth()) { Text("Open Study Sprint") }
                 }
