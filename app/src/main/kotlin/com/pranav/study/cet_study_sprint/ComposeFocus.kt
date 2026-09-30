@@ -219,8 +219,8 @@ internal fun FocusScreen(
                     label = { Text("${minutes}m") })
             }
         }
-        Spacer(Modifier.height(25.dp))
-        Box(Modifier.size(208.dp), contentAlignment = Alignment.Center) {
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.size(180.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = 11.dp.toPx()
                 drawCircle(ringTrack, style = Stroke(stroke))
@@ -229,11 +229,11 @@ internal fun FocusScreen(
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
-                    fontSize = 46.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                    fontSize = 42.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
                 Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(20.dp))
         Button(onClick = { when {
             !state.active && Build.VERSION.SDK_INT >= 33 &&
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ->

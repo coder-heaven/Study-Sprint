@@ -209,7 +209,8 @@ private fun appRecords(context: Context, days: Int = 1): List<AppRecord> {
             else -> null
         }
     }
-    val packages = launcherLabels.keys + usage.filterValues { it > 0 }.keys + savedPackages
+    val validSavedPackages = savedPackages.filter { '.' in it }
+    val packages = launcherLabels.keys + usage.filterValues { it > 0 }.keys + validSavedPackages
     return packages.asSequence().filter { it !in protected && it.isNotBlank() }
         .map { pkg ->
             val label = launcherLabels[pkg] ?: runCatching {
