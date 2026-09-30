@@ -89,7 +89,8 @@ internal class LeaderboardRepository(private val context: Context) {
         val user = auth.currentUser ?: auth.signInAnonymously().awaitLeaderboardTask().user
             ?: error("Could not create a local leaderboard profile.")
         publishProfile(user.uid, visible = true)
-        prefs.edit().putBoolean("leaderboard_enabled", true).putString("leaderboard_uid", user.uid).apply()
+        prefs.edit().putBoolean("leaderboard_opted_out", false)
+            .putBoolean("leaderboard_enabled", true).putString("leaderboard_uid", user.uid).apply()
         syncMessage.value = null
     }
 
@@ -104,7 +105,8 @@ internal class LeaderboardRepository(private val context: Context) {
             }.awaitLeaderboardTask()
             withContext(Dispatchers.IO) { StudyData.events(context).discardLeaderboardEvents(uid) }
         }
-        prefs.edit().putBoolean("leaderboard_enabled", false).remove("leaderboard_uid").apply()
+        prefs.edit().putBoolean("leaderboard_opted_out", true)
+            .putBoolean("leaderboard_enabled", false).remove("leaderboard_uid").apply()
         publishedProfile = null
     }
 
@@ -129,9 +131,17 @@ internal class LeaderboardRepository(private val context: Context) {
     }
 
     suspend fun sync() = mutex.withLock {
-        if (!prefs.getBoolean("leaderboard_enabled", false)) return@withLock
-        val uid = auth.currentUser?.uid ?: return@withLock
-        if (uid != prefs.getString("leaderboard_uid", null)) return@withLock
+        // Every completed app profile participates by default, including guest profiles.
+        // Keep an explicit leave choice across restarts and updates.
+        if (!LeaderboardParticipation.shouldConnect(
+                prefs.getBoolean("onboarding_v3", false),
+                prefs.getBoolean("leaderboard_opted_out", false))) return@withLock
+        val user = auth.currentUser ?: auth.signInAnonymously().awaitLeaderboardTask().user
+            ?: error("Could not connect your student profile.")
+        val uid = user.uid
+        // Store the authenticated identity before the network write so activity queues
+        // locally even if the initial profile publication is temporarily offline.
+        prefs.edit().putBoolean("leaderboard_enabled", true).putString("leaderboard_uid", uid).apply()
         publishProfile(uid, visible = true)
         val outbox = withContext(Dispatchers.IO) { StudyData.events(context).pendingLeaderboardEvents(uid) }
         outbox.forEach { item ->
