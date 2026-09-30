@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -160,11 +162,15 @@ internal fun RequiredUpdateGate(revision: Int, content: @Composable () -> Unit) 
         androidx.activity.compose.BackHandler(enabled = true) { }
         Column(Modifier.fillMaxSize().padding(24.dp),
             verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Update required", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("Update required", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-            Text("Study Sprint ${update!!.tag} is ready. Install it to continue using the app.")
+            Text("Study Sprint ${update!!.tag} is ready. Install it to continue using the app.", color = MaterialTheme.colorScheme.onBackground)
             Spacer(Modifier.height(12.dp))
-            Text(update!!.notes.take(500))
+            Text(
+                update!!.notes,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+            )
             Spacer(Modifier.height(24.dp))
             Button(onClick = { AppUpdateChecker.openDownload(context, update!!) },
                 modifier = Modifier.fillMaxWidth()) { Text("Download update") }

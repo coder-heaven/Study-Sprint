@@ -123,9 +123,9 @@ private fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compos
         tertiary = Color(0xFF87D1FF),
         onTertiary = Color(0xFF00344D),
         background = Color(0xFF0D1020),
-        onBackground = Color(0xFFF1F2FF),
+        onBackground = Color.White,
         surface = Color(0xFF161A2C),
-        onSurface = Color(0xFFF1F2FF),
+        onSurface = Color.White,
         surfaceVariant = Color(0xFF24283D),
         onSurfaceVariant = Color(0xFFC5C8DA),
         outline = Color(0xFF9094AA),
@@ -176,7 +176,15 @@ private fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compos
             large = RoundedCornerShape(26.dp),
             extraLarge = RoundedCornerShape(32.dp)
         ),
-        content = content
+        content = {
+            // MaterialTheme alone does not provide a foreground color to Text.
+            // Give every screen, including the required update gate, a themed root.
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = colors.background,
+                contentColor = colors.onBackground
+            ) { content() }
+        }
     )
 }
 @OptIn(ExperimentalMaterial3Api::class)
