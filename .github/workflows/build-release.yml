@@ -110,7 +110,7 @@ jobs:
           script: |
             bash ./gradlew --no-daemon connectedDebugAndroidTest
             mkdir -p ui-proof
-            adb pull /sdcard/Android/data/com.pranav.study.cet_study_sprint/files/ui-proof/. ui-proof/
+            adb pull /sdcard/Pictures/StudySprintUi/. ui-proof/
       - name: Upload UI test results
         if: always()
         uses: actions/upload-artifact@v4
