@@ -18,17 +18,26 @@ internal data class StudyTotals(
 /** Historical events are separate from legacy preference counters; unknown old durations are never invented. */
 internal data class ChapterNote(val body: String = "", val pdfName: String = "", val pdfFile: String = "")
 
-internal class StudyEventStore(context: Context) : SQLiteOpenHelper(context, "study_history.db", null, 3) {
+internal data class PendingLeaderboardEvent(val id: String, val uid: String, val delta: LeaderboardDelta)
+
+internal class StudyEventStore(context: Context) : SQLiteOpenHelper(context, "study_history.db", null, 4) {
+    private val appContext = context.applicationContext
     val revision = MutableStateFlow(0)
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, at_ms INTEGER NOT NULL, duration_ms INTEGER NOT NULL DEFAULT 0, subject TEXT NOT NULL DEFAULT '', attempted INTEGER NOT NULL DEFAULT 0, correct INTEGER NOT NULL DEFAULT 0)")
         db.execSQL("CREATE INDEX events_by_time ON events(at_ms)")
         db.execSQL("CREATE TABLE notes (day TEXT PRIMARY KEY, body TEXT NOT NULL)")
         db.execSQL("CREATE TABLE chapter_notes (chapter_key TEXT PRIMARY KEY, body TEXT NOT NULL DEFAULT '', pdf_name TEXT NOT NULL DEFAULT '', pdf_file TEXT NOT NULL DEFAULT '')")
+        createLeaderboardTables(db)
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) db.execSQL("CREATE TABLE IF NOT EXISTS notes (day TEXT PRIMARY KEY, body TEXT NOT NULL)")
         if (oldVersion < 3) db.execSQL("CREATE TABLE IF NOT EXISTS chapter_notes (chapter_key TEXT PRIMARY KEY, body TEXT NOT NULL DEFAULT '', pdf_name TEXT NOT NULL DEFAULT '', pdf_file TEXT NOT NULL DEFAULT '')")
+        if (oldVersion < 4) createLeaderboardTables(db)
+    }
+    private fun createLeaderboardTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE leaderboard_outbox (event_id TEXT NOT NULL, uid TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(uid, event_id))")
+        db.execSQL("CREATE TABLE quiz_completions (attempt_id TEXT PRIMARY KEY)")
     }
     fun chapterNote(key: String): ChapterNote = readableDatabase.rawQuery(
         "SELECT body, pdf_name, pdf_file FROM chapter_notes WHERE chapter_key = ?", arrayOf(key)
@@ -55,6 +64,47 @@ internal class StudyEventStore(context: Context) : SQLiteOpenHelper(context, "st
     fun recordFocus(durationMs: Long, subject: String) = insert("focus", durationMs, subject, 0, 0)
     fun recordTask() = insert("task", 0, "", 0, 0)
     fun recordPractice(attempted: Int, correct: Int) = insert("practice", 0, "", attempted, correct)
+    fun recordQuiz(attemptId: String, canonicalSet: String, attempted: Int, correct: Int) {
+        val delta = LeaderboardScoring.quiz(attempted, correct) ?: return
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val completion = ContentValues().apply { put("attempt_id", attemptId) }
+            if (db.insertWithOnConflict("quiz_completions", null, completion, SQLiteDatabase.CONFLICT_IGNORE) != -1L) {
+                insertRow(db, "practice", 0, "", attempted, correct)
+                enqueue(db, LeaderboardScoring.quizEventId(canonicalSet, System.currentTimeMillis()), delta)
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        revision.value++
+    }
+    private fun enqueue(db: SQLiteDatabase, id: String, delta: LeaderboardDelta) {
+        val prefs = appContext.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)
+        val uid = prefs.getString("leaderboard_uid", null) ?: return
+        if (!prefs.getBoolean("leaderboard_enabled", false) ||
+            runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull() != uid) return
+        val payload = org.json.JSONObject().apply {
+            put("focusMinutes", delta.focusMinutes); put("quizAttempts", delta.quizAttempts)
+            put("quizWins", delta.quizWins); put("quizCorrect", delta.quizCorrect); put("quizQuestions", delta.quizQuestions)
+        }
+        val row = ContentValues().apply { put("event_id", id); put("uid", uid); put("payload", payload.toString()) }
+        db.insertWithOnConflict("leaderboard_outbox", null, row, SQLiteDatabase.CONFLICT_IGNORE)
+    }
+    fun pendingLeaderboardEvents(uid: String): List<PendingLeaderboardEvent> = readableDatabase.rawQuery(
+        "SELECT event_id, payload FROM leaderboard_outbox WHERE uid = ? ORDER BY rowid LIMIT 100", arrayOf(uid)
+    ).use { cursor -> buildList {
+        while (cursor.moveToNext()) {
+            val item = org.json.JSONObject(cursor.getString(1))
+            add(PendingLeaderboardEvent(cursor.getString(0), uid, LeaderboardDelta(item.getLong("focusMinutes"),
+                item.getLong("quizAttempts"), item.getLong("quizWins"), item.getLong("quizCorrect"), item.getLong("quizQuestions"))))
+        }
+    } }
+    fun acknowledgeLeaderboardEvent(uid: String, id: String) {
+        writableDatabase.delete("leaderboard_outbox", "uid = ? AND event_id = ?", arrayOf(uid, id))
+    }
+    fun discardLeaderboardEvents(uid: String) {
+        writableDatabase.delete("leaderboard_outbox", "uid = ?", arrayOf(uid))
+    }
     fun recordLimitEvent(kind: String, pkg: String) {
         require(kind in setOf("limit_reached", "blocked", "bypass"))
         insert(kind, 0, pkg, 0, 0)
@@ -70,13 +120,24 @@ internal class StudyEventStore(context: Context) : SQLiteOpenHelper(context, "st
         }
     }
     private fun insert(kind: String, durationMs: Long, subject: String, attempted: Int, correct: Int) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            insertRow(db, kind, durationMs, subject, attempted, correct)
+            if (kind == "focus") LeaderboardScoring.focus(durationMs)?.let {
+                enqueue(db, "focus_${java.util.UUID.randomUUID()}", it)
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        revision.value++
+    }
+    private fun insertRow(db: SQLiteDatabase, kind: String, durationMs: Long, subject: String, attempted: Int, correct: Int) {
         val row = ContentValues().apply {
             put("kind", kind); put("at_ms", System.currentTimeMillis())
             put("duration_ms", durationMs); put("subject", subject)
             put("attempted", attempted); put("correct", correct)
         }
-        writableDatabase.insert("events", null, row)
-        revision.value++
+        db.insertOrThrow("events", null, row)
     }
     fun subjectMinutes(days: Int): Map<String, Long> {
         val since = java.util.Calendar.getInstance().apply {

@@ -57,6 +57,9 @@ import androidx.compose.animation.animateColorAsState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -77,6 +80,11 @@ class ComposeStudyActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                Leaderboards.repository(applicationContext).runSyncLoop()
+            }
+        }
         setContent {
             StudyTheme(prefs, revision) {
                 RequiredUpdateGate(revision) {
@@ -181,7 +189,7 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
     val route = back?.destination?.route ?: "home"
     val primary = remember { listOf("home", "syllabus", "practice", "plan", "focus", "settings") }
     val drawerDestinations = remember {
-        setOf("home", "statistics", "study_history", "focus_history", "notes", "limits", "app_usage", "profile", "settings")
+        setOf("home", "statistics", "leaderboard", "study_history", "focus_history", "notes", "limits", "app_usage", "profile", "settings")
     }
     fun go(target: String) {
         scope.launch {
@@ -209,7 +217,7 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
         ) {
             val name = prefs.getString("profile_name", "").orEmpty().ifBlank { "Student" }
             val groups = listOf(
-                "OVERVIEW" to listOf("Dashboard" to "home", "Statistics" to "statistics"),
+                "OVERVIEW" to listOf("Dashboard" to "home", "Statistics" to "statistics", "Leaderboards" to "leaderboard"),
                 "STUDY" to listOf("Study history" to "study_history", "Focus history" to "focus_history", "What I learned" to "notes"),
                 "DIGITAL WELLBEING" to listOf("App Limits" to "limits", "App Usage" to "app_usage"),
                 "PERSONAL" to listOf("Profile" to "profile", "Settings" to "settings")
@@ -356,6 +364,7 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
                 composable("plan") { PlannerScreen(prefs, revision) }
                 composable("focus") { FocusScreen(prefs, onBack = { go("home") }, onLegacy = { go("limits") }) }
                 composable("settings") { SettingsScreen(prefs, ::go, refresh) }
+                composable("leaderboard") { LeaderboardScreen(prefs) }
                 composable("statistics") { StatisticsScreen(prefs, 0, "Statistics", "Your complete progress, over time.") }
                 composable("study_history") { StatisticsScreen(prefs, 0, "Study history", "Tasks, questions and subject progress.") }
                 composable("focus_history") { StatisticsScreen(prefs, 0, "Focus history", "Focused minutes and completed sessions.") }
@@ -514,11 +523,16 @@ private fun HomeAction(label: String, modifier: Modifier, onClick: () -> Unit) {
 @Composable
 internal fun ProfileAvatar(name: String, size: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
     val context = LocalContext.current
-    val path = context.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE).getString("profile_photo", null)
-    val photo = remember(path) { path?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() } }
+    val profilePrefs = context.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE)
+    val path = profilePrefs.getString("profile_photo", null)
+    val accountPhoto = profilePrefs.getString("account_photo_url", null)
+    val photo by produceState<android.graphics.Bitmap?>(null, path, accountPhoto) {
+        value = LeaderboardPhotos.bitmap(context)
+    }
+    val displayedPhoto = photo
     Box(Modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer)
         .clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        if (photo != null) Image(photo.asImageBitmap(), contentDescription = "Profile photo",
+        if (displayedPhoto != null) Image(displayedPhoto.asImageBitmap(), contentDescription = "Profile photo",
             modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         else Text(name.trim().take(1).uppercase(), fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onPrimaryContainer)

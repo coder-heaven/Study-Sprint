@@ -13,9 +13,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 internal data class GoogleAccount(
     val email: String,
@@ -47,20 +44,19 @@ internal object GoogleAccountAuth {
 
         val google = GoogleIdTokenCredential.createFrom(credential.data)
         val firebaseCredential = GoogleAuthProvider.getCredential(google.idToken, null)
-        val firebaseUser: FirebaseUser = suspendCoroutine { continuation ->
-            FirebaseAuth.getInstance().signInWithCredential(firebaseCredential)
-                .addOnSuccessListener { result ->
-                    val user = result.user
-                    if (user == null) {
-                        continuation.resumeWithException(
-                            IllegalStateException("Firebase did not return a signed-in user.")
-                        )
-                    } else {
-                        continuation.resume(user)
-                    }
-                }
-                .addOnFailureListener(continuation::resumeWithException)
+        val auth = FirebaseAuth.getInstance()
+        val localUser = auth.currentUser?.takeIf { it.isAnonymous }
+        // Linking retains the anonymous UID, queued results and leaderboard position.
+        val result = try {
+            (localUser?.linkWithCredential(firebaseCredential) ?: auth.signInWithCredential(firebaseCredential))
+                .awaitLeaderboardTask()
+        } catch (collision: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+            if (context.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)
+                    .getBoolean("leaderboard_enabled", false)) throw collision
+            // The local row has been hidden (or was never shared), so switching is explicit and safe.
+            auth.signInWithCredential(firebaseCredential).awaitLeaderboardTask()
         }
+        val firebaseUser: FirebaseUser = result.user ?: error("Firebase did not return a signed-in user.")
         return GoogleAccount(
             email = firebaseUser.email ?: google.id,
             displayName = firebaseUser.displayName ?: google.displayName
@@ -70,11 +66,15 @@ internal object GoogleAccountAuth {
     }
 
     suspend fun signOut(context: Context) {
+        context.getSharedPreferences("study_sprint", Context.MODE_PRIVATE).edit()
+            .putBoolean("leaderboard_enabled", false).remove("leaderboard_uid").apply()
         FirebaseAuth.getInstance().signOut()
         CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest())
     }
 
     fun userMessage(error: Throwable): String = when (error) {
+        is com.google.firebase.auth.FirebaseAuthUserCollisionException ->
+            "This Google account already has a profile. Leave the local leaderboard first, then sign in again. Your study history stays on this phone."
         is GetCredentialCancellationException -> "Google sign-in was cancelled."
         is GetCredentialException -> error.message ?: "Google sign-in failed. Check the OAuth configuration."
         is FirebaseAuthException -> error.message ?: "Firebase could not authenticate this Google account."

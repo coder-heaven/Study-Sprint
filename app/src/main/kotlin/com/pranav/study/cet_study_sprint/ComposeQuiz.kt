@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -108,15 +109,23 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
         .getString("exam", "CET") ?: "CET" }
     val scheme = remember(course) { markingSchemeFor(course) }
     val scrollState = rememberScrollState()
-    var index by remember(questions) { mutableIntStateOf(0) }
-    var marks by remember(questions, course) { mutableIntStateOf(0) }
-    var correctCount by remember(questions) { mutableIntStateOf(0) }
-    var selected by remember(index) { mutableIntStateOf(-1) }
-    var revealed by remember(index) { mutableStateOf(false) }
-    LaunchedEffect(index) {
+    val canonicalSet = remember(questions) {
+        org.json.JSONArray(questions.map { question -> org.json.JSONObject().apply {
+            put("prompt", question.prompt); put("options", org.json.JSONArray(question.options)); put("answer", question.answer)
+        } }).toString()
+    }
+    var attemptId by rememberSaveable(canonicalSet) { mutableStateOf(java.util.UUID.randomUUID().toString()) }
+    var index by rememberSaveable(canonicalSet) { mutableIntStateOf(0) }
+    var marks by rememberSaveable(canonicalSet, course) { mutableIntStateOf(0) }
+    var correctCount by rememberSaveable(canonicalSet) { mutableIntStateOf(0) }
+    var selected by rememberSaveable(index, attemptId) { mutableIntStateOf(-1) }
+    var revealed by rememberSaveable(index, attemptId) { mutableStateOf(false) }
+    LaunchedEffect(index, attemptId) {
         if (index > 0) scrollState.scrollTo(0)
         if (index == questions.size && questions.isNotEmpty()) {
-            StudyData.events(context).recordPractice(questions.size, correctCount)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                StudyData.events(context).recordQuiz(attemptId, canonicalSet, questions.size, correctCount)
+            }
         }
     }
     Column(
@@ -154,7 +163,7 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 5.dp))
                         Spacer(Modifier.height(18.dp))
-                        Button(onClick = { index = 0; marks = 0; correctCount = 0 }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { attemptId = java.util.UUID.randomUUID().toString(); index = 0; marks = 0; correctCount = 0 }, modifier = Modifier.fillMaxWidth()) {
                             Text("Try this set again")
                         }
                     }
