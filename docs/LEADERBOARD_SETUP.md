@@ -15,7 +15,7 @@ Use the **same Firebase project** as the existing `GOOGLE_SERVICES_BASE64` GitHu
    | `leaderboardStudents` | `visible`: Ascending | `focusMinutes`: Descending | — |
    | `leaderboardStudents` | `visible`: Ascending | `quizWins`: Descending | `quizAttempts`: Descending |
 
-6. Wait until both indexes show **Enabled**. Install the signed 2.4.0 APK as an update, open **Menu → Leaderboards**, and choose **Share and join**.
+6. Wait until both indexes show **Enabled**. Install the updated signed APK and finish the app profile setup. Open **Menu → Leaderboards**; your profile connects automatically.
 7. With two phones/profiles, complete a focus session and a quiz. Confirm the second phone receives the changed rankings without refreshing. Turn one phone offline, complete another session, reconnect and reopen the app, and confirm the result is counted once.
 
 If you have Firebase CLI access, the rules and indexes can instead be deployed using:
@@ -32,16 +32,16 @@ firebase deploy --only firestore:rules,firestore:indexes --project YOUR_EXISTING
 - **Quiz wins:** top 100 visible profiles ordered by wins, then completed attempts, showing attempts and correct answers. A win means at least 80% correct in a completed in-app set. This is a personal practice result, not a head-to-head match.
 - The first completion of a particular question set per India calendar day counts. Replays remain in local study history but do not increase leaderboard totals.
 - Google and local profiles appear on the same boards. The app uploads a small thumbnail of the chosen local photo, or the Google photo when no local photo is set. Missing photos use initials.
-- Students opt in to share their name, photo and totals. Emails, notes, PDFs and question content are never uploaded by this feature.
+- Completed app profiles automatically share their name, app photo and totals; students can hide their profile at any time. Emails, notes, PDFs and question content are never uploaded by this feature.
 - Leaving hides the public row and clears its name/photo after the server confirms the change. Google and local users can rejoin the same UID and retain their cloud totals while their Firebase identity is retained. Uninstalling or clearing app data can lose an anonymous identity; link to Google for recovery across devices.
 - Linking a new Google account to an anonymous profile preserves its UID and results. If that Google account already belongs to another Firebase user, the app asks the student to leave the local board before switching. It does not claim to merge two established accounts.
-- Signing out of Google stops future uploads but does not remove the existing public ranking. Leave the leaderboard first to hide it.
+- Signing out of Google reconnects through a local app profile. Hide your profile first if you want to remove the previous public ranking.
 
 ## Storage and reliability
 
 Local SQLite schema 4 adds an outbox and quiz completion IDs without deleting existing history, notes or PDFs. Completion recording and outbox insertion occur in one local transaction. Cloud transactions create an immutable event and add its delta to a student's totals together. Retrying an acknowledged event cannot add the score again. Multiple devices signed into the same Firebase UID contribute to the same totals.
 
-Sync runs while the app is visible, checks pending events every 15 seconds, and resumes on the next launch. Offline results are durable; they are not uploaded until a connection returns. Rankings mark cached data as saved/reconnecting instead of calling it live. Results earned before opting in are not retroactively published.
+Sync runs while the app is visible, checks pending events every 15 seconds, and resumes on the next launch. Offline results are durable; they are not uploaded until a connection returns. Rankings mark cached data as saved/reconnecting instead of calling it live. Activity earned before an authenticated leaderboard identity is available is not retroactively published.
 
 Rules restrict students to their own records, validate score deltas and the 80% win threshold, and require atomic event/totals writes. These are **self-reported practice rankings**: a modified client could still submit invented focus sessions or answers. Do not use them for prizes or official exams without adding server-issued quiz/session verification, moderation and anti-abuse controls.
 
@@ -56,3 +56,7 @@ cd firebase
 npm install
 npx firebase emulators:exec --project demo-study-sprint --only firestore 'npm test' --config ../firebase.json
 ```
+
+## Automatic app profiles
+
+Completed app profiles now connect automatically using Firebase Anonymous authentication when Google is not used. There is no Share and join dialog or approval request. The board uses the same profile photo loader as the app avatar; a chosen app photo always takes priority. Users can hide their public profile; this choice is preserved on restart. Existing scores and the one-set-per-day scoring rule are retained. New activity queues after an authenticated identity is available, including during temporary Firestore outages. First-time offline users connect when internet access returns.
