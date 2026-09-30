@@ -26,6 +26,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -230,10 +235,13 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val back by nav.currentBackStackEntryAsState()
     val route = back?.destination?.route ?: "home"
-    val primary = remember { listOf("home", "syllabus", "practice", "plan", "focus", "settings") }
-    val drawerDestinations = remember {
-        setOf("home", "statistics", "leaderboard", "study_history", "focus_history", "notes", "limits", "app_usage", "profile", "settings")
-    }
+    val primary = StudyNavigation.tabs.map { it.route }
+    val selectedTab = StudyNavigation.tabFor(route)
+    val focusModel: FocusViewModel = viewModel()
+    val focusState by focusModel.state.collectAsStateWithLifecycle()
+    var quickTask by remember { mutableStateOf(false) }
+    var chapterSubject by remember { mutableStateOf<String?>(null) }
+    var chapterToOpen by remember { mutableStateOf<String?>(null) }
     fun go(target: String) {
         scope.launch {
             val current = nav.currentBackStackEntry?.destination?.route
@@ -243,10 +251,6 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                     if (target in primary) {
                         popUpTo(nav.graph.startDestinationId) { saveState = true }
                         restoreState = true
-                    } else {
-                        current?.takeIf { it in drawerDestinations }?.let { currentDrawerRoute ->
-                            popUpTo(currentDrawerRoute) { inclusive = true }
-                        }
                     }
                 }
             }
@@ -310,7 +314,10 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
             topBar = {
                 TopAppBar(
                     title = { Text(when (route) {
-                        "home" -> "Study Sprint"
+                        "home" -> "Today"
+                        "study" -> "Study"
+                        "statistics" -> "Progress"
+                        "search" -> "Search"
                         "mcq_editor" -> "My MCQs"
                         "arihant" -> "Arihant log"
                         "study_history" -> "Study history"
@@ -319,12 +326,17 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                         else -> route.replace('_', ' ').replaceFirstChar { it.uppercase() }
                     },
                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) },
-                    navigationIcon = { IconButton(onClick = { scope.launch { drawer.open() } }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Open menu")
-                    } },
-                    actions = { IconButton(onClick = { go("settings") }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    } },
+                    navigationIcon = {
+                        if (route in primary) IconButton(onClick = { scope.launch { drawer.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "All features")
+                        } else IconButton(onClick = {
+                            if (!nav.popBackStack()) go("home")
+                        }) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
+                    },
+                    actions = {
+                        IconButton(onClick = { go("search") }) { Icon(Icons.Default.Search, contentDescription = "Search study materials and features") }
+                        IconButton(onClick = { go("settings") }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
                         titleContentColor = MaterialTheme.colorScheme.onBackground,
@@ -333,36 +345,33 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                     )
                 )
             },
+            floatingActionButton = {
+                if (route == "home" || route == "plan") FloatingActionButton(onClick = { quickTask = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add study task")
+                }
+            },
             bottomBar = {
-                if (route in primary) {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 2.dp
-                    ) {
-                        primary.forEach { item ->
-                            val res = when (item) {
+                Column {
+                    if (focusState.active && route != "focus") ActiveFocusBar(focusState) { go("focus") }
+                    NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+                        StudyNavigation.tabs.forEach { item ->
+                            val res = when (item.route) {
                                 "home" -> R.drawable.nav_home
-                                "syllabus" -> R.drawable.nav_syllabus
-                                "practice" -> R.drawable.nav_practice
+                                "study" -> R.drawable.nav_syllabus
                                 "plan" -> R.drawable.nav_plan
                                 "focus" -> R.drawable.nav_focus
-                                else -> 0
+                                else -> R.drawable.nav_progress
                             }
                             NavigationBarItem(
-                                selected = route == item,
-                                onClick = { go(item) },
-                                icon = {
-                                    if (res == 0) Icon(Icons.Default.Settings, contentDescription = item)
-                                    else Icon(painterResource(res), contentDescription = item, modifier = Modifier.size(22.dp))
-                                },
-                                label = { Text(item.replaceFirstChar { it.uppercase() }, fontSize = 9.sp, maxLines = 1) },
+                                selected = selectedTab == item.route,
+                                onClick = { go(item.route) },
+                                icon = { Icon(painterResource(res), contentDescription = null, modifier = Modifier.size(24.dp)) },
+                                label = { Text(item.label, style = MaterialTheme.typography.labelMedium, maxLines = 1) },
                                 alwaysShowLabel = true,
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
                                 )
                             )
                         }
@@ -392,7 +401,13 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                 }
             ) {
                 composable("home") { HomeScreen(prefs, revision, ::go) }
-                composable("syllabus") { SyllabusScreen(prefs, revision) }
+                composable("study") { StudyHubScreen(prefs, revision, ::go) { subject ->
+                    chapterSubject = subject; chapterToOpen = null; go("syllabus")
+                } }
+                composable("search") { StudySearchScreen(prefs, revision, ::go) { subject, key ->
+                    chapterSubject = subject; chapterToOpen = key; go("syllabus")
+                } }
+                composable("syllabus") { SyllabusScreen(prefs, revision, chapterSubject, chapterToOpen) }
                 composable("practice") { PracticeScreen(prefs, revision) { destination ->
                     when (destination) {
                         "import" -> go("mcq_editor")
@@ -407,11 +422,21 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                 composable("my_quiz") {
                     QuizScreen("My questions", savedQuestions(prefs), onBack = { go("practice") })
                 }
-                composable("plan") { PlannerScreen(prefs, revision) }
-                composable("focus") { FocusScreen(prefs, onBack = { go("home") }, onLegacy = { go("limits") }) }
+                composable("plan") { PlannerScreen(prefs, revision, ::go) }
+                composable("focus") { FocusScreen(prefs, onBack = { go("home") }, onLegacy = { go("limits") }, model = focusModel, onHistory = { go("focus_history") }) }
                 composable("settings") { SettingsScreen(prefs, ::go, refresh) }
                 composable("leaderboard") { LeaderboardScreen(prefs) }
-                composable("statistics") { StatisticsScreen(prefs, 0, "Statistics", "Your complete progress, over time.") }
+                composable("statistics") {
+                    Column(Modifier.fillMaxSize()) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { go("leaderboard") }) { Text("Leaderboard") }
+                            OutlinedButton(onClick = { chapterSubject = null; chapterToOpen = null; go("syllabus") }) { Text("Syllabus") }
+                            OutlinedButton(onClick = { go("focus_history") }) { Text("History") }
+                        }
+                        Box(Modifier.weight(1f)) { StatisticsScreen(prefs, 0, "Your progress", "Every session adds up.") }
+                    }
+                }
                 composable("study_history") { StatisticsScreen(prefs, 0, "Study history", "Tasks, questions and subject progress.") }
                 composable("focus_history") { StatisticsScreen(prefs, 0, "Focus history", "Focused minutes and completed sessions.") }
                 composable("app_usage") { StatisticsScreen(prefs, 1, "App usage", "Your device usage and limit activity.") }
@@ -420,6 +445,9 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                 composable("notes") { NotesHistoryScreen() }
             }
         }
+    }
+    if (quickTask) QuickStudyTaskDialog(prefs, onDismiss = { quickTask = false }) {
+        quickTask = false; refresh()
     }
 }
 
@@ -474,9 +502,6 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
     val totals by produceState(StudyTotals(), eventRevision, revision) {
         value = withContext(Dispatchers.IO) { events.totals(1) }
     }
-    val weekly by produceState(StudyTotals(), eventRevision) {
-        value = withContext(Dispatchers.IO) { events.totals(7) }
-    }
     val streak by produceState(0, eventRevision) {
         value = withContext(Dispatchers.IO) { events.streak() }
     }
@@ -487,7 +512,7 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
     }
     val examDate = prefs.getLong("exam_date", System.currentTimeMillis() + 547L * 86400000L)
     val days = ((examDate - System.currentTimeMillis()) / 86400000L).coerceAtLeast(0)
-    val tasks = prefs.getStringSet("tasks", emptySet()).orEmpty().sorted()
+    val tasks = orderedTasks(prefs)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
         .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -499,18 +524,28 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
             ProfileAvatar(name, 44.dp) { go("profile") }
         }
         Spacer(Modifier.height(18.dp))
-        BlueHeroCard {
-            Text("$course • CLASS $grade", style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.82f))
-            Text("$days days to your exam", style = MaterialTheme.typography.titleLarge, color = Color.White,
-                fontWeight = FontWeight.Bold)
-            Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(examDate)),
-                style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.78f))
-            Spacer(Modifier.height(10.dp))
-            LinearProgressIndicator(progress = { if (total == 0) 0f else done.toFloat() / total },
-                modifier = Modifier.fillMaxWidth(), color = Color.White,
-                trackColor = Color.White.copy(alpha = 0.24f))
-            Text("$done of $total chapters complete", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.86f))
+        Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+            Column(Modifier.padding(20.dp)) {
+                Text("MAKE ROOM FOR FOCUS", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Spacer(Modifier.height(8.dp))
+                Text("One session. One clear goal.", style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Spacer(Modifier.height(8.dp))
+                Text("${totals.focusedMinutes} of ${prefs.getInt("daily_focus_goal", 120)} minutes today",
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Spacer(Modifier.height(12.dp))
+                Button(onClick = { go("focus") }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Start focus") }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        StudyCard(Modifier.clickable { go(if (savedQuestions(prefs).isEmpty()) "practice" else "my_quiz") }) {
+            Text("Continue studying", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(if (savedQuestions(prefs).isEmpty()) "Try a short concept practice session"
+                else "${prefs.getString("owned_mcqs_chapter", "My questions")} · ${savedQuestions(prefs).size} questions",
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Open practice →", color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
         }
         SectionLabel("Today")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -520,35 +555,34 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
         }
         Text("$streak-day study streak", style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionLabel("Quick actions")
+        SectionLabel("Your shortcuts")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            HomeAction("Focus", Modifier.weight(1f)) { go("focus") }
-            HomeAction("Practice", Modifier.weight(1f)) { go("practice") }
-            HomeAction("Plan", Modifier.weight(1f)) { go("plan") }
+            HomeAction("MCQs", Modifier.weight(1f)) { go("practice") }
+            HomeAction("Notes", Modifier.weight(1f)) { go("notes") }
+            HomeAction("App limits", Modifier.weight(1f)) { go("limits") }
         }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { go("limits") }, modifier = Modifier.fillMaxWidth()) { Text("App limits") }
         SectionLabel("Next task")
         StudyCard {
             Text(tasks.firstOrNull() ?: "Your plan is clear. Add a task when you're ready.",
                 style = MaterialTheme.typography.bodyLarge)
             TextButton(onClick = { go("plan") }) { Text(if (tasks.isEmpty()) "Add a task" else "Open plan") }
         }
-        SectionLabel("Subject progress")
-        StudyCard {
-            chapters.forEach { (subject, list) ->
-                val count = list.indices.count { prefs.getBoolean(chapterKey(course, grade, subject, it), false) }
-                Text("$subject  •  $count / ${list.size}", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(4.dp))
-                LinearProgressIndicator(progress = { if (list.isEmpty()) 0f else count.toFloat() / list.size },
-                    modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(10.dp))
+        SectionLabel("Your exam goal")
+        StudyCard(Modifier.clickable { go("profile") }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("$course · Class $grade", fontWeight = FontWeight.SemiBold)
+                    Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(examDate)),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text("$days days", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             }
+            Spacer(Modifier.height(12.dp))
+            LinearProgressIndicator(progress = { if (total == 0) 0f else done.toFloat() / total }, modifier = Modifier.fillMaxWidth())
+            Text("$done of $total chapters complete", modifier = Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium)
         }
-        SectionLabel("Weekly study")
-        StudyCard { WeeklyStudyChart(weekly.dailyMinutes) }
-        TextButton(onClick = { go("statistics") }) { Text("View statistics →") }
-        Spacer(Modifier.height(14.dp))
+        TextButton(onClick = { go("statistics") }) { Text("See your progress and leaderboard →") }
+        Spacer(Modifier.height(88.dp))
     }
 }
 

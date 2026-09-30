@@ -162,7 +162,9 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
 internal fun FocusScreen(
     prefs: android.content.SharedPreferences,
     onBack: () -> Unit,
-    onLegacy: (String) -> Unit
+    onLegacy: (String) -> Unit,
+    model: FocusViewModel = viewModel(),
+    onHistory: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val history = remember { StudyData.events(context) }
@@ -173,12 +175,12 @@ internal fun FocusScreen(
     val streak by produceState(0, historyRevision) {
         value = withContext(Dispatchers.IO) { history.streak() }
     }
-    val model: FocusViewModel = viewModel()
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { model.start() }
     val exactAllowed = Build.VERSION.SDK_INT < 31 ||
         context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
     val state by model.state.collectAsStateWithLifecycle()
     val fullScreenAllowed = FocusAlarm.canOpenFullScreen(context)
+    var optionsExpanded by remember { mutableStateOf(false) }
     var custom by remember { mutableStateOf(false) }
     var customBreak by remember { mutableStateOf(false) }
     var customText by remember { mutableStateOf("") }
@@ -210,7 +212,48 @@ internal fun FocusScreen(
             }
             Spacer(Modifier.height(20.dp))
         }
-        if (!state.active) {
+        if (!state.active) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(25, 45, 60, 90).forEach { minutes ->
+                FilterChip(selected = state.focusMinutes == minutes, onClick = { model.duration(minutes) },
+                    label = { Text("${minutes}m") })
+            }
+        }
+        Spacer(Modifier.height(25.dp))
+        Box(Modifier.size(208.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val stroke = 11.dp.toPx()
+                drawCircle(ringTrack, style = Stroke(stroke))
+                drawArc(ringColor, startAngle = -90f, sweepAngle = 360f * progress.coerceIn(0f, 1f),
+                    useCenter = false, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
+                    fontSize = 46.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(30.dp))
+        Button(onClick = { when {
+            !state.active && Build.VERSION.SDK_INT >= 33 &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ->
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            !state.active -> model.start()
+            state.running -> model.pause()
+            else -> model.resume()
+        } },
+            modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
+            Text(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" })
+        }
+        if (state.active) TextButton(onClick = { model.finish() }) { Text(if (state.isBreak) "End break" else "Finish session") }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextButton(onClick = { onLegacy("limits") }) { Text("App limits") }
+            TextButton(onClick = onHistory) { Text("History") }
+        }
+        if (!state.active) TextButton(onClick = { optionsExpanded = !optionsExpanded }) {
+            Text(if (optionsExpanded) "Hide session settings" else "Session settings · task, breaks & blocking")
+        }
+        if (!state.active && optionsExpanded) {
             OutlinedTextField(state.task, model::task, label = { Text("What are you studying?") },
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(12.dp))
@@ -242,40 +285,13 @@ internal fun FocusScreen(
             if (!exactAllowed) TextButton(onClick = {
                 context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
             }) { Text("Allow precise timer alerts in Settings") }
-        } else {
+        } else if (state.active) {
             Text(if (state.isBreak) "Take a short rest" else state.task.ifBlank { "Study session" }, style = MaterialTheme.typography.titleMedium, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
             if (!state.isBreak) Text(state.subject, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (!state.active && !fullScreenAllowed) TextButton(onClick = {
             context.startActivity(FocusAlarm.fullScreenSettings(context))
         }) { Text("Allow full-screen timer alarms") }
-        Spacer(Modifier.height(25.dp))
-        Box(Modifier.size(232.dp), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.fillMaxSize()) {
-                val stroke = 11.dp.toPx()
-                drawCircle(ringTrack, style = Stroke(stroke))
-                drawArc(ringColor, startAngle = -90f, sweepAngle = 360f * progress.coerceIn(0f, 1f),
-                    useCenter = false, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
-                    fontSize = 46.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
-                Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Spacer(Modifier.height(30.dp))
-        Button(onClick = { when {
-            !state.active && Build.VERSION.SDK_INT >= 33 &&
-                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ->
-                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-            !state.active -> model.start()
-            state.running -> model.pause()
-            else -> model.resume()
-        } },
-            modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
-            Text(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" })
-        }
-        if (state.active) TextButton(onClick = { model.finish() }) { Text(if (state.isBreak) "End break" else "Finish session") }
         Spacer(Modifier.height(20.dp))
     }
     if (custom || customBreak) AlertDialog(onDismissRequest = { custom = false; customBreak = false },

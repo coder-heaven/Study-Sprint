@@ -30,6 +30,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,14 +50,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int) {
+internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int, initialSubject: String? = null, initialChapterKey: String? = null) {
     val context = LocalContext.current
     val store = remember { StudyData.events(context) }
     val scope = rememberCoroutineScope()
     val course = prefs.getString("exam", "CET") ?: "CET"
     val grade = prefs.getString("grade", "11") ?: "11"
     val data = SyllabusData.chapters(course, grade)
-    var subject by remember(course, grade) { mutableStateOf(data.keys.firstOrNull().orEmpty()) }
+    var subject by remember(course, grade, initialSubject) { mutableStateOf(initialSubject?.takeIf { it in data } ?: data.keys.firstOrNull().orEmpty()) }
     var filter by remember { mutableStateOf("All") }
     var localRevision by remember { mutableIntStateOf(0) }
     var editingChapter by remember { mutableStateOf<String?>(null) }
@@ -75,6 +76,12 @@ internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int) {
             } catch (error: Throwable) { pdfError = error.message ?: "Could not save PDF." }
         }
     }
+    LaunchedEffect(initialChapterKey) {
+        initialChapterKey?.let {
+            editingChapter = it; savedChapterNote = store.chapterNote(it); chapterDraft = savedChapterNote.body
+        }
+    }
+    var chapterQuery by remember { mutableStateOf("") }
     val redraw = revision + localRevision
     val total = data.values.sumOf { it.size }
     val done = data.entries.sumOf { (name, chapters) ->
@@ -109,6 +116,8 @@ internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int) {
             Text("NCERT textbook chapters for planning. Check the official $course syllabus for exam coverage.",
                 fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
         }
+        OutlinedTextField(chapterQuery, { chapterQuery = it }, label = { Text("Find a chapter") },
+            singleLine = true, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
         SectionLabel("Subjects")
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -137,6 +146,7 @@ internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int) {
                 }
             }
             selected.forEachIndexed { index, chapter ->
+                if (!chapter.contains(chapterQuery.trim(), ignoreCase = true)) return@forEachIndexed
                 val key = chapterKey(course, grade, subject, index)
                 val checked = prefs.getBoolean(key, false)
                 if ((filter == "To do" && checked) || (filter == "Done" && !checked)) return@forEachIndexed
@@ -153,7 +163,7 @@ internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int) {
                         localRevision++
                     })
                     Text(chapter, fontSize = 15.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(start = 5.dp))
+                        modifier = Modifier.weight(1f).padding(start = 5.dp))
                 }
                 TextButton(onClick = {
                     editingChapter = key
