@@ -22,3 +22,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Firebase emulator tests
+firebase/node_modules/
+firebase/.firebase/
+.firebase/

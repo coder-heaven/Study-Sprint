@@ -13,8 +13,8 @@ android {
         applicationId = "com.pranav.study.cet_study_sprint"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "2.3.1"
+        versionCode = 11
+        versionName = "2.4.0"
     }
 
     compileOptions {
@@ -62,4 +62,5 @@ dependencies {
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
 }

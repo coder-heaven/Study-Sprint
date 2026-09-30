@@ -111,6 +111,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
             onValueChangeFinished = { prefs.edit().putInt("daily_focus_goal", goal).apply(); refresh() },
             valueRange = 15f..480f)
         SettingsRow("Focus preferences", "Custom timing and distraction control") { go("focus") }
+        SettingsRow("Student leaderboards", "Live study effort and quiz wins") { go("leaderboard") }
         SectionLabel("Digital wellbeing")
         SettingsRow("App Limits") { go("limits") }
         SettingsRow("App Usage Statistics") { go("statistics") }

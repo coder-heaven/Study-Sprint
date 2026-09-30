@@ -1,0 +1,12 @@
+{
+  "indexes": [
+    { "collectionGroup": "leaderboardStudents", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "visible", "order": "ASCENDING" }, { "fieldPath": "focusMinutes", "order": "DESCENDING" }
+    ]},
+    { "collectionGroup": "leaderboardStudents", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "visible", "order": "ASCENDING" }, { "fieldPath": "quizWins", "order": "DESCENDING" },
+      { "fieldPath": "quizAttempts", "order": "DESCENDING" }
+    ]}
+  ],
+  "fieldOverrides": []
+}
