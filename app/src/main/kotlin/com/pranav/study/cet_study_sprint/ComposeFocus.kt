@@ -113,7 +113,8 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = current.copy(running = false, remainingSeconds = seconds)
         prefs.edit().putBoolean("focus_running", false).putInt("focus_remaining", seconds).apply()
         FocusAlarm.cancel(getApplication())
-        setBlocking(false, 0)
+        // A pause does not turn a committed distraction block into a bypass.
+        setBlocking(!current.isBreak, Long.MAX_VALUE)
     }
     fun resume() {
         if (!state.value.active || state.value.running) return
@@ -244,6 +245,8 @@ internal fun FocusScreen(
             modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
             Text(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" })
         }
+        if (state.active && state.blockApps && !state.isBreak) Text("App blocking stays active while paused.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (state.active) TextButton(onClick = { model.finish() }) { Text(if (state.isBreak) "End break" else "Finish session") }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

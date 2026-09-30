@@ -123,6 +123,16 @@ internal fun LeaderboardScreen(prefs: SharedPreferences) {
                     Text(if (quiz) "Finish a quiz to get on this board." else "Complete some focus time to get on this board.")
                 }
             }
+            val ownRank = rows.indexOfFirst { it.uid == uid }
+            if (ownRank >= 0) item {
+                StudyCard {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Your position", fontWeight = FontWeight.SemiBold)
+                        Text("#${ownRank + 1}", style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
             if (rows.isNotEmpty()) item { LeaderboardPodium(rows.take(3), quiz, uid) }
             itemsIndexed(rows.drop(3), key = { _, student -> student.uid }) { index, student ->
                 LeaderboardRow(index + 4, student, quiz, student.uid == uid)

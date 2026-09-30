@@ -10,6 +10,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
@@ -91,6 +92,7 @@ internal fun McqEditorScreen(
     var message by remember { mutableStateOf<String?>(null) }
     var messageIsError by remember { mutableStateOf(false) }
     var pdfBusy by remember { mutableStateOf(false) }
+    var showAi by remember { mutableStateOf(false) }
     var importedReady by remember { mutableStateOf(false) }
     var bringQuestionIntoView by remember { mutableStateOf(false) }
     fun loadChapter(name: String) {
@@ -208,17 +210,41 @@ internal fun McqEditorScreen(
     ) {
         TextButton(onClick = onBack) { Text("‹  Back to practice") }
         AppHeading("Your 10 MCQs", "Type questions, create them with an AI app, or import a PDF.")
+        SectionLabel("Question set")
         OutlinedTextField(chapter, { chapter = it }, label = { Text("Chapter name") },
             modifier = Modifier.fillMaxWidth(), singleLine = true)
         val chapters = remember { savedQuizChapters(prefs) }
         if (chapters.isNotEmpty()) {
             Text("Edit a saved chapter", modifier = Modifier.padding(top = 8.dp))
-            chapters.forEach { name ->
-                TextButton(onClick = { loadChapter(name) }) { Text(name) }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                chapters.forEach { name -> FilterChip(selected = chapter == name, onClick = { loadChapter(name) }, label = { Text(name) }) }
             }
         }
         Spacer(Modifier.height(12.dp))
-        StudyCard {
+        OutlinedButton(
+            onClick = { pdfPicker.launch(arrayOf("application/pdf")) },
+            enabled = !pdfBusy,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            shape = RoundedCornerShape(15.dp)
+        ) {
+            if (pdfBusy) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.size(10.dp))
+                Text("Reading PDF…")
+            } else {
+                Text("Import questions from PDF")
+            }
+        }
+        Text(
+            "Supported layout: numbered questions, A–D options, and inline answers or an answer key.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
+        )
+        OutlinedButton(onClick = { showAi = !showAi }, modifier = Modifier.fillMaxWidth()) {
+            Text(if (showAi) "Hide AI tools" else "Create questions with an AI app")
+        }
+        if (showAi) StudyCard {
             Text("Create a compatible PDF with AI", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Text(
@@ -253,26 +279,6 @@ internal fun McqEditorScreen(
             )
         }
         Spacer(Modifier.height(12.dp))
-        OutlinedButton(
-            onClick = { pdfPicker.launch(arrayOf("application/pdf")) },
-            enabled = !pdfBusy,
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(15.dp)
-        ) {
-            if (pdfBusy) {
-                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.size(10.dp))
-                Text("Reading PDF…")
-            } else {
-                Text("Import questions from PDF")
-            }
-        }
-        Text(
-            "Supported layout: numbered questions, A–D options, and inline answers or an answer key.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
-        )
         LinearProgressIndicator(
             progress = { (index + 1) / 10f },
             modifier = Modifier.fillMaxWidth().bringIntoViewRequester(questionRequester)

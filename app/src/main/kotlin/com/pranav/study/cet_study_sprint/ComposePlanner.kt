@@ -49,15 +49,22 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
         .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)) {
         AppHeading("Today's plan", SimpleDateFormat("d MMMM", Locale.getDefault()).format(Date()))
         Spacer(Modifier.height(15.dp))
-        Text("$completed completed • ${tasks.size} to do",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        StudyCard {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("$completed done", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("${tasks.size} next steps", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(Modifier.height(10.dp))
+            LinearProgressIndicator(progress = { completed.toFloat() / (completed + tasks.size).coerceAtLeast(1) },
+                modifier = Modifier.fillMaxWidth().height(6.dp))
+        }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { editing = null; draft = ""; taskChapter = ""; sheet = true }) { Text("Add task") }
             OutlinedButton(onClick = { go("settings") }) { Text("Reminders") }
         }
         Spacer(Modifier.height(12.dp))
+        SectionLabel("Your next steps")
         if (tasks.isEmpty()) StudyCard {
             Text("Nothing planned yet", fontWeight = FontWeight.SemiBold)
             Text("Add one clear next step for today.",
@@ -170,7 +177,8 @@ internal fun NotesHistoryScreen() {
         notes.forEach { (day, body) ->
             Spacer(Modifier.height(10.dp))
             StudyCard {
-                Text(day, fontWeight = FontWeight.Bold)
+                Text(day, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(10.dp))
                 Text(body, style = MaterialTheme.typography.bodyMedium)
             }
         }

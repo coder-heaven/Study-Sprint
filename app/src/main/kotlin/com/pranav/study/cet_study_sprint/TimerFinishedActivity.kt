@@ -28,19 +28,13 @@ class TimerFinishedActivity : ComponentActivity() {
         handler.postDelayed(expire, 60_000)
         setContent {
             val prefs = getSharedPreferences("study_sprint", MODE_PRIVATE)
-            val dark = when (prefs.getString("theme_mode", "system")) {
-                "dark" -> true
-                "light" -> false
-                else -> isSystemInDarkTheme()
-            }
-            MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
+            StudyTheme(prefs, 0) {
                 BackHandler { dismiss() }
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().padding(28.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(if (breakFinished) "Break finished" else "Focus complete",
-                            style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                        AppHeading(if (breakFinished) "Break finished" else "Focus complete", "A little progress, every day.")
                         Spacer(Modifier.height(16.dp))
                         Text("Your timer has finished.")
                         Spacer(Modifier.height(32.dp))
