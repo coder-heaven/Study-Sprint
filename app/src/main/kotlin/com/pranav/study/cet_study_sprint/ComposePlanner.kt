@@ -17,7 +17,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private fun orderedTasks(prefs: SharedPreferences): List<String> {
+internal fun orderedTasks(prefs: SharedPreferences): List<String> {
     val tasks = prefs.getStringSet("tasks", emptySet()).orEmpty()
     val saved = runCatching {
         val array = JSONArray(prefs.getString("task_order", "[]"))
@@ -25,14 +25,14 @@ private fun orderedTasks(prefs: SharedPreferences): List<String> {
     }.getOrDefault(emptyList())
     return saved.filter { it in tasks } + tasks.filter { it !in saved }.sorted()
 }
-private fun saveTasks(prefs: SharedPreferences, tasks: List<String>) {
+internal fun saveTasks(prefs: SharedPreferences, tasks: List<String>) {
     prefs.edit().putStringSet("tasks", tasks.toSet())
         .putString("task_order", JSONArray(tasks).toString()).apply()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PlannerScreen(prefs: SharedPreferences, revision: Int) {
+internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String) -> Unit = {}) {
     val context = LocalContext.current
     val store = remember { StudyData.events(context) }
     val day = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
@@ -52,6 +52,11 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int) {
         Text("$completed completed • ${tasks.size} to do",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { editing = null; draft = ""; taskChapter = ""; sheet = true }) { Text("Add task") }
+            OutlinedButton(onClick = { go("settings") }) { Text("Reminders") }
+        }
         Spacer(Modifier.height(12.dp))
         if (tasks.isEmpty()) StudyCard {
             Text("Nothing planned yet", fontWeight = FontWeight.SemiBold)
@@ -96,10 +101,6 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int) {
                 }
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Button(onClick = { editing = null; draft = ""; taskChapter = ""; sheet = true },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(16.dp)) { Text("Add study task") }
         SectionLabel("What I learned today")
         StudyCard {
             Row(Modifier.fillMaxWidth().clickable { noteExpanded = !noteExpanded },
@@ -125,7 +126,7 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int) {
                 }, modifier = Modifier.fillMaxWidth()) { Text("Save note") }
             }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(88.dp))
     }
     if (sheet) ModalBottomSheet(onDismissRequest = { sheet = false }) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 30.dp)) {
