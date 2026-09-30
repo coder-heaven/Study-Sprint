@@ -144,7 +144,7 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
             .putBoolean("focus_is_break", false).putInt("focus_remaining", current.focusMinutes * 60).apply()
         setBlocking(false, 0)
     }
-    fun clearCompletion() { _state.value = state.value.copy(completedMinutes = null) }
+    fun clearCompletion() { FocusAlarm.dismiss(getApplication()); _state.value = state.value.copy(completedMinutes = null) }
     private fun tick() {
         val current = state.value
         if (!current.active || !current.running) return
@@ -178,6 +178,7 @@ internal fun FocusScreen(
     val exactAllowed = Build.VERSION.SDK_INT < 31 ||
         context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
     val state by model.state.collectAsStateWithLifecycle()
+    val fullScreenAllowed = FocusAlarm.canOpenFullScreen(context)
     var custom by remember { mutableStateOf(false) }
     var customBreak by remember { mutableStateOf(false) }
     var customText by remember { mutableStateOf("") }
@@ -245,6 +246,9 @@ internal fun FocusScreen(
             Text(if (state.isBreak) "Take a short rest" else state.task.ifBlank { "Study session" }, style = MaterialTheme.typography.titleMedium, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
             if (!state.isBreak) Text(state.subject, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if (!state.active && !fullScreenAllowed) TextButton(onClick = {
+            context.startActivity(FocusAlarm.fullScreenSettings(context))
+        }) { Text("Allow full-screen timer alarms") }
         Spacer(Modifier.height(25.dp))
         Box(Modifier.size(232.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {

@@ -11,12 +11,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
 
 internal object StudyReminders {
-    private const val CHANNEL = "study_reminders_sound_v2"
+    const val CHANNEL = "study_reminders_sound_v3"
     const val STUDY = "study"
     const val PLAN = "plan"
 
@@ -72,23 +74,27 @@ internal object StudyReminders {
         alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time.timeInMillis, pending)
     }
 
+    fun createChannel(context: Context) {
+        context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(CHANNEL, "Study reminders", NotificationManager.IMPORTANCE_HIGH).apply {
+                setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 250, 130, 250)
+            })
+    }
+
     fun notify(context: Context, kind: String) {
+        val route = AlertDestination.reminder(kind) ?: return
+        AlertNavigation.foreground(context, route)
+        createChannel(context)
         if (Build.VERSION.SDK_INT >= 33 &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Study reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 250, 130, 250)
-            }
-        )
-        val open = PendingIntent.getActivity(
-            context,
-            1000,
-            Intent(context, ComposeStudyActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val id = if (kind == STUDY) 100 else 101
+        val open = AlertNavigation.pending(context, route, id)
         val (title, message) = if (kind == STUDY) {
             "A little focus today?" to "Open Study Sprint and begin one study session."
         } else {
@@ -98,6 +104,7 @@ internal object StudyReminders {
             if (kind == STUDY) 100 else 101,
             Notification.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
+                .setCategory(Notification.CATEGORY_REMINDER)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setContentIntent(open)

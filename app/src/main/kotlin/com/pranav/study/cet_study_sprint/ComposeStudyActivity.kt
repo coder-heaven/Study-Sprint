@@ -2,6 +2,11 @@ package com.pranav.study.cet_study_sprint
 
 import android.app.DatePickerDialog
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import android.app.NotificationManager
+import android.os.Build
 import android.content.SharedPreferences
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -77,9 +82,39 @@ internal val WarmCream = Color(0xFFFDFDFF)
 class ComposeStudyActivity : ComponentActivity() {
     private val prefs by lazy { getSharedPreferences("study_sprint", MODE_PRIVATE) }
     private var revision by mutableIntStateOf(0)
+    private var alertRoute by mutableStateOf<String?>(null)
+    private val alertReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            alertRoute = AlertDestination.valid(intent.getStringExtra(AlertNavigation.ROUTE))
+        }
+    }
+    private fun handleAlert(intent: Intent) {
+        if (intent.action != AlertNavigation.ACTION) return
+        alertRoute = AlertDestination.valid(intent.getStringExtra(AlertNavigation.ROUTE))
+        if (alertRoute != null) {
+            val id = intent.getIntExtra(AlertNavigation.NOTIFICATION_ID, -1)
+            if (id in listOf(100, 101, FocusAlarm.NOTIFICATION_ID))
+                getSystemService(NotificationManager::class.java).cancel(id)
+        }
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleAlert(intent)
+    }
+    override fun onStart() {
+        super.onStart()
+        val filter = IntentFilter(AlertNavigation.ACTION)
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(alertReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        else registerReceiver(alertReceiver, filter)
+    }
+    override fun onStop() { unregisterReceiver(alertReceiver); super.onStop() }
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        handleAlert(intent)
+        FocusAlarm.createChannel(this)
+        StudyReminders.createChannel(this)
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 Leaderboards.repository(applicationContext).runSyncLoop()
@@ -93,7 +128,7 @@ class ComposeStudyActivity : ComponentActivity() {
                         prefs.edit().putString("profile_name", name.trim()).putString("exam", course)
                             .putString("grade", grade).putBoolean("onboarding_v3", true).apply()
                         ready = true; revision++
-                    } else StudyRoot(prefs, revision, onLegacy = { destination ->
+                    } else StudyRoot(prefs, revision, alertRoute = alertRoute, onAlertHandled = { alertRoute = null }, onLegacy = { destination ->
                         startActivity(Intent(this, MainActivity::class.java).putExtra("legacy_screen", destination))
                     }, refresh = { revision++ })
                 }
@@ -189,7 +224,7 @@ private fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compos
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String) -> Unit, refresh: () -> Unit) {
+private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: String?, onAlertHandled: () -> Unit, onLegacy: (String) -> Unit, refresh: () -> Unit) {
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -217,6 +252,9 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, onLegacy: (String
             }
             if (drawer.isOpen) drawer.close()
         }
+    }
+    LaunchedEffect(alertRoute) {
+        AlertDestination.valid(alertRoute)?.let { go(it); onAlertHandled() }
     }
     ModalNavigationDrawer(drawerState = drawer, drawerContent = {
         ModalDrawerSheet(

@@ -116,6 +116,20 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         SettingsRow("App Limits") { go("limits") }
         SettingsRow("App Usage Statistics") { go("statistics") }
         SectionLabel("Notifications")
+        SettingsRow("Timer sound", "Alarm sound and vibration") {
+            FocusAlarm.createChannel(context)
+            context.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, FocusAlarm.CHANNEL))
+        }
+        SettingsRow("Reminder sound", "Notification sound and vibration") {
+            StudyReminders.createChannel(context)
+            context.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, StudyReminders.CHANNEL))
+        }
+        Text("Tap a reminder to open its screen. When Study Sprint is already visible, it opens that screen automatically.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Daily study reminder")
