@@ -41,18 +41,21 @@ import java.util.Calendar
 
 @Composable
 private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Unit) {
-    Column {
-        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 56.dp)
-            .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.bodyLarge)
+    Surface(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+        Row(Modifier.heightIn(min = 64.dp).padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                Text(label.take(1), modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 if (detail != null) Text(detail, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text("›", style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
         }
-        HorizontalDivider()
     }
 }
 @Composable
@@ -101,7 +104,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        AppHeading("Settings", "Make your study space yours.")
+        AppHeading("Settings", "Your preferences, clearly organized.")
         SectionLabel("Study")
         SettingsRow("Exam & class", "${prefs.getString("exam", "CET")} • Class ${prefs.getString("grade", "11")}") { go("profile") }
         SettingsRow("Exam date", "Edit in profile") { go("profile") }
@@ -113,7 +116,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         SettingsRow("Focus preferences", "Custom timing and distraction control") { go("focus") }
         SettingsRow("Student leaderboards", "Live study effort and quiz wins") { go("leaderboard") }
         SectionLabel("Digital wellbeing")
-        SettingsRow("App Limits") { go("limits") }
+        SettingsRow("App Limits", "Strict limits · YouTube 2 × 5 min") { go("limits") }
         SettingsRow("App Usage Statistics") { go("statistics") }
         SectionLabel("Notifications")
         SettingsRow("Timer sound", "Alarm sound and vibration") {
@@ -206,7 +209,8 @@ private fun appRecords(context: Context, days: Int = 1): List<AppRecord> {
             else -> null
         }
     }
-    val packages = launcherLabels.keys + usage.filterValues { it > 0 }.keys + savedPackages
+    val validSavedPackages = savedPackages.filter { '.' in it }
+    val packages = launcherLabels.keys + usage.filterValues { it > 0 }.keys + validSavedPackages
     return packages.asSequence().filter { it !in protected && it.isNotBlank() }
         .map { pkg ->
             val label = launcherLabels[pkg] ?: runCatching {
@@ -243,88 +247,78 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
     var minutes by remember(chosen) { mutableIntStateOf(chosen?.limit ?: 0) }
     var daysMask by remember(chosen) { mutableIntStateOf(chosen?.let { context.getSharedPreferences(StudyBlockerService.PREFS, Context.MODE_PRIVATE).getInt("limit_days_${it.pkg}", 127) } ?: 127) }
     var focusBlocked by remember(chosen) { mutableStateOf(chosen?.let { context.getSharedPreferences(StudyBlockerService.PREFS, Context.MODE_PRIVATE).getBoolean("focus_block_${it.pkg}", false) } ?: false) }
-    val allowed = remember(revision) { usageAllowed(context) }
+    val allowed = remember(revision) { StrictLimits.applyPending(context); usageAllowed(context) }
     val blockEvents by produceState<Map<String, Int>>(emptyMap(), revision) {
         value = withContext(Dispatchers.IO) { StudyData.events(context).limitCounts(1) }
     }
     val apps by produceState<List<AppRecord>>(emptyList(), revision) {
         value = withContext(Dispatchers.IO) { appRecords(context) }
     }
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        AppHeading("App Limits", "Choose healthy daily limits.")
-        Spacer(Modifier.height(12.dp))
-        if (!allowed) StudyCard {
-            Text("Usage access", fontWeight = FontWeight.Bold)
-            Text("Enable usage access so Study Sprint can show your app time and enforce limits.",
-                style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = {
-                context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-            }) { Text("Enable usage access") }
-        }
-        val accessibility = remember(revision) { blockerEnabled(context) }
-        if (!accessibility) {
-            Spacer(Modifier.height(8.dp))
+    var saveMessage by remember { mutableStateOf("") }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { AppHeading("App Limits", "Protect your time. Keep your commitments.") }
+        item { YouTubeAllowanceCard() }
+        item {
             StudyCard {
-                Text("App blocking is optional", fontWeight = FontWeight.Bold)
-                Text(
-                    "You can set and track limits now. To automatically close an app at its limit, finish Android's protected Accessibility setup.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Button(
-                    onClick = { showBlockingGuide = true },
-                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
-                ) { Text("Guided setup") }
+                Text("Protection status", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Usage Access: ${if (allowed) "Ready" else "Needed"} · Blocking: ${if (blockerEnabled(context)) "Ready" else "Needed"}",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!allowed) TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }) { Text("Enable Usage Access") }
+                if (!blockerEnabled(context)) OutlinedButton(onClick = { showBlockingGuide = true }, modifier = Modifier.fillMaxWidth()) { Text("Set up app blocking") }
+                Text("Strict limits have no extra-time bypass. Increases and removals apply tomorrow; tighter limits apply now. Android permissions must stay enabled.",
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             }
         }
-        Spacer(Modifier.height(14.dp))
-        if (allowed) Text("Hidden apps appear after they have been used. Apps in a separate private profile may not be visible here.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MetricCardLocal("${apps.sumOf { it.usedMs } / 60000}m", "App use", Modifier.weight(1f))
-            MetricCardLocal("${apps.count { it.limit > 0 }}", "Limited", Modifier.weight(1f))
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MetricCardLocal("${apps.sumOf { it.usedMs } / 60000}m", "App use", Modifier.weight(1f))
+                MetricCardLocal("${apps.count { it.limit > 0 || it.pkg == YouTubeQuota.PACKAGE }}", "Protected", Modifier.weight(1f))
+            }
         }
-        Spacer(Modifier.height(12.dp))
-        Text("${blockEvents["blocked"] ?: 0} blocks today", style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(search, { search = it }, label = { Text("Search apps") },
-            modifier = Modifier.fillMaxWidth(), singleLine = true)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = !onlyLimited, onClick = { onlyLimited = false }, label = { Text("All") })
-            FilterChip(selected = onlyLimited, onClick = { onlyLimited = true }, label = { Text("Limited") })
-            TextButton(onClick = { revision++ }) { Text("Refresh") }
+        item {
+            Text("${blockEvents["blocked"] ?: 0} blocks today", style = MaterialTheme.typography.labelMedium)
+            if (saveMessage.isNotBlank()) Text(saveMessage, color = MaterialTheme.colorScheme.primary)
+            OutlinedTextField(search, { search = it }, label = { Text("Search apps") },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, shape = MaterialTheme.shapes.large)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = !onlyLimited, onClick = { onlyLimited = false }, label = { Text("All") })
+                FilterChip(selected = onlyLimited, onClick = { onlyLimited = true }, label = { Text("Limited") })
+                TextButton(onClick = { revision++ }) { Text("Refresh") }
+            }
         }
         val visible = apps.filter {
+            it.pkg != YouTubeQuota.PACKAGE &&
             (it.label.contains(search, ignoreCase = true) || it.pkg.contains(search, ignoreCase = true)) &&
                 (!onlyLimited || it.limit > 0)
         }
-        LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(visible, key = { it.pkg }) { app ->
-                StudyCard(Modifier.clickable { chosen = app }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AndroidView(factory = { ImageView(it).apply {
-                            setImageDrawable(runCatching { context.packageManager.getApplicationIcon(app.pkg) }.getOrNull())
-                        } }, modifier = Modifier.size(38.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(app.label, fontWeight = FontWeight.SemiBold)
-                            Text(if (app.limit > 0) "${app.usedMs / 60000}m / ${app.limit}m"
-                                 else "${app.usedMs / 60000}m today • no limit",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Text("Edit", color = MaterialTheme.colorScheme.primary)
+        items(visible, key = { it.pkg }) { app ->
+            StudyCard(Modifier.clickable { chosen = app }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AndroidView(factory = { ImageView(it).apply {
+                        setImageDrawable(runCatching { context.packageManager.getApplicationIcon(app.pkg) }.getOrNull())
+                    } }, modifier = Modifier.size(40.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(app.label, fontWeight = FontWeight.SemiBold)
+                        Text(if (app.limit > 0) "${app.usedMs / 60000}m of ${app.limit}m · Strict"
+                             else "${app.usedMs / 60000}m today · No limit",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (StrictLimits.prefs(context).contains("pending_at_${app.pkg}"))
+                            Text("Change queued for tomorrow", style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary)
                     }
-                    if (app.limit > 0) {
-                        Spacer(Modifier.height(8.dp))
-                        LinearProgressIndicator(progress = { ((app.usedMs / 60000f) / app.limit).coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth())
-                    }
+                    Text("›", style = MaterialTheme.typography.titleLarge)
                 }
+                if (app.limit > 0) LinearProgressIndicator(progress = { (app.usedMs / (app.limit * 60000f)).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(6.dp))
             }
         }
+        if (visible.isEmpty()) item { StudyCard { Text(if (apps.isEmpty()) "Loading apps…" else "No apps match this filter.") } }
+        item { Text("Hidden apps appear after use. Separate private profiles and browser versions of YouTube are outside this app's allowance.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
     if (showBlockingGuide) ModalBottomSheet(onDismissRequest = { showBlockingGuide = false }) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 30.dp)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp).padding(bottom = 30.dp)) {
             Text("Enable app blocking", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
                 "Android 13 and newer restrict sensitive permissions for apps installed from GitHub. This is an Android safety requirement; Study Sprint cannot switch it on for you.",
@@ -359,7 +353,7 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
         }
     }
     if (chosen != null) ModalBottomSheet(onDismissRequest = { chosen = null }) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 30.dp)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp).padding(bottom = 30.dp)) {
             Text(chosen!!.label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("Used today: ${chosen!!.usedMs / 60000} min",
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -391,10 +385,8 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
             }
             Spacer(Modifier.height(12.dp))
             Button(onClick = {
-                context.getSharedPreferences(StudyBlockerService.PREFS, Context.MODE_PRIVATE)
-                    .edit().putInt("limit_${chosen!!.pkg}", minutes)
-                    .putBoolean("focus_block_${chosen!!.pkg}", focusBlocked)
-                    .putInt("limit_days_${chosen!!.pkg}", daysMask).apply()
+                val deferred = StrictLimits.save(context, chosen!!.pkg, minutes, daysMask, focusBlocked)
+                saveMessage = if (deferred) "Change saved for tomorrow. Today's protection stays active." else "Strict limit saved."
                 chosen = null; revision++
             }, modifier = Modifier.fillMaxWidth()) { Text("Save limit") }
         }
@@ -440,7 +432,7 @@ internal fun StatisticsScreen(
                 FilterChip(selected = days == count, onClick = { model.selectDays(count) }, label = { Text(label) })
             }
         }
-        if (tab == 0) Column(Modifier.verticalScroll(rememberScrollState())) {
+        if (tab == 0) Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetricCardLocal("${totals.focusedMinutes}m", "Focused", Modifier.weight(1f))
                 MetricCardLocal("${totals.sessions}", "Sessions", Modifier.weight(1f))
@@ -457,7 +449,14 @@ internal fun StatisticsScreen(
             SectionLabel("Subject focus")
             StudyCard {
                 if (subjects.isEmpty()) Text("No recorded subject time yet.")
-                subjects.forEach { (subject, minutes) -> Text("$subject • $minutes min") }
+                subjects.forEach { (subject, minutes) ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Text(subject, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                        Text("$minutes min", color = MaterialTheme.colorScheme.primary)
+                    }
+                    LinearProgressIndicator(progress = { minutes.toFloat() / subjects.values.sum().coerceAtLeast(1) },
+                        modifier = Modifier.fillMaxWidth().height(6.dp))
+                }
             }
             SectionLabel("Practice accuracy")
             StudyCard {
@@ -472,7 +471,7 @@ internal fun StatisticsScreen(
                     style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.height(20.dp))
-        } else Column(Modifier.verticalScroll(rememberScrollState())) {
+        } else Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             if (!usageAllowed(context)) StudyCard {
                 Text("Usage access is needed for real app statistics.")
                 val ctx = LocalContext.current
@@ -484,7 +483,7 @@ internal fun StatisticsScreen(
                 SectionLabel("Limit activity")
                 StudyCard {
                     Text("${limitEvents["limit_reached"] ?: 0} limits reached")
-                    Text("${limitEvents["blocked"] ?: 0} blocks • ${limitEvents["bypass"] ?: 0} five-minute bypasses")
+                    Text("${limitEvents["blocked"] ?: 0} blocks prevented distractions")
                 }
                 SectionLabel("Most used apps")
                 apps.filter { it.usedMs > 0 }.sortedByDescending { it.usedMs }.take(10).forEach { app ->

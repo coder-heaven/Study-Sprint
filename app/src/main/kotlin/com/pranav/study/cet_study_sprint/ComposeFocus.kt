@@ -113,7 +113,8 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = current.copy(running = false, remainingSeconds = seconds)
         prefs.edit().putBoolean("focus_running", false).putInt("focus_remaining", seconds).apply()
         FocusAlarm.cancel(getApplication())
-        setBlocking(false, 0)
+        // A pause does not turn a committed distraction block into a bypass.
+        setBlocking(!current.isBreak, Long.MAX_VALUE)
     }
     fun resume() {
         if (!state.value.active || state.value.running) return
@@ -195,7 +196,7 @@ internal fun FocusScreen(
     ) {
         AppHeading(if (state.isBreak) "Break time" else if (state.active) "Focus in progress" else "Focus",
             if (state.isBreak) "Rest, then return refreshed." else if (state.active) "Stay with this one task." else "Make time for what matters.")
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(4.dp))
         if (state.completedMinutes != null) {
             StudyCard {
                 Text("Session complete", style = MaterialTheme.typography.titleLarge, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
@@ -218,21 +219,7 @@ internal fun FocusScreen(
                     label = { Text("${minutes}m") })
             }
         }
-        Spacer(Modifier.height(25.dp))
-        Box(Modifier.size(208.dp), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.fillMaxSize()) {
-                val stroke = 11.dp.toPx()
-                drawCircle(ringTrack, style = Stroke(stroke))
-                drawArc(ringColor, startAngle = -90f, sweepAngle = 360f * progress.coerceIn(0f, 1f),
-                    useCenter = false, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
-                    fontSize = 46.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
-                Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(8.dp))
         Button(onClick = { when {
             !state.active && Build.VERSION.SDK_INT >= 33 &&
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ->
@@ -241,9 +228,26 @@ internal fun FocusScreen(
             state.running -> model.pause()
             else -> model.resume()
         } },
-            modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
+            modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) {
             Text(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" })
         }
+        Spacer(Modifier.height(12.dp))
+        Box(Modifier.size(160.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val stroke = 11.dp.toPx()
+                drawCircle(ringTrack, style = Stroke(stroke))
+                drawArc(ringColor, startAngle = -90f, sweepAngle = 360f * progress.coerceIn(0f, 1f),
+                    useCenter = false, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
+                    fontSize = 38.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        if (state.active && state.blockApps && !state.isBreak) Text("App blocking stays active while paused.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (state.active) TextButton(onClick = { model.finish() }) { Text(if (state.isBreak) "End break" else "Finish session") }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

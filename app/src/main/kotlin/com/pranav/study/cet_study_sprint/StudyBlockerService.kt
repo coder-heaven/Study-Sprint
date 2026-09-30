@@ -1,75 +1,91 @@
 package com.pranav.study.cet_study_sprint
 
 import android.accessibilityservice.AccessibilityService
-import android.content.Context
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
+import android.os.SystemClock
+import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
+import kotlinx.coroutines.*
 import java.util.Calendar
 
 class StudyBlockerService : AccessibilityService() {
     companion object { const val PREFS = "study_blocker" }
-    private var lastBlockAt = 0L
-    private var lastPackage = ""
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var checker: Job? = null
     private var foregroundPackage: String? = null
-    private val handler = Handler(Looper.getMainLooper())
-    private val checkWhileOpen = object : Runnable {
-        override fun run() {
-            foregroundPackage?.let(::checkLimit)
-            handler.postDelayed(this, 5_000L)
-        }
-    }
+    private var protected = emptySet<String>()
+    private var keyboards = emptySet<String>()
+    private var lastPackage = ""
+    private var lastBlockAt = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        handler.removeCallbacks(checkWhileOpen)
-        handler.post(checkWhileOpen)
+        protected = Protection.packages(this)
+        keyboards = (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+            .inputMethodList.map { it.packageName }.toSet()
+        StrictLimits.applyPending(this)
+        scope.launch {
+            while (isActive) { requestCheck(); delay(1_000L) }
+        }
     }
-
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
+        // Keyboard popups are not app switches; keep monitoring the underlying app.
+        if (pkg in keyboards) return
         foregroundPackage = pkg
-        checkLimit(pkg)
+        requestCheck()
     }
-
-    private fun checkLimit(pkg: String) {
-        if (pkg in Protection.packages(this)) return
-        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val now = System.currentTimeMillis()
-        if (now < prefs.getLong("bypass_until_$pkg", 0)) return
-        val focus = prefs.getBoolean("focus_block_active", false) &&
-            now < prefs.getLong("focus_block_end", 0) &&
-            prefs.getBoolean("focus_block_$pkg", false)
-        val limit = prefs.getInt("limit_$pkg", 0)
-        val weekday = StudyTimeMath.weekdayIndex(Calendar.getInstance().get(Calendar.DAY_OF_WEEK))
-        val appliesToday = prefs.getInt("limit_days_$pkg", 127) and (1 shl weekday) != 0
-        val daily = appliesToday && limit > 0 && usedToday(pkg) >= limit * 60_000L
-        if (!focus && !daily) return
-        if (pkg == lastPackage && now - lastBlockAt < 1500) return
-        lastPackage = pkg
-        lastBlockAt = now
-        val history = StudyData.events(this)
-        if (daily) {
-            val day = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date(now))
-            if (prefs.getString("last_reached_$pkg", null) != day) {
-                prefs.edit().putString("last_reached_$pkg", day).apply()
-                history.recordLimitEvent("limit_reached", pkg)
+    private fun requestCheck() {
+        if (checker?.isActive == true) return
+        val pkg = foregroundPackage ?: return
+        if (pkg in protected) return
+        checker = scope.launch {
+            StrictLimits.applyPending(this@StudyBlockerService)
+            val p = StrictLimits.prefs(this@StudyBlockerService)
+            val limit = p.getInt("limit_$pkg", 0)
+            val weekday = StudyTimeMath.weekdayIndex(Calendar.getInstance().get(Calendar.DAY_OF_WEEK))
+            val dailyApplies = pkg != YouTubeQuota.PACKAGE && limit > 0 && p.getInt("limit_days_$pkg", 127) and (1 shl weekday) != 0
+            val youtube = pkg == YouTubeQuota.PACKAGE
+            val usageAccess = StrictLimits.usageAllowed(this@StudyBlockerService)
+            val used = if (usageAccess && (dailyApplies || youtube)) withContext(Dispatchers.IO) {
+                DailyUsage.usedToday(this@StudyBlockerService, pkg)
+            } else 0L
+            if (foregroundPackage != pkg) return@launch
+            val now = System.currentTimeMillis()
+            val focus = StrictLimits.focusBlocked(p, pkg, now)
+            val reason = when {
+                focus -> "focus"
+                (dailyApplies || youtube) && !usageAccess -> "permission"
+                youtube && used >= 600_000L -> "youtube_daily"
+                dailyApplies && used >= limit * 60_000L -> "daily"
+                youtube && StrictLimits.remainingYouTube(this@StudyBlockerService, now) == 0L -> "youtube_session"
+                else -> return@launch
+            }
+            val elapsed = SystemClock.elapsedRealtime()
+            if (pkg == lastPackage && elapsed - lastBlockAt < 750L) return@launch
+            lastPackage = pkg; lastBlockAt = elapsed
+            val history = StudyData.events(this@StudyBlockerService)
+            withContext(Dispatchers.IO) {
+                if (reason == "daily" || reason == "youtube_daily") {
+                    val day = DailyUsage.startOfLocalDay(now).toString()
+                    if (p.getString("last_reached_$pkg", null) != day) {
+                        p.edit().putString("last_reached_$pkg", day).apply()
+                        history.recordLimitEvent("limit_reached", pkg)
+                    }
+                }
+                history.recordLimitEvent("blocked", pkg)
+            }
+            if (foregroundPackage != pkg) return@launch
+            // Close the distracting app first, so Back/recents cannot dismiss the block into it.
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            runCatching {
+                startActivity(Intent(this@StudyBlockerService, BlockedActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    .putExtra("package", pkg).putExtra("reason", reason).putExtra("limit_minutes", limit))
             }
         }
-        history.recordLimitEvent("blocked", pkg)
-        startActivity(Intent(this, BlockedActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra("package", pkg).putExtra("focus_block", focus)
-            .putExtra("limit_minutes", limit))
     }
-
-    private fun usedToday(target: String): Long = DailyUsage.usedToday(this, target)
     override fun onInterrupt() = Unit
-
-    override fun onDestroy() {
-        handler.removeCallbacks(checkWhileOpen)
-        super.onDestroy()
-    }
+    override fun onDestroy() { scope.cancel(); super.onDestroy() }
 }

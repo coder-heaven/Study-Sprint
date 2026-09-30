@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -156,7 +157,7 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
                     Spacer(Modifier.height(20.dp))
                     StudyCard {
                         Text("$marks / ${questions.size * scheme.correct}", fontSize = 43.sp,
-                            fontWeight = FontWeight.Bold, color = Pine)
+                            fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
                         Text("marks · $correctCount correct · ${questions.size - correctCount} wrong",
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("$course marking: ${scheme.label()}", fontSize = 13.sp,
@@ -193,9 +194,15 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
                                 colors = CardDefaults.cardColors(containerColor = tint),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
-                                Text("${'A' + answerIndex}. $option", fontSize = 15.sp,
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.fillMaxWidth().padding(15.dp))
+                                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Surface(shape = RoundedCornerShape(12.dp), color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer) {
+                                        Text(('A' + answerIndex).toString(), modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold,
+                                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer)
+                                    }
+                                    Text(option, fontSize = 16.sp, modifier = Modifier.weight(1f),
+                                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                                }
                             }
                         }
                         if (revealed) {

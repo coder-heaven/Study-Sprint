@@ -102,13 +102,13 @@ internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int, initialSubj
                     Text("$done of $total chapters done", fontSize = 13.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text("${if (total == 0) 0 else done * 100 / total}%", fontSize = 25.sp,
-                    fontWeight = FontWeight.Bold, color = Pine)
+                    fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.height(14.dp))
             LinearProgressIndicator(
                 progress = { if (total == 0) 0f else done.toFloat() / total },
                 modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(9.dp)),
-                color = Pine, trackColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
+                color = androidx.compose.material3.MaterialTheme.colorScheme.primary, trackColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
             )
         }
         if (course != "CET") {
@@ -136,7 +136,7 @@ internal fun SyllabusScreen(prefs: SharedPreferences, revision: Int, initialSubj
             LinearProgressIndicator(
                 progress = { if (selected.isEmpty()) 0f else selectedDone.toFloat() / selected.size },
                 modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(9.dp)),
-                color = Pine, trackColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
+                color = androidx.compose.material3.MaterialTheme.colorScheme.primary, trackColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -228,7 +228,7 @@ internal fun PracticeScreen(prefs: SharedPreferences, revision: Int, onLegacy: (
         }
         Spacer(Modifier.height(12.dp))
         StudyCard {
-            Text("Your own 10 MCQs", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+            Text("Saved question sets", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
             Text(if (yours.isEmpty()) "Add your questions and answers to build a personal set."
                  else "${yours.size} saved questions are ready.", fontSize = 14.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(15.dp))
@@ -239,8 +239,10 @@ internal fun PracticeScreen(prefs: SharedPreferences, revision: Int, onLegacy: (
                 Spacer(Modifier.height(9.dp))
             }
             chapters.filter { it != prefs.getString("owned_mcqs_chapter", "") }.forEach { chapter ->
-                OutlinedButton(onClick = { activeTitle = chapter; active = savedQuestions(prefs, chapter) },
-                    modifier = Modifier.fillMaxWidth()) { Text("Practice: $chapter") }
+                Spacer(Modifier.height(8.dp))
+                StudyLink(chapter, "${savedQuestions(prefs, chapter).size} questions · Start practice") {
+                    activeTitle = chapter; active = savedQuestions(prefs, chapter)
+                }
             }
             OutlinedButton(onClick = { onLegacy("import") },
                 modifier = Modifier.fillMaxWidth().height(50.dp),

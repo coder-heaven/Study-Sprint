@@ -139,12 +139,13 @@ internal fun StudySearchScreen(prefs: SharedPreferences, revision: Int, go: (Str
     }
     val matches = items.filter { query.isBlank() || (it.title + " " + it.detail).contains(query.trim(), ignoreCase = true) }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        AppHeading("Find your next step", "Search your chapters, notes and tools.")
         OutlinedTextField(query, { query = it }, label = { Text("Search chapters, notes, PDFs or features") },
             singleLine = true, modifier = Modifier.fillMaxWidth())
         Text(if (query.isBlank()) "Find a feature or your study materials" else "${matches.size} results",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(vertical = 12.dp))
-        androidx.compose.foundation.lazy.LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp),
+        androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 24.dp)) {
             items(count = matches.size) { index ->
                 val item = matches[index]

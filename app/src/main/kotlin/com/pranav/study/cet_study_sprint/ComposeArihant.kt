@@ -53,7 +53,10 @@ internal fun ArihantPracticeScreen(prefs: SharedPreferences, onBack: () -> Unit)
     ) {
         TextButton(onClick = onBack) { Text("‹  Back to practice") }
         AppHeading("Arihant practice log", "Record results from your own book.")
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(4.dp))
+        Text("${records.size} saved results", style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary)
+        SectionLabel("Log a practice session")
         StudyCard {
             OutlinedTextField(
                 value = chapter,
@@ -107,7 +110,7 @@ internal fun ArihantPracticeScreen(prefs: SharedPreferences, onBack: () -> Unit)
         }
         SectionLabel("Saved results")
         if (records.isEmpty()) {
-            StudyCard { Text("No book-practice results yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            StudyCard { Text("Your first practice session starts here. Save the chapter and score above.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
             records.forEach { item ->
                 StudyCard(Modifier.padding(bottom = 8.dp)) {

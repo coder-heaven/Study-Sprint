@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -144,7 +145,7 @@ class ComposeStudyActivity : ComponentActivity() {
 }
 
 @Composable
-private fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Composable () -> Unit) {
+internal fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Composable () -> Unit) {
     val selectedTheme = remember(revision) { prefs.getString("theme_mode", "system") }
     val dark = when (selectedTheme) {
         "dark" -> true
@@ -229,7 +230,7 @@ private fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compos
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: String?, onAlertHandled: () -> Unit, onLegacy: (String) -> Unit, refresh: () -> Unit) {
+internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: String?, onAlertHandled: () -> Unit, onLegacy: (String) -> Unit, refresh: () -> Unit) {
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -249,8 +250,10 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                 nav.navigate(target) {
                     launchSingleTop = true
                     if (target in primary) {
-                        popUpTo(nav.graph.startDestinationId) { saveState = true }
-                        restoreState = true
+                        // Never restore a saved child stack over Today. Each tab has a
+                        // deterministic home-rooted stack; persistent study data is separate.
+                        popUpTo("home") { inclusive = target == "home" }
+                        restoreState = false
                     }
                 }
             }
@@ -334,6 +337,9 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                         }) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
                     },
                     actions = {
+                        if (route == "home" || route == "plan") IconButton(onClick = { quickTask = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Add study task")
+                        }
                         IconButton(onClick = { go("search") }) { Icon(Icons.Default.Search, contentDescription = "Search study materials and features") }
                         IconButton(onClick = { go("settings") }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                     },
@@ -344,11 +350,6 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                         actionIconContentColor = MaterialTheme.colorScheme.primary
                     )
                 )
-            },
-            floatingActionButton = {
-                if (route == "home" || route == "plan") FloatingActionButton(onClick = { quickTask = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add study task")
-                }
             },
             bottomBar = {
                 Column {
@@ -363,6 +364,7 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
                                 else -> R.drawable.nav_progress
                             }
                             NavigationBarItem(
+                                modifier = Modifier.testTag("tab_${item.route}"),
                                 selected = selectedTab == item.route,
                                 onClick = { go(item.route) },
                                 icon = { Icon(painterResource(res), contentDescription = null, modifier = Modifier.size(24.dp)) },
@@ -382,7 +384,7 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
             NavHost(
                 navController = nav,
                 startDestination = "home",
-                modifier = Modifier.padding(padding),
+                modifier = Modifier.padding(padding).testTag("screen_$route"),
                 enterTransition = {
                     if (initialState.destination.route in primary && targetState.destination.route in primary)
                         EnterTransition.None else fadeIn(tween(140))
@@ -453,23 +455,26 @@ private fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Strin
 
 @Composable
 internal fun AppHeading(title: String, subtitle: String? = null, trailing: @Composable (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Surface(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+        shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium)
+            }
+            trailing?.invoke()
         }
-        trailing?.invoke()
     }
 }
 
 @Composable
 internal fun StudyCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
+    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Column(Modifier.padding(16.dp)) { content() }
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+        Column(Modifier.padding(18.dp)) { content() }
     }
 }
 
@@ -582,7 +587,7 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
             Text("$done of $total chapters complete", modifier = Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium)
         }
         TextButton(onClick = { go("statistics") }) { Text("See your progress and leaderboard →") }
-        Spacer(Modifier.height(88.dp))
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -815,6 +820,7 @@ private fun ProfileScreen(prefs: SharedPreferences, refresh: () -> Unit, go: (St
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
+        AppHeading("Your profile", "Your learning path, photo and exam goal.")
         key(photoVersion) { ProfileAvatar(name.ifBlank { "Student" }, 76.dp) {} }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { gallery.launch("image/*") }) { Text("Choose photo") }
@@ -873,7 +879,9 @@ private fun ProfileScreen(prefs: SharedPreferences, refresh: () -> Unit, go: (St
             }
         }
         Spacer(Modifier.height(20.dp))
-        OutlinedTextField(name, { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+        SectionLabel("Learning path")
+        StudyCard {
+        OutlinedTextField(name, { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
         SectionLabel("Exam")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("CET", "JEE", "NEET").forEach {
@@ -896,6 +904,7 @@ private fun ProfileScreen(prefs: SharedPreferences, refresh: () -> Unit, go: (St
                 calendar.get(Calendar.DAY_OF_MONTH)).show()
         }, modifier = Modifier.fillMaxWidth()) {
             Text("Exam date: ${SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(examDate))}")
+        }
         }
         Spacer(Modifier.height(14.dp))
         Button(onClick = {
