@@ -133,7 +133,7 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
                 }, modifier = Modifier.fillMaxWidth()) { Text("Save note") }
             }
         }
-        Spacer(Modifier.height(88.dp))
+        Spacer(Modifier.height(24.dp))
     }
     if (sheet) ModalBottomSheet(onDismissRequest = { sheet = false }) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 30.dp)) {

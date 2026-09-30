@@ -337,6 +337,9 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         }) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
                     },
                     actions = {
+                        if (route == "home" || route == "plan") IconButton(onClick = { quickTask = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Add study task")
+                        }
                         IconButton(onClick = { go("search") }) { Icon(Icons.Default.Search, contentDescription = "Search study materials and features") }
                         IconButton(onClick = { go("settings") }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                     },
@@ -347,11 +350,6 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         actionIconContentColor = MaterialTheme.colorScheme.primary
                     )
                 )
-            },
-            floatingActionButton = {
-                if (route == "home" || route == "plan") FloatingActionButton(onClick = { quickTask = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add study task")
-                }
             },
             bottomBar = {
                 Column {
@@ -589,7 +587,7 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
             Text("$done of $total chapters complete", modifier = Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium)
         }
         TextButton(onClick = { go("statistics") }) { Text("See your progress and leaderboard →") }
-        Spacer(Modifier.height(88.dp))
+        Spacer(Modifier.height(24.dp))
     }
 }
 
