@@ -2,7 +2,7 @@
 
 ## Live student leaderboards (2.4.0)
 
-Study effort and quiz wins now have live Firebase leaderboards with Google/local profiles and profile photos. Participation is optional; offline results sync when the app reconnects. A quiz win means at least 80% correct, with one eligible completion per set per India calendar day.
+Study effort and quiz wins now have live Firebase leaderboards with Google/local profiles and profile photos. App profiles join automatically without Google sign-in or a join request; students can hide their profile at any time. Rankings use the same photo shown in the app profile; offline results sync when the app reconnects. A quiz win means at least 80% correct, with one eligible completion per set per India calendar day.
 
 **Owner setup required:** [Activate anonymous sign-in, Firestore rules and indexes](docs/LEADERBOARD_SETUP.md). The app does not publish its own Firebase rules. [Release notes](RELEASE_NOTES_v2.4.0.md).
 
