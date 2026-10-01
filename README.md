@@ -1,8 +1,8 @@
-# 📚 Study Sprint v2.2.0
+# 📚 Study Sprint v4.4.2
 
-## Live student leaderboards (2.4.0)
+## Live student leaderboards
 
-Study effort and quiz wins now have live Firebase leaderboards with Google/local profiles and profile photos. App profiles join automatically without Google sign-in or a join request; students can hide their profile at any time. Rankings use the same photo shown in the app profile; offline results sync when the app reconnects. A quiz win means at least 80% correct, with one eligible completion per set per India calendar day.
+Study effort and quiz wins now have live Firebase leaderboards with Google/local profiles and profile photos. Public sharing is optional and requires explicit permission. After permission, app profiles connect automatically without Google sign-in or a join request; students can withdraw sharing at any time. Rankings use the same photo shown in the app profile; offline results sync when the app reconnects. A quiz win means at least 80% correct, with one eligible completion per set per India calendar day.
 
 **Owner setup required:** [Activate anonymous sign-in, Firestore rules and indexes](docs/LEADERBOARD_SETUP.md). The app does not publish its own Firebase rules. [Release notes](RELEASE_NOTES_v2.4.0.md).
 
@@ -10,7 +10,7 @@ Study Sprint v2.2.0 improves PDF-imported MCQ practice, introduces course-specif
 
 ## ⬇️ Download
 
-[Download Study Sprint v2.2.0 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v2.2.0/Study-Sprint-v2.2.0.apk)
+[Download Study Sprint v4.4.2 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.2/Study-Sprint-v4.4.2.apk)
 
 ## ✨ What’s new
 
@@ -132,12 +132,12 @@ The APK uses the same package name and signing certificate as v1.2.0, so existin
 ## 📲 Requirements
 
 - Android 8.0 or newer.
-- Internet access is required only for Google sign-in and update checking.
+- Internet access is required for optional sign-in, public leaderboard updates/removal and update checking.
 - A compatible AI app is required only for the optional AI-assisted MCQ workflow.
 - Text-based PDFs are recommended; scanned image-only PDFs may not import correctly.
 
 Thanks for using Study Sprint. Keep focusing, practising, and tracking your progress! 🚀
-# Privacy and terms
+## Privacy and terms
 
 Read the [Privacy Policy](app/src/main/assets/privacy.md) and [Terms of Use](app/src/main/assets/terms.md). These documents are bundled offline in the app and linked from Settings and onboarding.
 
