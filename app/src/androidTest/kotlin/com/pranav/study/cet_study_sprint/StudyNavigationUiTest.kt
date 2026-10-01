@@ -24,8 +24,9 @@ class StudyNavigationUiTest {
             }
         }
     }
-    private fun capture(name: String) {
-        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+    private fun capture(name: String, tag: String? = null) {
+        val node = if (tag == null) compose.onRoot() else compose.onNodeWithTag(tag)
+        val bitmap = node.captureToImage().asAndroidBitmap()
         val resolver = compose.activity.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, "$name.png")
@@ -116,7 +117,7 @@ class StudyNavigationUiTest {
         compose.onNodeWithTag(row).performClick()
         compose.onNodeWithTag("youtube_limit_controls").assertIsDisplayed()
         compose.onNodeWithText("Save limit").assertDoesNotExist()
-        capture("youtube-controls-dark")
+        capture("youtube-controls-dark", "youtube_limit_controls")
         compose.onNodeWithText("Done").performScrollTo().performClick()
         compose.onNodeWithTag("screen_limits").assertIsDisplayed()
     }
