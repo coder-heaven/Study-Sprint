@@ -13,6 +13,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -30,6 +31,10 @@ internal suspend fun <T> Task<T>.awaitLeaderboardTask(): T = suspendCancellableC
     addOnFailureListener { if (continuation.isActive) continuation.resumeWithException(it) }
     addOnCanceledListener { continuation.cancel() }
 }
+
+// Firebase writes continue after coroutine cancellation. Keep the repository lock
+// until the server finishes, so a later withdrawal cannot be overtaken by an old write.
+internal suspend fun <T> Task<T>.awaitLeaderboardWrite(): T = withContext(NonCancellable) { awaitLeaderboardTask() }
 
 internal object LeaderboardPhotos {
     suspend fun bitmap(context: Context): Bitmap? = withContext(Dispatchers.IO) {
@@ -113,7 +118,7 @@ internal class LeaderboardRepository(private val context: Context) {
             firestore.runTransaction { transaction ->
                 if (transaction.get(reference).exists()) transaction.update(reference,
                     mapOf("visible" to false, "name" to "Student", "photo" to "", "updatedAt" to FieldValue.serverTimestamp()))
-            }.awaitLeaderboardTask()
+            }.awaitLeaderboardWrite()
             withContext(Dispatchers.IO) { StudyData.events(context).discardLeaderboardEvents(uid) }
         }
         prefs.edit().putBoolean(PrivacyConsent.PENDING, false).remove("leaderboard_uid").apply()
@@ -138,7 +143,7 @@ internal class LeaderboardRepository(private val context: Context) {
                     "quizCorrect" to 0L, "quizQuestions" to 0L, "lastEventId" to ""))
                 transaction.set(reference, data)
             } else transaction.update(reference, data)
-        }.awaitLeaderboardTask()
+        }.awaitLeaderboardWrite()
         publishedProfile = profileKey
     }
 
@@ -174,7 +179,7 @@ internal class LeaderboardRepository(private val context: Context) {
                     val totals = values.mapValues { (key, value) -> (previous.getLong(key) ?: 0L) + value }
                     transaction.update(entry, totals + mapOf("lastEventId" to item.id, "updatedAt" to FieldValue.serverTimestamp()))
                 }
-            }.awaitLeaderboardTask()
+            }.awaitLeaderboardWrite()
             withContext(Dispatchers.IO) { StudyData.events(context).acknowledgeLeaderboardEvent(uid, item.id) }
         }
         syncMessage.value = null
