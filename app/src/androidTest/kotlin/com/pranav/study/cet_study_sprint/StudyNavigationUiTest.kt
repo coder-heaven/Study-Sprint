@@ -89,4 +89,38 @@ class StudyNavigationUiTest {
             compose.onNodeWithTag("screen_home").assertIsDisplayed()
         }
     }
+
+    @Test fun privacyTermsAndOptionalConsentAreAccessible() {
+        showApp("dark")
+        compose.onNodeWithContentDescription("Settings", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Privacy Policy", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("screen_privacy").assertIsDisplayed()
+        capture("privacy-dark")
+        compose.onNodeWithTag("tab_home").performClick()
+        compose.onNodeWithContentDescription("Settings", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Terms of Use", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("screen_terms").assertIsDisplayed()
+        capture("terms-dark")
+        compose.onNodeWithTag("tab_home").performClick()
+        compose.onNodeWithContentDescription("Settings", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Leaderboard privacy", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithText("Your profile stays private").assertExists()
+        compose.onNodeWithText("Enable leaderboard").performScrollTo().performClick()
+        compose.onNodeWithText("Allow public sharing").assertIsNotEnabled()
+        compose.onNodeWithTag("privacy_permission").assertIsOff().performClick()
+        compose.onNodeWithText("Allow public sharing").assertIsEnabled()
+        compose.onNodeWithText("Keep private").performClick()
+        compose.onNodeWithTag("screen_leaderboard").assertIsDisplayed()
+    }
+
+    @Test fun revokingConsentKeepsTheIdentityForPendingServerRemoval() {
+        val prefs = compose.activity.getSharedPreferences("privacy_revoke_test", Context.MODE_PRIVATE)
+        prefs.edit().clear().putInt(PrivacyConsent.KEY, PrivacyConsent.VERSION).putString("leaderboard_uid", "test-owner")
+            .putBoolean("leaderboard_enabled", true).putLong("leaderboard_privacy_accepted_at", 1L).commit()
+        PrivacyConsent.revoke(prefs)
+        org.junit.Assert.assertFalse(PrivacyConsent.has(prefs))
+        org.junit.Assert.assertFalse(prefs.getBoolean("leaderboard_enabled", true))
+        org.junit.Assert.assertTrue(prefs.getBoolean(PrivacyConsent.PENDING, false))
+        org.junit.Assert.assertEquals("test-owner", prefs.getString("leaderboard_uid", null))
+    }
 }
