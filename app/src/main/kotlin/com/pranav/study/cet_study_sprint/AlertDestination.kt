@@ -6,5 +6,5 @@ internal object AlertDestination {
         "plan" -> "plan"
         else -> null
     }
-    fun valid(route: String?): String? = route?.takeIf { it == "focus" || it == "plan" }
+    fun valid(route: String?): String? = route?.takeIf { it == "focus" || it == "plan" || it == "limits" }
 }

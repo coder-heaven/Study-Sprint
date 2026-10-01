@@ -13,6 +13,7 @@ class AlertDestinationTest {
     @Test fun onlyAlertDestinationsAreAccepted() {
         assertEquals("focus", AlertDestination.valid("focus"))
         assertEquals("plan", AlertDestination.valid("plan"))
+        assertEquals("limits", AlertDestination.valid("limits"))
         assertNull(AlertDestination.valid("profile"))
         assertNull(AlertDestination.valid(null))
     }

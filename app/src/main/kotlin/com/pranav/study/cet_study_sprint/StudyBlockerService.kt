@@ -1,9 +1,7 @@
 package com.pranav.study.cet_study_sprint
 
 import android.accessibilityservice.AccessibilityService
-import android.content.Intent
 import android.os.SystemClock
-import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import kotlinx.coroutines.*
 import java.util.Calendar
@@ -77,12 +75,17 @@ class StudyBlockerService : AccessibilityService() {
                 history.recordLimitEvent("blocked", pkg)
             }
             if (foregroundPackage != pkg) return@launch
-            // Close the distracting app first, so Back/recents cannot dismiss the block into it.
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            // Let a manual Back/app switch settle before acting on a stale YouTube window event.
+            delay(150L)
+            if (foregroundPackage != pkg) return@launch
             runCatching {
-                startActivity(Intent(this@StudyBlockerService, BlockedActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    .putExtra("package", pkg).putExtra("reason", reason).putExtra("limit_minutes", limit))
+                // Bring the existing study task back instead of sending App Limits to Home.
+                // Denied apps remain monitored if reopened; this does not grant extra time.
+                startActivity(if (youtube) BlockNavigation.studyIntent(this@StudyBlockerService, "limits")
+                    else BlockNavigation.blockedIntent(this@StudyBlockerService, pkg, reason, limit))
+            }.onFailure {
+                // Only close the denied foreground app if Android refused the activity launch.
+                if (foregroundPackage == pkg) performGlobalAction(GLOBAL_ACTION_HOME)
             }
         }
     }

@@ -31,6 +31,7 @@
         </provider>
         <activity
             android:name=".BlockedActivity"
+            android:taskAffinity="${applicationId}.blocking"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
@@ -70,4 +71,3 @@
         </service>
     </application>
 </manifest>
-
