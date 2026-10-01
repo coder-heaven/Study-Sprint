@@ -1,4 +1,4 @@
-# 📚 Study Sprint v4.4.4
+# 📚 Study Sprint v4.4.5
 
 ## Daily limit reset (4.4.3)
 
@@ -14,7 +14,7 @@ Study Sprint v2.2.0 improves PDF-imported MCQ practice, introduces course-specif
 
 ## ⬇️ Download
 
-[Download Study Sprint v4.4.4 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.4/Study-Sprint-v4.4.4.apk)
+[Download Study Sprint v4.4.5 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.5/Study-Sprint-v4.4.5.apk)
 
 ## ✨ What’s new
 
@@ -150,3 +150,7 @@ Version 4.4.2 requires an explicit, unchecked public-sharing permission before a
 ### v4.4.4 — Classic daily limits, current UI
 
 Regular app limit edits apply immediately, including increases, removals and selected days. When a daily limit is reached, the modern block screen offers the v4.1.0 five-minute extension. Extensions expire after five minutes or midnight, whichever comes first. YouTube retains its two five-minute windows and active focus locks cannot be bypassed. Local midnight accounting and refresh fixes remain.
+
+### v4.4.5 — YouTube in the app limits list
+
+YouTube appears in All, Limited and search, showing its fixed 10-minute daily allowance as two five-minute sessions. Tap its row to open session controls. It remains visible before first use, and retains the strict session policy and midnight reset.
