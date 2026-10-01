@@ -11,9 +11,9 @@ internal object DailyUsage {
     fun millisUntilNextDay(now: Long = System.currentTimeMillis()): Long =
         LocalDay.next(now) - now
 
-    data class Measurement(val day: Long, val millis: Long)
+    data class Measurement(val day: Long, val millis: Long, val packageName: String)
     fun measurement(context: Context, pkg: String, now: Long = System.currentTimeMillis()) =
-        Measurement(startOfLocalDay(now), usedToday(context, pkg, now))
+        Measurement(startOfLocalDay(now), usedToday(context, pkg, now), pkg)
 
     fun usedToday(context: Context, packageName: String, now: Long = System.currentTimeMillis()): Long =
         usedByPackageToday(context, now)[packageName] ?: 0L

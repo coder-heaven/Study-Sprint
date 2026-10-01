@@ -35,7 +35,7 @@ internal object StrictLimits {
 
     @Synchronized fun startYouTube(context: Context, usage: DailyUsage.Measurement): Boolean {
         val now = System.currentTimeMillis()
-        if (usage.day != LocalDay.start(now) || !usageAllowed(context) || !blockerEnabled(context) || focusBlocked(prefs(context), YouTubeQuota.PACKAGE, now) || usage.millis >= 600_000L) return false
+        if (usage.packageName != YouTubeQuota.PACKAGE || usage.day != LocalDay.start(now) || !usageAllowed(context) || !blockerEnabled(context) || focusBlocked(prefs(context), YouTubeQuota.PACKAGE, now) || usage.millis >= 600_000L) return false
         val next = quota(context, now).start(DailyUsage.startOfLocalDay(now), now, SystemClock.elapsedRealtime()) ?: return false
         return writeQuota(prefs(context), next)
     }
@@ -88,7 +88,7 @@ internal object StrictLimits {
         val daily = !youtube && limit > 0 && p.getInt("limit_days_$pkg", 127) and (1 shl weekday) != 0
         if (!daily && !youtube) return null
         if (!usageAllowed(context)) return "permission"
-        if (usage == null || usage.day != LocalDay.start(now)) return "checking"
+        if (usage == null || usage.packageName != pkg || usage.day != LocalDay.start(now)) return "checking"
         return when {
             youtube && usage.millis >= 600_000L -> "youtube_daily"
             daily && usage.millis >= limit * 60_000L -> "daily"
