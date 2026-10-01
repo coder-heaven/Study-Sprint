@@ -8,6 +8,8 @@ import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import kotlinx.coroutines.*
+import com.google.android.gms.tasks.TaskCompletionSource
 import org.junit.Rule
 import org.junit.Test
 
@@ -111,6 +113,23 @@ class StudyNavigationUiTest {
         compose.onNodeWithText("Allow public sharing").assertIsEnabled()
         compose.onNodeWithText("Keep private").performClick()
         compose.onNodeWithTag("screen_leaderboard").assertIsDisplayed()
+    }
+
+    @Test fun cancellationWaitsForOutstandingServerWrite() = runBlocking {
+        val pending = TaskCompletionSource<Void>()
+        val entered = CompletableDeferred<Unit>()
+        val write = launch {
+            entered.complete(Unit)
+            pending.task.awaitLeaderboardWrite()
+        }
+        entered.await()
+        yield()
+        write.cancel()
+        yield()
+        org.junit.Assert.assertFalse("A cancelled screen must keep waiting for its server write", write.isCompleted)
+        pending.setResult(null)
+        withTimeout(5_000) { write.join() }
+        org.junit.Assert.assertTrue(write.isCompleted)
     }
 
     @Test fun revokingConsentKeepsTheIdentityForPendingServerRemoval() {
