@@ -137,3 +137,8 @@ The APK uses the same package name and signing certificate as v1.2.0, so existin
 - Text-based PDFs are recommended; scanned image-only PDFs may not import correctly.
 
 Thanks for using Study Sprint. Keep focusing, practising, and tracking your progress! 🚀
+# Privacy and terms
+
+Read the [Privacy Policy](app/src/main/assets/privacy.md) and [Terms of Use](app/src/main/assets/terms.md). These documents are bundled offline in the app and linked from Settings and onboarding.
+
+Version 4.4.2 requires an explicit, unchecked public-sharing permission before a name, photo or score is uploaded to the leaderboard. Local study features work without sharing. Withdrawing permission stops further uploads; public name/photo removal needs internet access and the original account, and pending removal is retried. Hiding does not delete all retained score/event records. See the policy for details.
