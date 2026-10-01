@@ -8,6 +8,8 @@ import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import kotlinx.coroutines.*
+import com.google.android.gms.tasks.TaskCompletionSource
 import org.junit.Rule
 import org.junit.Test
 
@@ -88,5 +90,56 @@ class StudyNavigationUiTest {
             compose.onNodeWithTag("tab_home").performClick()
             compose.onNodeWithTag("screen_home").assertIsDisplayed()
         }
+    }
+
+    @Test fun privacyTermsAndOptionalConsentAreAccessible() {
+        showApp("dark")
+        compose.onNodeWithContentDescription("Settings", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Privacy Policy", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("screen_privacy").assertIsDisplayed()
+        capture("privacy-dark")
+        compose.onNodeWithTag("tab_home").performClick()
+        compose.onNodeWithContentDescription("Settings", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Terms of Use", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithTag("screen_terms").assertIsDisplayed()
+        capture("terms-dark")
+        compose.onNodeWithTag("tab_home").performClick()
+        compose.onNodeWithContentDescription("Settings", useUnmergedTree = true).performClick()
+        compose.onNodeWithText("Leaderboard privacy", useUnmergedTree = true).performScrollTo().performClick()
+        compose.onNodeWithText("Your profile stays private").assertExists()
+        compose.onNodeWithText("Enable leaderboard").performScrollTo().performClick()
+        compose.onNodeWithText("Allow public sharing").assertIsNotEnabled()
+        compose.onNodeWithTag("privacy_permission").assertIsOff().performClick()
+        compose.onNodeWithText("Allow public sharing").assertIsEnabled()
+        compose.onNodeWithText("Keep private").performClick()
+        compose.onNodeWithTag("screen_leaderboard").assertIsDisplayed()
+    }
+
+    @Test fun cancellationWaitsForOutstandingServerWrite() = runBlocking {
+        val pending = TaskCompletionSource<Void>()
+        val entered = CompletableDeferred<Unit>()
+        val write = launch {
+            entered.complete(Unit)
+            pending.task.awaitLeaderboardWrite()
+        }
+        entered.await()
+        yield()
+        write.cancel()
+        yield()
+        org.junit.Assert.assertFalse("A cancelled screen must keep waiting for its server write", write.isCompleted)
+        pending.setResult(null)
+        withTimeout(5_000) { write.join() }
+        org.junit.Assert.assertTrue(write.isCompleted)
+    }
+
+    @Test fun revokingConsentKeepsTheIdentityForPendingServerRemoval() {
+        val prefs = compose.activity.getSharedPreferences("privacy_revoke_test", Context.MODE_PRIVATE)
+        prefs.edit().clear().putInt(PrivacyConsent.KEY, PrivacyConsent.VERSION).putString("leaderboard_uid", "test-owner")
+            .putBoolean("leaderboard_enabled", true).putLong("leaderboard_privacy_accepted_at", 1L).commit()
+        PrivacyConsent.revoke(prefs)
+        org.junit.Assert.assertFalse(PrivacyConsent.has(prefs))
+        org.junit.Assert.assertFalse(prefs.getBoolean("leaderboard_enabled", true))
+        org.junit.Assert.assertTrue(prefs.getBoolean(PrivacyConsent.PENDING, false))
+        org.junit.Assert.assertEquals("test-owner", prefs.getString("leaderboard_uid", null))
     }
 }

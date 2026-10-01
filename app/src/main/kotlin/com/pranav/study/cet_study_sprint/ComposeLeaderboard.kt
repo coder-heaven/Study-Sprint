@@ -25,11 +25,13 @@ import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun LeaderboardScreen(prefs: SharedPreferences) {
+internal fun LeaderboardScreen(prefs: SharedPreferences, go: (String) -> Unit = {}) {
     val context = LocalContext.current
     val repository = remember { Leaderboards.repository(context) }
     val scope = rememberCoroutineScope()
-    var joined by remember { mutableStateOf(prefs.getBoolean("leaderboard_enabled", false)) }
+    var joined by remember { mutableStateOf(prefs.getBoolean("leaderboard_enabled", false) && PrivacyConsent.has(prefs)) }
+    var showConsent by remember { mutableStateOf(false) }
+    var removalPending by remember { mutableStateOf(prefs.getBoolean(PrivacyConsent.PENDING, false)) }
     var uid by remember { mutableStateOf(prefs.getString("leaderboard_uid", null)) }
     var quiz by rememberSaveable { mutableStateOf(false) }
     var optedOut by remember { mutableStateOf(prefs.getBoolean("leaderboard_opted_out", false)) }
@@ -44,8 +46,9 @@ internal fun LeaderboardScreen(prefs: SharedPreferences) {
     val metric = if (quiz) "quizWins" else "focusMinutes"
     DisposableEffect(prefs) {
         val observer = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key in setOf("leaderboard_enabled", "leaderboard_uid", "leaderboard_opted_out")) {
-                joined = prefs.getBoolean("leaderboard_enabled", false)
+            if (key in setOf("leaderboard_enabled", "leaderboard_uid", "leaderboard_opted_out", PrivacyConsent.KEY, PrivacyConsent.PENDING)) {
+                joined = prefs.getBoolean("leaderboard_enabled", false) && PrivacyConsent.has(prefs)
+                removalPending = prefs.getBoolean(PrivacyConsent.PENDING, false)
                 uid = prefs.getString("leaderboard_uid", null)
                 optedOut = prefs.getBoolean("leaderboard_opted_out", false)
             }
@@ -80,25 +83,26 @@ internal fun LeaderboardScreen(prefs: SharedPreferences) {
         }
         item {
             StudyCard {
-                Text(if (optedOut) "Your profile is hidden" else "Your student profile joins automatically", fontWeight = FontWeight.Bold)
-                Text("Your app profile name, photo and scores appear here. No Google sign-in or join request is needed.",
+                Text(if (joined) "You chose public sharing" else "Your profile stays private", fontWeight = FontWeight.Bold)
+                Text(if (removalPending) "Public profile removal is pending. Reconnect with the original account; it will retry automatically."
+                    else "Sharing is optional. Review Privacy Policy and Terms before allowing your app name, photo and scores to appear publicly. No Google sign-in or join request is needed.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(enabled = !busy, onClick = {
+                        if (!joined) { showConsent = true; return@TextButton }
                         scope.launch {
                             busy = true
                             try {
-                                if (optedOut) repository.join()
                                 repository.sync(); listenerRevision++; error = null
                             } catch (problem: Exception) {
                                 if (problem is kotlinx.coroutines.CancellationException) throw problem
                                 error = repository.message(problem)
                             } finally { busy = false }
                         }
-                    }) { Text(if (busy) "Connecting…" else if (optedOut) "Show my profile" else "Refresh") }
-                    if (joined) TextButton(enabled = !busy, onClick = { showLeave = true }) { Text("Hide my profile") }
+                    }) { Text(if (busy) "Connecting…" else if (!joined) "Enable leaderboard" else "Refresh") }
+                    if (joined || PrivacyConsent.has(prefs)) TextButton(enabled = !busy, onClick = { showLeave = true }) { Text("Hide my profile") }
                 }
-                if (!joined && !optedOut && error == null && syncMessage == null) {
+                if (!joined && PrivacyConsent.has(prefs) && !optedOut && error == null && syncMessage == null) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text("Connecting your app profile…", style = MaterialTheme.typography.bodySmall)
                 }
@@ -147,8 +151,19 @@ internal fun LeaderboardScreen(prefs: SharedPreferences) {
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+    if (showConsent) LeaderboardConsentDialog(onDismiss = { showConsent = false }, go = go, onAllow = {
+        showConsent = false
+        scope.launch {
+            busy = true
+            try { PrivacyConsent.allow(prefs); repository.join(); listenerRevision++; error = null }
+            catch (problem: Exception) {
+                if (problem is kotlinx.coroutines.CancellationException) throw problem
+                error = repository.message(problem)
+            } finally { busy = false }
+        }
+    })
     if (showLeave) AlertDialog(onDismissRequest = { showLeave = false }, title = { Text("Hide your leaderboard profile?") },
-        text = { Text("Your name and photo will be hidden, and new activity will stay local. Your study history on this phone is kept. Connect to the internet to confirm this change.") },
+        text = { Text("Consent will be withdrawn and new leaderboard uploads will stop. Your public name/photo will be hidden after the server confirms removal. If offline, removal stays pending. Local study history is kept; server score/event records may remain.") },
         confirmButton = { TextButton(onClick = {
             showLeave = false
             scope.launch {

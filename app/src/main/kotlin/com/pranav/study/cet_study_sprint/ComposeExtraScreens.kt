@@ -165,7 +165,10 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         Text("Google sign-in is available. Study history and settings remain stored on this device.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         SectionLabel("Data & privacy")
-        SettingsRow("Local data", "Study history stays on this phone") { info = "Data is stored locally on this device. Account sync and export are not configured yet." }
+        SettingsRow("Privacy Policy", "Data, permissions and public sharing") { go("privacy") }
+        SettingsRow("Terms of Use", "Responsible use and optional services") { go("terms") }
+        SettingsRow("Leaderboard privacy", "Review or withdraw public sharing") { go("leaderboard") }
+        SettingsRow("Local data", "Study history stays on this phone") { info = "Study history is stored on this device and may be included in Android backup. Leaderboard names, photos and scores are uploaded only after public-sharing permission. See Privacy Policy for details." }
         SectionLabel("About")
         SettingsRow("About Study Sprint", "Version $appVersion") { info = "Study Sprint helps you plan, focus, practice and track your exam preparation. Version $appVersion." }
         Spacer(Modifier.height(12.dp))

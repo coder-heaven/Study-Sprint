@@ -52,7 +52,7 @@ internal object GoogleAccountAuth {
                 .awaitLeaderboardTask()
         } catch (collision: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
             if (context.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)
-                    .getBoolean("leaderboard_enabled", false)) throw collision
+                    .let { it.getBoolean("leaderboard_enabled", false) || it.getBoolean(PrivacyConsent.PENDING, false) || it.getString("leaderboard_uid", null) != null }) throw collision
             // The local row has been hidden (or was never shared), so switching is explicit and safe.
             auth.signInWithCredential(firebaseCredential).awaitLeaderboardTask()
         }
@@ -66,6 +66,8 @@ internal object GoogleAccountAuth {
     }
 
     suspend fun signOut(context: Context) {
+        // Keep the original identity until pending public-profile removal succeeds.
+        Leaderboards.repository(context).leave()
         context.getSharedPreferences("study_sprint", Context.MODE_PRIVATE).edit()
             .putBoolean("leaderboard_enabled", false).remove("leaderboard_uid").apply()
         FirebaseAuth.getInstance().signOut()
