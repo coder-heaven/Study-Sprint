@@ -1,4 +1,8 @@
-# 📚 Study Sprint v4.4.2
+# 📚 Study Sprint v4.4.3
+
+## Daily limit reset (4.4.3)
+
+Daily usage and the two YouTube windows reset at 12:00 AM in the phone’s time zone. Usage accounting clips sessions to today, excludes screen-off/locked time, handles shutdowns and overlapping activities, and refreshes the limits and block screens automatically. Pending weaker limits apply at the next local midnight; active focus locks continue until their session ends.
 
 ## Live student leaderboards
 
@@ -10,7 +14,7 @@ Study Sprint v2.2.0 improves PDF-imported MCQ practice, introduces course-specif
 
 ## ⬇️ Download
 
-[Download Study Sprint v4.4.2 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.2/Study-Sprint-v4.4.2.apk)
+[Download Study Sprint v4.4.3 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.3/Study-Sprint-v4.4.3.apk)
 
 ## ✨ What’s new
 
