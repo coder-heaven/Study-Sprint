@@ -33,9 +33,9 @@ internal object StrictLimits {
         .putLong("youtube_day", value.day).putInt("youtube_sessions", value.sessions)
         .putLong("youtube_started", value.startedAt).putLong("youtube_elapsed", value.startedElapsed).commit()
 
-    @Synchronized fun startYouTube(context: Context, usedMs: Long): Boolean {
+    @Synchronized fun startYouTube(context: Context, usage: DailyUsage.Measurement): Boolean {
         val now = System.currentTimeMillis()
-        if (!usageAllowed(context) || !blockerEnabled(context) || focusBlocked(prefs(context), YouTubeQuota.PACKAGE, now) || usedMs >= 600_000L) return false
+        if (usage.day != LocalDay.start(now) || !usageAllowed(context) || !blockerEnabled(context) || focusBlocked(prefs(context), YouTubeQuota.PACKAGE, now) || usage.millis >= 600_000L) return false
         val next = quota(context, now).start(DailyUsage.startOfLocalDay(now), now, SystemClock.elapsedRealtime()) ?: return false
         return writeQuota(prefs(context), next)
     }
@@ -51,8 +51,7 @@ internal object StrictLimits {
         val weaker = StrictLimitPolicy.mustDefer(oldMinutes, oldDays, minutes, days, focusBlocked(p, pkg), focus)
         val edit = p.edit()
         if (weaker) {
-            val nextDay = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }.timeInMillis
-            edit.putLong("pending_at_$pkg", DailyUsage.startOfLocalDay(nextDay))
+            edit.putLong("pending_at_$pkg", LocalDay.next(System.currentTimeMillis()))
                 .putInt("pending_minutes_$pkg", minutes).putInt("pending_days_$pkg", days)
                 .putBoolean("pending_focus_$pkg", focus)
         } else {
@@ -77,5 +76,24 @@ internal object StrictLimits {
                 .remove(key).remove("pending_minutes_$pkg").remove("pending_days_$pkg").remove("pending_focus_$pkg")
         }
         edit.commit()
+    }
+
+    /** A pre-midnight query must never decide whether an app is blocked after midnight. */
+    fun blockReason(context: Context, pkg: String, usage: DailyUsage.Measurement?, now: Long): String? {
+        val p = prefs(context)
+        if (focusBlocked(p, pkg, now)) return "focus"
+        val youtube = pkg == YouTubeQuota.PACKAGE
+        val weekday = StudyTimeMath.weekdayIndex(Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.DAY_OF_WEEK))
+        val limit = p.getInt("limit_$pkg", 0)
+        val daily = !youtube && limit > 0 && p.getInt("limit_days_$pkg", 127) and (1 shl weekday) != 0
+        if (!daily && !youtube) return null
+        if (!usageAllowed(context)) return "permission"
+        if (usage == null || usage.day != LocalDay.start(now)) return "checking"
+        return when {
+            youtube && usage.millis >= 600_000L -> "youtube_daily"
+            daily && usage.millis >= limit * 60_000L -> "daily"
+            youtube && remainingYouTube(context, now) == 0L -> "youtube_session"
+            else -> null
+        }
     }
 }

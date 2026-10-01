@@ -184,15 +184,16 @@ private fun usageAllowed(context: Context): Boolean {
     val ops = context.getSystemService(AppOpsManager::class.java)
     return ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName) == AppOpsManager.MODE_ALLOWED
 }
-private data class AppRecord(val pkg: String, val label: String, val usedMs: Long, val limit: Int)
+private data class AppRecord(val pkg: String, val label: String, val usedMs: Long, val limit: Int, val day: Long)
 private fun appRecords(context: Context, days: Int = 1): List<AppRecord> {
+    val now = System.currentTimeMillis()
     val pm = context.packageManager
     val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-    val today = DailyUsage.startOfLocalDay()
+    val today = DailyUsage.startOfLocalDay(now)
     val usage: Map<String, Long> = if (!usageAllowed(context)) {
         emptyMap()
     } else if (days == 1) {
-        DailyUsage.usedByPackageToday(context)
+        DailyUsage.usedByPackageToday(context, now)
     } else {
         context.getSystemService(UsageStatsManager::class.java)
             .queryAndAggregateUsageStats(
@@ -219,7 +220,7 @@ private fun appRecords(context: Context, days: Int = 1): List<AppRecord> {
             val label = launcherLabels[pkg] ?: runCatching {
                 pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
             }.getOrDefault(pkg)
-            AppRecord(pkg, label, usage[pkg] ?: 0L, prefs.getInt("limit_$pkg", 0))
+            AppRecord(pkg, label, usage[pkg] ?: 0L, prefs.getInt("limit_$pkg", 0), today)
         }.distinctBy { it.pkg }
         .sortedWith(compareByDescending<AppRecord> { it.limit > 0 }.thenByDescending { it.usedMs }.thenBy { it.label })
         .toList()
@@ -238,10 +239,14 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
     var revision by remember { mutableIntStateOf(0) }
     var showBlockingGuide by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { revision++ }
+    var day by remember { mutableLongStateOf(LocalDay.start(System.currentTimeMillis())) }
     LaunchedEffect(Unit) {
+        var ticks = 0
         while (true) {
-            delay(DailyUsage.millisUntilNextDay().coerceAtLeast(1_000L))
-            revision++
+            delay(1_000L)
+            val currentDay = LocalDay.start(System.currentTimeMillis())
+            if (day != currentDay) { day = currentDay; revision++; ticks = 0 }
+            else if (++ticks >= 5) { revision++; ticks = 0 }
         }
     }
     var search by remember { mutableStateOf("") }
@@ -254,10 +259,12 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
     val blockEvents by produceState<Map<String, Int>>(emptyMap(), revision) {
         value = withContext(Dispatchers.IO) { StudyData.events(context).limitCounts(1) }
     }
-    val apps by produceState<List<AppRecord>>(emptyList(), revision) {
+    val records by produceState<List<AppRecord>>(emptyList(), revision, day) {
         value = withContext(Dispatchers.IO) { appRecords(context) }
     }
+    val apps = records.filter { it.day == day }
     var saveMessage by remember { mutableStateOf("") }
+    LaunchedEffect(day) { chosen = null; saveMessage = "" }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { AppHeading("App Limits", "Protect your time. Keep your commitments.") }
         item { YouTubeAllowanceCard() }
@@ -268,6 +275,7 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (!allowed) TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }) { Text("Enable Usage Access") }
                 if (!blockerEnabled(context)) OutlinedButton(onClick = { showBlockingGuide = true }, modifier = Modifier.fillMaxWidth()) { Text("Set up app blocking") }
+                Text("Daily usage and YouTube sessions reset at 12:00 AM in your phone's time zone.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
                 Text("Strict limits have no extra-time bypass. Increases and removals apply tomorrow; tighter limits apply now. Android permissions must stay enabled.",
                     style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             }

@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 class BlockedActivity : ComponentActivity() {
     private var blockedIntent by mutableStateOf<Intent?>(null)
@@ -34,7 +37,23 @@ class BlockedActivity : ComponentActivity() {
                 val label = remember(pkg) { runCatching {
                     packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
                 }.getOrDefault("This app") }
-                val detail = when (current?.getStringExtra("reason")) {
+                var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1_000L) } }
+                val day = LocalDay.start(now)
+                val usage by produceState<DailyUsage.Measurement?>(null, pkg, day) {
+                    while (true) {
+                        StrictLimits.applyPending(this@BlockedActivity)
+                        value = if (StrictLimits.usageAllowed(this@BlockedActivity)) withContext(Dispatchers.IO) {
+                            DailyUsage.measurement(this@BlockedActivity, pkg)
+                        } else null
+                        delay(5_000L)
+                    }
+                }
+                val reason = StrictLimits.blockReason(this@BlockedActivity, pkg, usage, now)
+                val launchApp = remember(pkg) { packageManager.getLaunchIntentForPackage(pkg) }
+                val detail = when (reason) {
+                    null -> "Your allowance is available. Daily limits reset at 12:00 AM in your phone's time zone."
+                    "checking" -> "Checking today's allowance…"
                     "focus" -> "Your focus session is still running. Come back when it finishes."
                     "youtube_daily" -> "YouTube's 10-minute daily allowance is finished. New sessions are available tomorrow."
                     "youtube_session" -> "Start a five-minute window below. You get two windows per day, with no extensions."
@@ -53,6 +72,9 @@ class BlockedActivity : ComponentActivity() {
                     Text(detail, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 20.dp))
                     if (pkg == YouTubeQuota.PACKAGE) YouTubeAllowanceCard()
+                    else if (reason == null && launchApp != null) Button(onClick = {
+                        startActivity(launchApp); finish()
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Open $label") }
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { home() }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Return to home screen") }
                     OutlinedButton(onClick = {

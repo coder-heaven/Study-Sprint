@@ -26,12 +26,15 @@ internal fun YouTubeAllowanceCard() {
     val remaining = quota.remaining(now, SystemClock.elapsedRealtime())
     val setup = remember(revision) { StrictLimits.usageAllowed(context) && StrictLimits.blockerEnabled(context) }
     val focus = StrictLimits.focusBlocked(StrictLimits.prefs(context), YouTubeQuota.PACKAGE, now)
-    val used by produceState<Long?>(null, revision) {
+    val day = LocalDay.start(now)
+    LaunchedEffect(day) { message = "" }
+    val measurement by produceState<DailyUsage.Measurement?>(null, revision, day) {
         while (isActive) {
-            value = withContext(Dispatchers.IO) { DailyUsage.usedToday(context, YouTubeQuota.PACKAGE) }
+            value = withContext(Dispatchers.IO) { DailyUsage.measurement(context, YouTubeQuota.PACKAGE) }
             delay(5_000L)
         }
     }
+    val used = measurement?.takeIf { it.day == day }?.millis
     StudyCard {
         Text("YouTube · intentional breaks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text("2 sessions per day · 5 minutes each", style = MaterialTheme.typography.bodyMedium,
@@ -49,6 +52,7 @@ internal fun YouTubeAllowanceCard() {
         Text(when {
             focus -> "Blocked until this focus session ends."
             !setup -> "Enable Usage Access and app blocking below to use this allowance."
+            used == null -> "Checking today's allowance…"
             (used ?: 0L) >= 600_000L -> "Daily 10-minute allowance reached. Resets at midnight."
             remaining > 0L -> "${remaining / 60000}:${((remaining / 1000) % 60).toString().padStart(2, '0')} left in this window"
             quota.sessions >= 2 -> "Both sessions used. New sessions tomorrow."
@@ -61,7 +65,7 @@ internal fun YouTubeAllowanceCard() {
                 scope.launch {
                     busy = true
                     try {
-                        val currentUse = withContext(Dispatchers.IO) { DailyUsage.usedToday(context, YouTubeQuota.PACKAGE) }
+                        val currentUse = withContext(Dispatchers.IO) { DailyUsage.measurement(context, YouTubeQuota.PACKAGE) }
                         if (StrictLimits.startYouTube(context, currentUse)) {
                             revision++
                             context.startActivity(launch)
