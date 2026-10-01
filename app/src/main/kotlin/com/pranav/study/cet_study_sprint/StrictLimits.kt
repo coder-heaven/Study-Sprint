@@ -42,16 +42,14 @@ internal object StrictLimits {
     fun remainingYouTube(context: Context, now: Long = System.currentTimeMillis()): Long =
         quota(context, now).remaining(now, SystemClock.elapsedRealtime())
 
-    /** Weaker policies are queued, so increasing a reached limit cannot unlock an app today. */
+    /** Regular app edits apply now; an active focus lock lasts until its session ends. */
     @Synchronized fun save(context: Context, pkg: String, minutes: Int, days: Int, focus: Boolean): Boolean {
         val p = prefs(context)
         applyPending(context)
-        val oldMinutes = p.getInt("limit_$pkg", 0)
-        val oldDays = p.getInt("limit_days_$pkg", 127)
-        val weaker = StrictLimitPolicy.mustDefer(oldMinutes, oldDays, minutes, days, focusBlocked(p, pkg), focus)
+        val weaker = focusBlocked(p, pkg) && !focus
         val edit = p.edit()
         if (weaker) {
-            edit.putLong("pending_at_$pkg", LocalDay.next(System.currentTimeMillis()))
+            edit.putLong("pending_at_$pkg", p.getLong("focus_block_end", System.currentTimeMillis()))
                 .putInt("pending_minutes_$pkg", minutes).putInt("pending_days_$pkg", days)
                 .putBoolean("pending_focus_$pkg", focus)
         } else {
@@ -78,6 +76,13 @@ internal object StrictLimits {
         edit.commit()
     }
 
+    /** The classic five-minute extension is for regular daily limits only. */
+    @Synchronized fun grantExtraTime(context: Context, pkg: String, usage: DailyUsage.Measurement?,
+        now: Long = System.currentTimeMillis()): Boolean {
+        if (pkg == YouTubeQuota.PACKAGE || blockReason(context, pkg, usage, now) != "daily") return false
+        return prefs(context).edit().putLong("bypass_until_$pkg", minOf(now + 300_000L, LocalDay.next(now))).commit()
+    }
+
     /** A pre-midnight query must never decide whether an app is blocked after midnight. */
     fun blockReason(context: Context, pkg: String, usage: DailyUsage.Measurement?, now: Long): String? {
         val p = prefs(context)
@@ -87,6 +92,7 @@ internal object StrictLimits {
         val limit = p.getInt("limit_$pkg", 0)
         val daily = !youtube && limit > 0 && p.getInt("limit_days_$pkg", 127) and (1 shl weekday) != 0
         if (!daily && !youtube) return null
+        if (daily && now < p.getLong("bypass_until_$pkg", 0L)) return null
         if (!usageAllowed(context)) return "permission"
         if (usage == null || usage.packageName != pkg || usage.day != LocalDay.start(now)) return "checking"
         return when {

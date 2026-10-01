@@ -17,6 +17,76 @@ class MidnightLimitsTest {
         ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes() }
     }
 
+    private fun withClassicLimit(test: (android.content.SharedPreferences, String, Long) -> Unit) {
+        val p = StrictLimits.prefs(context)
+        val pkg = "test.classic.limit"
+        val keys = listOf("limit_$pkg", "limit_days_$pkg", "focus_block_$pkg", "bypass_until_$pkg",
+            "pending_at_$pkg", "pending_minutes_$pkg", "pending_days_$pkg", "pending_focus_$pkg",
+            "focus_block_active", "focus_block_end")
+        val previous = p.all.filterKeys { it in keys }
+        val mode = context.getSystemService(AppOpsManager::class.java)
+            .checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+        try {
+            usageMode("allow")
+            p.edit().putBoolean("focus_block_active", false).putInt("limit_$pkg", 10)
+                .putInt("limit_days_$pkg", 127).commit()
+            test(p, pkg, System.currentTimeMillis())
+        } finally {
+            val edit = p.edit(); keys.forEach(edit::remove)
+            previous.forEach { (key, value) -> when (value) {
+                is Long -> edit.putLong(key, value)
+                is Int -> edit.putInt(key, value)
+                is Boolean -> edit.putBoolean(key, value)
+            } }
+            edit.commit()
+            usageMode(when (mode) {
+                AppOpsManager.MODE_ALLOWED -> "allow"
+                AppOpsManager.MODE_IGNORED -> "ignore"
+                AppOpsManager.MODE_ERRORED -> "deny"
+                else -> "default"
+            })
+        }
+    }
+
+    @Test fun classicEditsApplyImmediatelyAndClearQueuedChanges() = withClassicLimit { p, pkg, now ->
+        p.edit().putLong("pending_at_$pkg", LocalDay.next(now)).putInt("pending_minutes_$pkg", 15).commit()
+        assertFalse(StrictLimits.save(context, pkg, 30, 127, false))
+        assertEquals(30, p.getInt("limit_$pkg", 0))
+        assertFalse(p.contains("pending_at_$pkg"))
+        assertFalse(StrictLimits.save(context, pkg, 30, 1, false))
+        assertEquals(1, p.getInt("limit_days_$pkg", 0))
+        assertFalse(StrictLimits.save(context, pkg, 0, 127, false))
+        assertEquals(0, p.getInt("limit_$pkg", -1))
+        assertNull(StrictLimits.blockReason(context, pkg, null, now))
+    }
+
+    @Test fun classicExtensionExpiresAfterFiveMinutesOrMidnight() = withClassicLimit { p, pkg, now ->
+        val start = LocalDay.start(now) + 60_000L
+        val use = DailyUsage.Measurement(LocalDay.start(start), 600_000L, pkg)
+        assertTrue(StrictLimits.grantExtraTime(context, pkg, use, start))
+        assertNull(StrictLimits.blockReason(context, pkg, use, start + 299_999L))
+        assertEquals("daily", StrictLimits.blockReason(context, pkg, use, start + 300_000L))
+        val late = LocalDay.next(start) - 60_000L
+        assertTrue(StrictLimits.grantExtraTime(context, pkg, use, late))
+        assertEquals(LocalDay.next(start), p.getLong("bypass_until_$pkg", 0))
+        val nextDay = DailyUsage.Measurement(LocalDay.next(start), 600_000L, pkg)
+        assertEquals("daily", StrictLimits.blockReason(context, pkg, nextDay, LocalDay.next(start)))
+    }
+
+    @Test fun classicExtensionCannotUnlockFocusOrYoutube() = withClassicLimit { p, pkg, now ->
+        p.edit().putBoolean("focus_block_active", true).putLong("focus_block_end", now + 60_000L)
+            .putBoolean("focus_block_$pkg", true).commit()
+        val use = DailyUsage.Measurement(LocalDay.start(now), 600_000L, pkg)
+        assertFalse(StrictLimits.grantExtraTime(context, pkg, use, now))
+        assertEquals("focus", StrictLimits.blockReason(context, pkg, use, now))
+        assertTrue(StrictLimits.save(context, pkg, 0, 127, false))
+        assertEquals(10, p.getInt("limit_$pkg", 0))
+        StrictLimits.applyPending(context, now + 60_001L)
+        assertEquals(0, p.getInt("limit_$pkg", -1))
+        assertFalse(StrictLimits.grantExtraTime(context, YouTubeQuota.PACKAGE,
+            DailyUsage.Measurement(LocalDay.start(now), 600_000L, YouTubeQuota.PACKAGE), now))
+    }
+
     @Test fun oldDayOrAnotherAppsUsageCannotBlockTodaysFreshAllowance() {
         val p = StrictLimits.prefs(context)
         val pkg = "test.midnight.measurement"

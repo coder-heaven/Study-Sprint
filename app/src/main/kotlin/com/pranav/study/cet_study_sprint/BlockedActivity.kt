@@ -58,7 +58,7 @@ class BlockedActivity : ComponentActivity() {
                     "youtube_daily" -> "YouTube's 10-minute daily allowance is finished. New sessions are available tomorrow."
                     "youtube_session" -> "Start a five-minute window below. You get two windows per day, with no extensions."
                     "permission" -> "Finish Usage Access setup in App Limits before opening $label."
-                    else -> "Your daily limit for $label is reached. There is no extra-time bypass."
+                    else -> "Your daily limit for $label is reached. Take a break or choose five more minutes."
                 }
                 BackHandler { home() }
                 Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -75,6 +75,15 @@ class BlockedActivity : ComponentActivity() {
                     else if (reason == null && launchApp != null) Button(onClick = {
                         startActivity(launchApp); finish()
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Open $label") }
+                    if (reason == "daily" && pkg != YouTubeQuota.PACKAGE && launchApp != null) TextButton(onClick = {
+                        val granted = StrictLimits.grantExtraTime(this@BlockedActivity, pkg, usage)
+                        if (granted) {
+                            StudyData.events(this@BlockedActivity).recordLimitEvent("bypass", pkg)
+                            startActivity(launchApp); finish()
+                        }
+                    }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("Use $label for 5 more minutes")
+                    }
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { home() }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Return to home screen") }
                     OutlinedButton(onClick = {

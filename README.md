@@ -1,4 +1,4 @@
-# 📚 Study Sprint v4.4.3
+# 📚 Study Sprint v4.4.4
 
 ## Daily limit reset (4.4.3)
 
@@ -14,7 +14,7 @@ Study Sprint v2.2.0 improves PDF-imported MCQ practice, introduces course-specif
 
 ## ⬇️ Download
 
-[Download Study Sprint v4.4.3 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.3/Study-Sprint-v4.4.3.apk)
+[Download Study Sprint v4.4.3 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.4/Study-Sprint-v4.4.4.apk)
 
 ## ✨ What’s new
 
@@ -146,3 +146,7 @@ Thanks for using Study Sprint. Keep focusing, practising, and tracking your prog
 Read the [Privacy Policy](app/src/main/assets/privacy.md) and [Terms of Use](app/src/main/assets/terms.md). These documents are bundled offline in the app and linked from Settings and onboarding.
 
 Version 4.4.2 requires an explicit, unchecked public-sharing permission before a name, photo or score is uploaded to the leaderboard. Local study features work without sharing. Withdrawing permission stops further uploads; public name/photo removal needs internet access and the original account, and pending removal is retried. Hiding does not delete all retained score/event records. See the policy for details.
+
+### v4.4.4 — Classic daily limits, current UI
+
+Regular app limit edits apply immediately, including increases, removals and selected days. When a daily limit is reached, the modern block screen offers the v4.1.0 five-minute extension. Extensions expire after five minutes or midnight, whichever comes first. YouTube retains its two five-minute windows and active focus locks cannot be bypassed. Local midnight accounting and refresh fixes remain.
