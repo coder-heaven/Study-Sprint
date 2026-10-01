@@ -326,6 +326,8 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         "study_history" -> "Study history"
                         "focus_history" -> "Focus history"
                         "app_usage" -> "App usage"
+                        "privacy" -> "Privacy Policy"
+                        "terms" -> "Terms of Use"
                         else -> route.replace('_', ' ').replaceFirstChar { it.uppercase() }
                     },
                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) },
@@ -427,7 +429,9 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                 composable("plan") { PlannerScreen(prefs, revision, ::go) }
                 composable("focus") { FocusScreen(prefs, onBack = { go("home") }, onLegacy = { go("limits") }, model = focusModel, onHistory = { go("focus_history") }) }
                 composable("settings") { SettingsScreen(prefs, ::go, refresh) }
-                composable("leaderboard") { LeaderboardScreen(prefs) }
+                composable("leaderboard") { LeaderboardScreen(prefs, ::go) }
+                composable("privacy") { PrivacyDocumentScreen(false) }
+                composable("terms") { PrivacyDocumentScreen(true) }
                 composable("statistics") {
                     Column(Modifier.fillMaxSize()) {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
@@ -636,6 +640,8 @@ private fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String,
     var authMessage by remember { mutableStateOf<String?>(null) }
     var authLoading by remember { mutableStateOf(false) }
     val loginBlue = Color(0xFF1828E8)
+    var policyDocument by remember { mutableStateOf<String?>(null) }
+    if (policyDocument != null) PrivacyDocumentDialog(policyDocument == "terms") { policyDocument = null }
     val loginIndigo = Color(0xFF4E46DF)
 
     Column(
@@ -785,6 +791,10 @@ private fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String,
                 Text("Study Sprint • v$appVersion",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 18.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { policyDocument = "privacy" }) { Text("Privacy Policy") }
+                    TextButton(onClick = { policyDocument = "terms" }) { Text("Terms of Use") }
+                }
             }
         }
     }

@@ -81,7 +81,7 @@ internal class StudyEventStore(context: Context) : SQLiteOpenHelper(context, "st
     private fun enqueue(db: SQLiteDatabase, id: String, delta: LeaderboardDelta) {
         val prefs = appContext.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)
         val uid = prefs.getString("leaderboard_uid", null) ?: return
-        if (!prefs.getBoolean("leaderboard_enabled", false) ||
+        if (!PrivacyConsent.has(prefs) || !prefs.getBoolean("leaderboard_enabled", false) ||
             runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull() != uid) return
         val payload = org.json.JSONObject().apply {
             put("focusMinutes", delta.focusMinutes); put("quizAttempts", delta.quizAttempts)

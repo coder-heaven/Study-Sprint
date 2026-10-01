@@ -86,17 +86,28 @@ internal class LeaderboardRepository(private val context: Context) {
     private var publishedProfile: String? = null
 
     suspend fun join() = mutex.withLock {
+        check(PrivacyConsent.has(prefs)) { "Please review the privacy notice before sharing your profile." }
+        hidePendingProfile()
         val user = auth.currentUser ?: auth.signInAnonymously().awaitLeaderboardTask().user
             ?: error("Could not create a local leaderboard profile.")
+        prefs.edit().putString("leaderboard_uid", user.uid).commit()
         publishProfile(user.uid, visible = true)
+        if (!PrivacyConsent.has(prefs) || prefs.getBoolean("leaderboard_opted_out", false)) return@withLock
         prefs.edit().putBoolean("leaderboard_opted_out", false)
             .putBoolean("leaderboard_enabled", true).putString("leaderboard_uid", user.uid).apply()
         syncMessage.value = null
     }
 
-    suspend fun leave() = mutex.withLock {
+    suspend fun leave() {
+        PrivacyConsent.revoke(prefs)
+        mutex.withLock { hidePendingProfile() }
+    }
+
+    private suspend fun hidePendingProfile() {
+        if (!prefs.getBoolean(PrivacyConsent.PENDING, false)) return
         val uid = prefs.getString("leaderboard_uid", null)
-        if (uid != null && auth.currentUser?.uid == uid) {
+        if (uid != null) {
+            check(auth.currentUser?.uid == uid) { "Reconnect with the original account to remove the old public profile." }
             // Wait for the server: don't claim a public profile was hidden while offline.
             val reference = students.document(uid)
             firestore.runTransaction { transaction ->
@@ -105,17 +116,18 @@ internal class LeaderboardRepository(private val context: Context) {
             }.awaitLeaderboardTask()
             withContext(Dispatchers.IO) { StudyData.events(context).discardLeaderboardEvents(uid) }
         }
-        prefs.edit().putBoolean("leaderboard_opted_out", true)
-            .putBoolean("leaderboard_enabled", false).remove("leaderboard_uid").apply()
+        prefs.edit().putBoolean(PrivacyConsent.PENDING, false).remove("leaderboard_uid").apply()
         publishedProfile = null
     }
 
     private suspend fun publishProfile(uid: String, visible: Boolean) {
+        check(PrivacyConsent.has(prefs) && !prefs.getBoolean("leaderboard_opted_out", false))
         val name = prefs.getString("profile_name", "Student").orEmpty().trim().take(40).ifBlank { "Student" }
         val type = if (auth.currentUser?.isAnonymous == true) "local" else "google"
         val profileKey = "$uid|$name|${prefs.getString("profile_photo", "")}|${prefs.getString("account_photo_url", "")}|$type|$visible"
         if (publishedProfile == profileKey) return
         val photo = LeaderboardPhotos.encoded(context)
+        check(PrivacyConsent.has(prefs) && !prefs.getBoolean("leaderboard_opted_out", false))
         val reference = students.document(uid)
         firestore.runTransaction { transaction ->
             val previous = transaction.get(reference)
@@ -131,11 +143,13 @@ internal class LeaderboardRepository(private val context: Context) {
     }
 
     suspend fun sync() = mutex.withLock {
-        // Every completed app profile participates by default, including guest profiles.
-        // Keep an explicit leave choice across restarts and updates.
+        // Older versions shared automatically. Stop publishing until explicit consent,
+        // and remove the old public name/photo when the original account reconnects.
+        if (!PrivacyConsent.has(prefs) && prefs.getBoolean("leaderboard_enabled", false)) PrivacyConsent.revoke(prefs)
+        hidePendingProfile()
         if (!LeaderboardParticipation.shouldConnect(
                 prefs.getBoolean("onboarding_v3", false),
-                prefs.getBoolean("leaderboard_opted_out", false))) return@withLock
+                prefs.getBoolean("leaderboard_opted_out", false), prefs.getInt(PrivacyConsent.KEY, 0))) return@withLock
         val user = auth.currentUser ?: auth.signInAnonymously().awaitLeaderboardTask().user
             ?: error("Could not connect your student profile.")
         val uid = user.uid
@@ -145,6 +159,7 @@ internal class LeaderboardRepository(private val context: Context) {
         publishProfile(uid, visible = true)
         val outbox = withContext(Dispatchers.IO) { StudyData.events(context).pendingLeaderboardEvents(uid) }
         outbox.forEach { item ->
+            if (!PrivacyConsent.has(prefs) || prefs.getBoolean("leaderboard_opted_out", false)) return@withLock
             val entry = students.document(uid)
             val event = entry.collection("events").document(item.id)
             firestore.runTransaction { transaction ->
@@ -190,6 +205,8 @@ internal class LeaderboardRepository(private val context: Context) {
     }
 
     fun message(error: Throwable): String = when {
+        prefs.getBoolean(PrivacyConsent.PENDING, false) ->
+            "Public profile removal is pending. Reconnect with the original account to complete it."
         error is com.google.firebase.auth.FirebaseAuthException && error.errorCode == "ERROR_OPERATION_NOT_ALLOWED" ->
             "Local leaderboard sign-in is not enabled yet. The app owner needs to enable Anonymous sign-in in Firebase."
         error is FirebaseFirestoreException && error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED ->
