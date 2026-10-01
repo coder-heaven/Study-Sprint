@@ -56,8 +56,8 @@ class BlockedActivity : ComponentActivity() {
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { home() }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Return to home screen") }
                     OutlinedButton(onClick = {
-                        startActivity(Intent(this@BlockedActivity, ComposeStudyActivity::class.java)
-                            .setAction(AlertNavigation.ACTION).putExtra(AlertNavigation.ROUTE, if (current?.getStringExtra("reason") == "permission") "limits" else "focus"))
+                        startActivity(BlockNavigation.studyIntent(this@BlockedActivity,
+                            if (pkg == YouTubeQuota.PACKAGE || current?.getStringExtra("reason") == "permission") "limits" else "focus"))
                         finish()
                     }, modifier = Modifier.fillMaxWidth()) { Text("Open Study Sprint") }
                 }
