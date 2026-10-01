@@ -116,7 +116,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         SettingsRow("Focus preferences", "Custom timing and distraction control") { go("focus") }
         SettingsRow("Student leaderboards", "Live study effort and quiz wins") { go("leaderboard") }
         SectionLabel("Digital wellbeing")
-        SettingsRow("App Limits", "Strict limits · YouTube 2 × 5 min") { go("limits") }
+        SettingsRow("App Limits", "Daily limits · YouTube 2 × 5 min") { go("limits") }
         SettingsRow("App Usage Statistics") { go("statistics") }
         SectionLabel("Notifications")
         SettingsRow("Timer sound", "Alarm sound and vibration") {
