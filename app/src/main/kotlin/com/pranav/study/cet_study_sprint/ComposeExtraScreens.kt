@@ -276,7 +276,7 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                 if (!allowed) TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }) { Text("Enable Usage Access") }
                 if (!blockerEnabled(context)) OutlinedButton(onClick = { showBlockingGuide = true }, modifier = Modifier.fillMaxWidth()) { Text("Set up app blocking") }
                 Text("Daily usage and YouTube sessions reset at 12:00 AM in your phone's time zone.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
-                Text("Strict limits have no extra-time bypass. Increases and removals apply tomorrow; tighter limits apply now. Android permissions must stay enabled.",
+                Text("Regular app limits update immediately and offer a five-minute extension when reached. YouTube stays at two five-minute sessions per day. Active focus locks last until the session ends.",
                     style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             }
         }
@@ -311,11 +311,11 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(app.label, fontWeight = FontWeight.SemiBold)
-                        Text(if (app.limit > 0) "${app.usedMs / 60000}m of ${app.limit}m · Strict"
+                        Text(if (app.limit > 0) "${app.usedMs / 60000}m of ${app.limit}m · Daily limit"
                              else "${app.usedMs / 60000}m today · No limit",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (StrictLimits.prefs(context).contains("pending_at_${app.pkg}"))
-                            Text("Change queued for tomorrow", style = MaterialTheme.typography.labelSmall,
+                            Text("Change queued until focus ends", style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary)
                     }
                     Text("›", style = MaterialTheme.typography.titleLarge)
@@ -397,7 +397,7 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
             Spacer(Modifier.height(12.dp))
             Button(onClick = {
                 val deferred = StrictLimits.save(context, chosen!!.pkg, minutes, daysMask, focusBlocked)
-                saveMessage = if (deferred) "Change saved for tomorrow. Today's protection stays active." else "Strict limit saved."
+                saveMessage = if (deferred) "Change saved for when your focus session ends." else "Daily limit saved. Changes apply now."
                 chosen = null; revision++
             }, modifier = Modifier.fillMaxWidth()) { Text("Save limit") }
         }
