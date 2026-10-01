@@ -24,8 +24,9 @@ class StudyNavigationUiTest {
             }
         }
     }
-    private fun capture(name: String) {
-        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+    private fun capture(name: String, tag: String? = null) {
+        val node = if (tag == null) compose.onRoot() else compose.onNodeWithTag(tag)
+        val bitmap = node.captureToImage().asAndroidBitmap()
         val resolver = compose.activity.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, "$name.png")
@@ -90,6 +91,35 @@ class StudyNavigationUiTest {
             compose.onNodeWithTag("tab_home").performClick()
             compose.onNodeWithTag("screen_home").assertIsDisplayed()
         }
+    }
+
+    @Test fun youtubeAppearsInAllLimitedAndSearchWithItsSessionControls() {
+        showApp("dark")
+        compose.onNodeWithTag("tab_focus").performClick()
+        compose.onNodeWithText("App limits", useUnmergedTree = true).performScrollTo().performClick()
+        val row = "limit_app_${YouTubeQuota.PACKAGE}"
+        val list = compose.onNodeWithTag("app_limits_list")
+        // Records load from Android asynchronously, and the row is below the card.
+        compose.waitUntil(15_000) {
+            runCatching { list.performScrollToNode(hasTestTag(row)); true }.getOrDefault(false)
+        }
+        compose.onNodeWithTag(row).assertIsDisplayed()
+        compose.onNodeWithTag(row).assertTextContains("2 sessions × 5 min", substring = true)
+        list.performScrollToNode(hasTestTag("app_limits_filters"))
+        compose.onNodeWithText("Limited", useUnmergedTree = true).performClick()
+        list.performScrollToNode(hasTestTag(row))
+        compose.onNodeWithTag(row).assertIsDisplayed()
+        capture("youtube-limited-dark")
+        list.performScrollToNode(hasTestTag("app_limits_search"))
+        compose.onNodeWithTag("app_limits_search").performTextInput("youtube")
+        list.performScrollToNode(hasTestTag(row))
+        compose.onNodeWithTag(row).assertIsDisplayed()
+        compose.onNodeWithTag(row).performClick()
+        compose.onNodeWithTag("youtube_limit_controls").assertIsDisplayed()
+        compose.onNodeWithText("Save limit").assertDoesNotExist()
+        capture("youtube-controls-dark", "youtube_limit_controls")
+        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithTag("screen_limits").assertIsDisplayed()
     }
 
     @Test fun privacyTermsAndOptionalConsentAreAccessible() {
