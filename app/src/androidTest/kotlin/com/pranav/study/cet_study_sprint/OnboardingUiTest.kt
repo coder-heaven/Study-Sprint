@@ -34,7 +34,10 @@ class OnboardingUiTest {
         compose.onNodeWithText("Close").performClick()
         compose.onNodeWithTag("terms_accept_checkbox").assertIsOff().performClick()
         compose.onNodeWithTag("terms_continue").performScrollTo().performClick()
-        compose.onNodeWithText("Continue as guest").performScrollTo().performClick()
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Continue as guest", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText("Continue as guest", useUnmergedTree = true).performScrollTo().performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithTag("setup_screen").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Optional Android permissions").assertExists()
         compose.onNodeWithTag("setup_continue").performClick()
