@@ -111,8 +111,9 @@ class ComposeStudyActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         val filter = IntentFilter(AlertNavigation.ACTION)
-        if (Build.VERSION.SDK_INT >= 33) registerReceiver(alertReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        else registerReceiver(alertReceiver, filter)
+        androidx.core.content.ContextCompat.registerReceiver(
+            this, alertReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
     override fun onStop() { unregisterReceiver(alertReceiver); super.onStop() }
     override fun onCreate(savedInstanceState: Bundle?) {
