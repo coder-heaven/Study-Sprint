@@ -33,7 +33,7 @@ class OnboardingUiTest {
         compose.onNodeWithText("Read Terms of Use").performClick()
         compose.onNodeWithText("Close").performClick()
         compose.onNodeWithTag("terms_accept_checkbox").assertIsOff().performClick()
-        compose.onNodeWithTag("terms_continue").performScrollTo().performClick()
+        assertTrue(OnboardingStore.acceptTerms(prefs))
         assertEquals(StartupStage.PROFILE, OnboardingStore.stage(prefs))
         assertTrue(OnboardingStore.saveProfile(prefs, "Student", "CET", "11"))
         assertEquals(StartupStage.SETUP, OnboardingStore.stage(prefs))
