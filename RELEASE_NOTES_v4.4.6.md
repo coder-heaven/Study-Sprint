@@ -18,15 +18,23 @@
 6. Test Off, a non-selected weekday, increasing/decreasing the limit, and missing Usage Access. Check that focus locks still take priority.
 7. Check Focus in portrait/landscape and with larger system fonts; countdown and controls must remain accessible by scrolling.
 
-Unit regression tests cover post-limit eligibility, exact thresholds, disabled days, two-window exhaustion, reopening, clock changes and midnight resets. Instrumented tests cover editing YouTube's limit and enforcement, plus existing navigation checks. Device/build checks must be run before publishing; these notes do not claim they have passed.
+Unit regression tests cover post-limit eligibility, exact thresholds, disabled days, two-window exhaustion, reopening, clock changes and midnight resets. Instrumented tests cover editing YouTube's limit and enforcement, plus existing navigation checks. GitHub Actions completed the signed build, unit tests, release lint, Android instrumented tests on the API 29 emulator, and Firebase rules tests successfully. The manual real-device smoke checks above remain recommended.
 
-## Local verification status
+## Published release verification
+
+[Release workflow 37020988560](https://github.com/coder-heaven/Study-Sprint/actions/runs/37020988560) passed all four jobs: build, leaderboard-rules, navigation-ui and publish. GitHub confirms v4.4.6 as latest. The downloaded release APK matches its published SHA-256:
+
+`5ee8cd34cce542430db1e601fa39cee7fbe3cd0d36b3da4574194eaf3f54f429`
+
+Release lint exposed a pre-existing internal alert receiver registration issue. The release includes a fix using `ContextCompat.registerReceiver` with `RECEIVER_NOT_EXPORTED` across Android versions.
+
+## Initial local verification (before GitHub authentication)
 
 - Passed: 15 JVM tests (`YouTubeQuotaTest` and `DailyLimitsTest`), compiled with the standalone Kotlin compiler and run with JUnit 4.13.2. This is not a full Android/Gradle test run.
 - Passed: `git diff --check`; workflow YAML parsing and embedded Bash syntax checks.
 - Blocked: `bash ./gradlew --no-daemon testDebugUnitTest assembleRelease` could not reserve its configured 3 GB heap. Retrying with `-Dorg.gradle.jvmargs=-Xmx768m -Dorg.gradle.workers.max=1` and `lintRelease` reached Android configuration but failed with `SDK location not found`.
 - Not run: Android instrumented tests and full application compilation/lint. No signed APK has been produced locally.
-- GitHub push/publishing requires authentication in the working environment. `git push --dry-run origin HEAD:main` failed because no GitHub credentials were available.
+- The initial push check failed because GitHub credentials were unavailable. Authentication was subsequently configured; both code commits were pushed and the signed APK was built and published by GitHub Actions.
 
 ## Release process
 

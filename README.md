@@ -1,8 +1,8 @@
 # 📚 Study Sprint
 
-## v4.4.6 changes (release preparation)
+## v4.4.6
 
-YouTube now has an editable daily limit. Its two five-minute bypasses become available **after** that limit is reached, rather than replacing normal daily usage. The focus timer is larger and responsive. See [release notes and device checks](RELEASE_NOTES_v4.4.6.md). The download below remains the last published version until the new signed release is verified and published.
+YouTube now has an editable daily limit. Its two five-minute bypasses become available **after** that limit is reached, rather than replacing normal daily usage. The focus timer is larger and responsive. See [release notes and device checks](RELEASE_NOTES_v4.4.6.md). The signed release passed unit tests, release lint, Android instrumented tests and Firebase rules tests in [GitHub Actions](https://github.com/coder-heaven/Study-Sprint/actions/runs/37020988560).
 
 ## Daily limit reset (4.4.3)
 
@@ -18,7 +18,7 @@ Study Sprint v2.2.0 improves PDF-imported MCQ practice, introduces course-specif
 
 ## ⬇️ Download
 
-[Download Study Sprint v4.4.5 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.5/Study-Sprint-v4.4.5.apk)
+[Download Study Sprint v4.4.6 APK](https://github.com/coder-heaven/Study-Sprint/releases/download/v4.4.6/Study-Sprint-v4.4.6.apk)
 
 ## ✨ What’s new
 
