@@ -130,14 +130,11 @@ class ComposeStudyActivity : ComponentActivity() {
         setContent {
             StudyTheme(prefs, revision) {
                 RequiredUpdateGate(revision) {
-                    var ready by remember { mutableStateOf(prefs.getBoolean("onboarding_v3", false)) }
-                    if (!ready) WelcomeScreen(prefs) { name, course, grade ->
-                        prefs.edit().putString("profile_name", name.trim()).putString("exam", course)
-                            .putString("grade", grade).putBoolean("onboarding_v3", true).apply()
-                        ready = true; revision++
-                    } else StudyRoot(prefs, revision, alertRoute = alertRoute, onAlertHandled = { alertRoute = null }, onLegacy = { destination ->
-                        startActivity(Intent(this, MainActivity::class.java).putExtra("legacy_screen", destination))
-                    }, refresh = { revision++ })
+                    OnboardingGate(prefs, refresh = { revision++ }) {
+                        StudyRoot(prefs, revision, alertRoute = alertRoute, onAlertHandled = { alertRoute = null }, onLegacy = { destination ->
+                            startActivity(Intent(this, MainActivity::class.java).putExtra("legacy_screen", destination))
+                        }, refresh = { revision++ })
+                    }
                 }
             }
         }
@@ -261,6 +258,13 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
             if (drawer.isOpen) drawer.close()
         }
     }
+    LaunchedEffect(Unit) {
+        when (OnboardingStore.stage(prefs)) {
+            StartupStage.SETUP -> go("setup")
+            StartupStage.TUTORIAL -> go("tutorial")
+            else -> Unit
+        }
+    }
     LaunchedEffect(alertRoute) {
         AlertDestination.valid(alertRoute)?.let { go(it); onAlertHandled() }
     }
@@ -274,7 +278,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                 "OVERVIEW" to listOf("Dashboard" to "home", "Statistics" to "statistics", "Leaderboards" to "leaderboard"),
                 "STUDY" to listOf("Study history" to "study_history", "Focus history" to "focus_history", "What I learned" to "notes"),
                 "DIGITAL WELLBEING" to listOf("App Limits" to "limits", "App Usage" to "app_usage"),
-                "PERSONAL" to listOf("Profile" to "profile", "Settings" to "settings")
+                "PERSONAL" to listOf("Profile" to "profile", "Settings" to "settings", "Setup checklist" to "setup", "How to use the app" to "tutorial")
             )
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
                 item {
@@ -329,6 +333,8 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         "app_usage" -> "App usage"
                         "privacy" -> "Privacy Policy"
                         "terms" -> "Terms of Use"
+                        "setup" -> "Setup checklist"
+                        "tutorial" -> "How to use Study Sprint"
                         else -> route.replace('_', ' ').replaceFirstChar { it.uppercase() }
                     },
                         style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) },
@@ -430,6 +436,19 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                 composable("plan") { PlannerScreen(prefs, revision, ::go) }
                 composable("focus") { FocusScreen(prefs, onBack = { go("home") }, onLegacy = { go("limits") }, model = focusModel, onHistory = { go("focus_history") }) }
                 composable("settings") { SettingsScreen(prefs, ::go, refresh) }
+                composable("setup") { InitialSetupScreen(prefs, ::go, refresh) }
+                composable("tutorial") {
+                    var error by remember { mutableStateOf("") }
+                    Column(Modifier.fillMaxSize()) {
+                        Box(Modifier.weight(1f)) { AppTutorialScreen(::go) }
+                        if (error.isNotEmpty()) Text(error, color = MaterialTheme.colorScheme.error)
+                        Button(onClick = {
+                            if (OnboardingStore.finishTutorial(prefs)) { refresh(); go("home") }
+                            else error = "Could not save. Please try again."
+                        }, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)
+                            .heightIn(min = 48.dp).testTag("tutorial_done")) { Text("Got it · go to Home") }
+                    }
+                }
                 composable("leaderboard") { LeaderboardScreen(prefs, ::go) }
                 composable("privacy") { PrivacyDocumentScreen(false) }
                 composable("terms") { PrivacyDocumentScreen(true) }
@@ -534,6 +553,8 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
             ProfileAvatar(name, 44.dp) { go("profile") }
         }
         Spacer(Modifier.height(18.dp))
+        HomeShortcuts(go)
+        Spacer(Modifier.height(16.dp))
         Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer)) {
             Column(Modifier.padding(20.dp)) {
@@ -565,12 +586,6 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
         }
         Text("$streak-day study streak", style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionLabel("Your shortcuts")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            HomeAction("MCQs", Modifier.weight(1f)) { go("practice") }
-            HomeAction("Notes", Modifier.weight(1f)) { go("notes") }
-            HomeAction("App limits", Modifier.weight(1f)) { go("limits") }
-        }
         SectionLabel("Next task")
         StudyCard {
             Text(tasks.firstOrNull() ?: "Your plan is clear. Add a task when you're ready.",
@@ -605,12 +620,6 @@ private fun MetricCard(value: String, label: String, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun HomeAction(label: String, modifier: Modifier, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = modifier.height(48.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp)) { Text(label, maxLines = 1) }
-}
-
-@Composable
 internal fun ProfileAvatar(name: String, size: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
     val context = LocalContext.current
     val profilePrefs = context.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE)
@@ -630,7 +639,7 @@ internal fun ProfileAvatar(name: String, size: androidx.compose.ui.unit.Dp, onCl
 }
 
 @Composable
-private fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String, String) -> Unit) {
+internal fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String, String) -> Unit) {
     val context = LocalContext.current
     val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.2.0" }
     val scope = rememberCoroutineScope()
@@ -693,9 +702,9 @@ private fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String,
                 Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Log in", style = MaterialTheme.typography.headlineMedium,
+                Text("Your study profile", style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Text("Set up your learning path and continue your study journey.",
+                Text("Step 2 · Choose your learning path. Google sign-in is optional.",
                     style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 20.dp))
 

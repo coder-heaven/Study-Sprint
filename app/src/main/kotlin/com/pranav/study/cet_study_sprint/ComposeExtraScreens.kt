@@ -61,7 +61,7 @@ private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Un
     }
 }
 @Composable
-internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (String) -> Unit, refresh: () -> Unit) {
+internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (String) -> Unit, refresh: () -> Unit, setupMode: Boolean = false) {
     val context = LocalContext.current
     val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.2.0" }
     var theme by remember { mutableStateOf(prefs.getString("theme_mode", "system") ?: "system") }
@@ -106,7 +106,16 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        AppHeading("Settings", "Your preferences, clearly organized.")
+        AppHeading(if (setupMode) "Set up Study Sprint" else "Settings",
+            if (setupMode) "Step 3 · All key settings in one place. Nothing is required." else "Your preferences, clearly organized.")
+        if (setupMode) {
+            Text("Review your study goal, reminders, appearance and optional permissions below. Your choices save as you change them. Advanced features open from the relevant button; return with Back.",
+                style = MaterialTheme.typography.bodyMedium)
+            PermissionSetupCard()
+        } else {
+            SettingsRow("Setup checklist", "Review settings and Android permissions together") { go("setup") }
+            SettingsRow("How to use the app", "Replay the step-by-step tutorial") { go("tutorial") }
+        }
         SectionLabel("Study")
         SettingsRow("Exam & class", "${prefs.getString("exam", "CET")} • Class ${prefs.getString("grade", "11")}") { go("profile") }
         SettingsRow("Exam date", "Edit in profile") { go("profile") }
@@ -119,7 +128,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         SettingsRow("Student leaderboards", "Live study effort and quiz wins") { go("leaderboard") }
         SectionLabel("Digital wellbeing")
         SettingsRow("App Limits", "Daily limits · YouTube extra time") { go("limits") }
-        SettingsRow("App Usage Statistics") { go("statistics") }
+        SettingsRow("App Usage Statistics") { go("app_usage") }
         SectionLabel("Notifications")
         SettingsRow("Timer sound", "Alarm sound and vibration") {
             FocusAlarm.createChannel(context)
@@ -170,7 +179,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         SettingsRow("Privacy Policy", "Data, permissions and public sharing") { go("privacy") }
         SettingsRow("Terms of Use", "Responsible use and optional services") { go("terms") }
         SettingsRow("Leaderboard privacy", "Review or withdraw public sharing") { go("leaderboard") }
-        SettingsRow("Local data", "Study history stays on this phone") { info = "Study history is stored on this device and may be included in Android backup. Leaderboard names, photos and scores are uploaded only after public-sharing permission. See Privacy Policy for details." }
+        SettingsRow("Updates & saved data", "Normal app updates keep your existing data") { info = "Installing a newer official APK over this app keeps your study history, syllabus progress, notes, MCQs, app limits and settings on this phone. Do not uninstall or clear app storage before updating. Google sign-in is not a full study-data backup. Android backup availability depends on your device and settings; it is not guaranteed. Public leaderboard sharing remains a separate optional choice." }
         SectionLabel("About")
         SettingsRow("About Study Sprint", "Version $appVersion") { info = "Study Sprint helps you plan, focus, practice and track your exam preparation. Version $appVersion." }
         Spacer(Modifier.height(12.dp))
