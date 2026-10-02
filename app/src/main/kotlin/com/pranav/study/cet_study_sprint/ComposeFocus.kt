@@ -232,7 +232,9 @@ internal fun FocusScreen(
             Text(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" })
         }
         Spacer(Modifier.height(12.dp))
-        Box(Modifier.size(160.dp), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(Modifier.widthIn(max = 300.dp).fillMaxWidth().aspectRatio(1f).padding(8.dp),
+            contentAlignment = Alignment.Center) {
+            val timerFontSize = (maxWidth.value * 0.20f).coerceAtMost(56f).sp
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = 11.dp.toPx()
                 drawCircle(ringTrack, style = Stroke(stroke))
@@ -241,7 +243,8 @@ internal fun FocusScreen(
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
-                    fontSize = 38.sp, fontWeight = FontWeight.SemiBold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                    fontSize = timerFontSize, maxLines = 1, fontWeight = FontWeight.SemiBold,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
                 Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

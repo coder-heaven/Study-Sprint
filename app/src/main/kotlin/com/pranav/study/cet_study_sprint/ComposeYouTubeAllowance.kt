@@ -35,16 +35,20 @@ internal fun YouTubeAllowanceCard() {
         }
     }
     val used = measurement?.takeIf { it.day == day }?.millis
+    val prefs = StrictLimits.prefs(context)
+    val limit = StrictLimits.dailyLimit(prefs, YouTubeQuota.PACKAGE)
+    val applies = StrictLimits.appliesToday(prefs, YouTubeQuota.PACKAGE, now)
+    val reached = used?.let { YouTubeQuota.limitReached(limit, applies, it) } ?: false
     StudyCard {
-        Text("YouTube · intentional breaks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text("2 sessions per day · 5 minutes each", style = MaterialTheme.typography.bodyMedium,
+        Text("YouTube · extra time", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("2 bypasses per day · 5 minutes each · after your daily limit", style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             repeat(2) { index ->
                 Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.medium,
                     color = if (quota.sessions > index) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primaryContainer) {
-                    Text("Session ${index + 1} · ${if (quota.sessions > index) "Used" else "Available"}",
+                    Text("Bypass ${index + 1} · ${if (quota.sessions > index) "Used" else "Available"}",
                         modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.labelMedium)
                 }
             }
@@ -52,13 +56,15 @@ internal fun YouTubeAllowanceCard() {
         Text(when {
             focus -> "Blocked until this focus session ends."
             !setup -> "Enable Usage Access and app blocking below to use this allowance."
-            used == null -> "Checking today's allowance…"
-            (used ?: 0L) >= 600_000L -> "Daily 10-minute allowance reached. Resets at midnight."
-            remaining > 0L -> "${remaining / 60000}:${((remaining / 1000) % 60).toString().padStart(2, '0')} left in this window"
-            quota.sessions >= 2 -> "Both sessions used. New sessions tomorrow."
-            else -> "${2 - quota.sessions} session(s) left. The window keeps running if you leave YouTube."
+            limit <= 0 -> "No daily limit. Tap YouTube in the app list to set one."
+            !applies -> "No daily limit scheduled for today."
+            used == null -> "Checking today's usage…"
+            !reached -> "${used / 60000}m of ${limit}m used. Bypasses unlock after your daily limit."
+            remaining > 0L -> "${remaining / 60000}:${((remaining / 1000) % 60).toString().padStart(2, '0')} left in this bypass"
+            quota.sessions >= 2 -> "Both bypasses used. Your daily limit and bypasses reset at midnight."
+            else -> "Daily limit reached. ${2 - quota.sessions} bypass(es) left. Each window keeps running if you leave YouTube."
         }, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
-        Button(enabled = setup && !focus && !busy && used != null && used!! < 600_000L && (remaining > 0 || quota.sessions < 2),
+        Button(enabled = setup && !focus && !busy && reached && (remaining > 0 || quota.sessions < 2),
             onClick = {
                 val launch = context.packageManager.getLaunchIntentForPackage(YouTubeQuota.PACKAGE)
                 if (launch == null) { message = "The YouTube app is not installed."; return@Button }
@@ -69,11 +75,11 @@ internal fun YouTubeAllowanceCard() {
                         if (StrictLimits.startYouTube(context, currentUse)) {
                             revision++
                             context.startActivity(launch)
-                        } else message = "No session available. Check permissions, focus lock and today's allowance."
+                        } else message = "No bypass available. Check your daily limit, permissions and focus lock."
                     } finally { busy = false }
                 }
             }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 48.dp)) {
-            Text(if (busy) "Checking allowance…" else if (remaining > 0) "Continue current session" else "Start 5-minute session")
+            Text(if (busy) "Checking usage…" else if (reached && remaining > 0) "Continue current bypass" else "Use 5-minute bypass")
         }
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
     }

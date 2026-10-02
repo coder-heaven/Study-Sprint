@@ -1,4 +1,8 @@
-# 📚 Study Sprint v4.4.5
+# 📚 Study Sprint
+
+## v4.4.6 changes (release preparation)
+
+YouTube now has an editable daily limit. Its two five-minute bypasses become available **after** that limit is reached, rather than replacing normal daily usage. The focus timer is larger and responsive. See [release notes and device checks](RELEASE_NOTES_v4.4.6.md). The download below remains the last published version until the new signed release is verified and published.
 
 ## Daily limit reset (4.4.3)
 

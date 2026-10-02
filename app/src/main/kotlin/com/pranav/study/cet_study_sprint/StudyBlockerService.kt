@@ -52,7 +52,7 @@ class StudyBlockerService : AccessibilityService() {
         checker = scope.launch {
             StrictLimits.applyPending(this@StudyBlockerService)
             val p = StrictLimits.prefs(this@StudyBlockerService)
-            val limit = p.getInt("limit_$pkg", 0)
+            val limit = StrictLimits.dailyLimit(p, pkg)
             val youtube = pkg == YouTubeQuota.PACKAGE
             val usageAccess = StrictLimits.usageAllowed(this@StudyBlockerService)
             val usage = if (usageAccess && (limit > 0 || youtube)) withContext(Dispatchers.IO) {

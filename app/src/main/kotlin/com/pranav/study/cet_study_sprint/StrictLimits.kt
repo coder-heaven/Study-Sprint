@@ -21,22 +21,36 @@ internal object StrictLimits {
         prefs.getBoolean("focus_block_active", false) && now < prefs.getLong("focus_block_end", 0L) &&
             (pkg == YouTubeQuota.PACKAGE || prefs.getBoolean("focus_block_$pkg", false))
 
+    fun dailyLimit(p: SharedPreferences, pkg: String): Int =
+        p.getInt("limit_$pkg", if (pkg == YouTubeQuota.PACKAGE) YouTubeQuota.DEFAULT_LIMIT_MINUTES else 0)
+
+    fun appliesToday(p: SharedPreferences, pkg: String, now: Long): Boolean {
+        val weekday = StudyTimeMath.weekdayIndex(Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.DAY_OF_WEEK))
+        return p.getInt("limit_days_$pkg", 127) and (1 shl weekday) != 0
+    }
+
     @Synchronized fun quota(context: Context, now: Long = System.currentTimeMillis()): YouTubeQuota {
         val p = prefs(context)
-        val old = YouTubeQuota(p.getLong("youtube_day", 0), p.getInt("youtube_sessions", 0),
-            p.getLong("youtube_started", 0), p.getLong("youtube_elapsed", 0))
+        // Separate from the old pre-limit sessions so upgrading does not consume bypasses.
+        val old = YouTubeQuota(p.getLong("youtube_bypass_day", 0), p.getInt("youtube_bypass_sessions", 0),
+            p.getLong("youtube_bypass_started", 0), p.getLong("youtube_bypass_elapsed", 0))
         val current = old.forDay(DailyUsage.startOfLocalDay(now))
         if (current != old) writeQuota(p, current)
         return current
     }
     private fun writeQuota(p: SharedPreferences, value: YouTubeQuota): Boolean = p.edit()
-        .putLong("youtube_day", value.day).putInt("youtube_sessions", value.sessions)
-        .putLong("youtube_started", value.startedAt).putLong("youtube_elapsed", value.startedElapsed).commit()
+        .putLong("youtube_bypass_day", value.day).putInt("youtube_bypass_sessions", value.sessions)
+        .putLong("youtube_bypass_started", value.startedAt).putLong("youtube_bypass_elapsed", value.startedElapsed).commit()
 
     @Synchronized fun startYouTube(context: Context, usage: DailyUsage.Measurement): Boolean {
         val now = System.currentTimeMillis()
-        if (usage.packageName != YouTubeQuota.PACKAGE || usage.day != LocalDay.start(now) || !usageAllowed(context) || !blockerEnabled(context) || focusBlocked(prefs(context), YouTubeQuota.PACKAGE, now) || usage.millis >= 600_000L) return false
-        val next = quota(context, now).start(DailyUsage.startOfLocalDay(now), now, SystemClock.elapsedRealtime()) ?: return false
+        applyPending(context, now)
+        val p = prefs(context)
+        val pkg = YouTubeQuota.PACKAGE
+        if (usage.packageName != pkg || usage.day != LocalDay.start(now) || !usageAllowed(context) ||
+            !blockerEnabled(context) || focusBlocked(p, pkg, now)) return false
+        val next = quota(context, now).startAfterLimit(dailyLimit(p, pkg), appliesToday(p, pkg, now),
+            usage.millis, LocalDay.start(now), now, SystemClock.elapsedRealtime()) ?: return false
         return writeQuota(prefs(context), next)
     }
     fun remainingYouTube(context: Context, now: Long = System.currentTimeMillis()): Long =
@@ -88,18 +102,14 @@ internal object StrictLimits {
         val p = prefs(context)
         if (focusBlocked(p, pkg, now)) return "focus"
         val youtube = pkg == YouTubeQuota.PACKAGE
-        val weekday = StudyTimeMath.weekdayIndex(Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.DAY_OF_WEEK))
-        val limit = p.getInt("limit_$pkg", 0)
-        val daily = !youtube && limit > 0 && p.getInt("limit_days_$pkg", 127) and (1 shl weekday) != 0
-        if (!daily && !youtube) return null
-        if (daily && now < p.getLong("bypass_until_$pkg", 0L)) return null
+        val limit = dailyLimit(p, pkg)
+        val daily = limit > 0 && appliesToday(p, pkg, now)
+        if (!daily) return null
+        if (!youtube && now < p.getLong("bypass_until_$pkg", 0L)) return null
         if (!usageAllowed(context)) return "permission"
         if (usage == null || usage.packageName != pkg || usage.day != LocalDay.start(now)) return "checking"
-        return when {
-            youtube && usage.millis >= 600_000L -> "youtube_daily"
-            daily && usage.millis >= limit * 60_000L -> "daily"
-            youtube && remainingYouTube(context, now) == 0L -> "youtube_session"
-            else -> null
-        }
+        if (!YouTubeQuota.limitReached(limit, daily, usage.millis)) return null
+        if (youtube) return if (remainingYouTube(context, now) > 0L) null else "youtube_daily"
+        return "daily"
     }
 }

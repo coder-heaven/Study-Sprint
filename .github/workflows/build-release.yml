@@ -2,6 +2,11 @@ name: Build signed APK
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish the verified signed APK as the latest GitHub release (main only)'
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'app/**'
@@ -51,7 +56,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: bash ./gradlew --no-daemon testDebugUnitTest assembleRelease
+        run: bash ./gradlew --no-daemon testDebugUnitTest lintRelease assembleRelease
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -59,6 +64,41 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release && github.ref == 'refs/heads/main'
+    needs: [build, leaderboard-rules, navigation-ui]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-latest-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Study-Sprint-signed-release
+          path: release-apk
+      - name: Publish latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(awk -F '"' '/versionName =/ {print $2}' app/build.gradle.kts)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          tag="v$version"
+          existing_tag=$(git ls-remote --tags origin "refs/tags/$tag")
+          [ -z "$existing_tag" ] || { echo "Refusing to reuse existing tag $tag"; exit 1; }
+          asset="Study-Sprint-$tag.apk"
+          mapfile -t apks < <(find release-apk -name '*.apk' ! -name '*unsigned*')
+          [ "${#apks[@]}" -eq 1 ]
+          cp "${apks[0]}" "$asset"
+          sha256sum "$asset" > "$asset.sha256"
+          gh release create "$tag" "$asset" "$asset.sha256" \
+            --target "$GITHUB_SHA" --title "Study Sprint $tag" \
+            --notes-file "RELEASE_NOTES_$tag.md" --latest
 
   leaderboard-rules:
     runs-on: ubuntu-latest

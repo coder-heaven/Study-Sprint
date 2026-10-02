@@ -17,12 +17,13 @@ class MidnightLimitsTest {
         ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes() }
     }
 
-    private fun withClassicLimit(test: (android.content.SharedPreferences, String, Long) -> Unit) {
+    private fun withClassicLimit(pkg: String = "test.classic.limit",
+                                 test: (android.content.SharedPreferences, String, Long) -> Unit) {
         val p = StrictLimits.prefs(context)
-        val pkg = "test.classic.limit"
         val keys = listOf("limit_$pkg", "limit_days_$pkg", "focus_block_$pkg", "bypass_until_$pkg",
             "pending_at_$pkg", "pending_minutes_$pkg", "pending_days_$pkg", "pending_focus_$pkg",
-            "focus_block_active", "focus_block_end")
+            "focus_block_active", "focus_block_end", "youtube_bypass_day", "youtube_bypass_sessions",
+            "youtube_bypass_started", "youtube_bypass_elapsed")
         val previous = p.all.filterKeys { it in keys }
         val mode = context.getSystemService(AppOpsManager::class.java)
             .checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
@@ -116,17 +117,43 @@ class MidnightLimitsTest {
         }
     }
 
+    @Test fun youtubeUsesEditableLimitThenTimedBypassesAndRespectsFocus() = withClassicLimit(YouTubeQuota.PACKAGE) { p, pkg, now ->
+        assertFalse(StrictLimits.save(context, pkg, 30, 127, true))
+        val day = LocalDay.start(now)
+        val below = DailyUsage.Measurement(day, 1_799_999L, pkg)
+        val reached = DailyUsage.Measurement(day, 1_800_000L, pkg)
+        p.edit().putLong("youtube_bypass_day", day).putInt("youtube_bypass_sessions", 0)
+            .putLong("youtube_bypass_started", 0).putLong("youtube_bypass_elapsed", 0).commit()
+        assertNull(StrictLimits.blockReason(context, pkg, below, now))
+        assertEquals("youtube_daily", StrictLimits.blockReason(context, pkg, reached, now))
+        p.edit().putLong("youtube_bypass_day", day).putInt("youtube_bypass_sessions", 1)
+            .putLong("youtube_bypass_started", now)
+            .putLong("youtube_bypass_elapsed", android.os.SystemClock.elapsedRealtime()).commit()
+        assertNull(StrictLimits.blockReason(context, pkg, reached, now))
+        if (LocalDay.start(now + 300_000L) == day) {
+            assertEquals("youtube_daily", StrictLimits.blockReason(context, pkg, reached, now + 300_000L))
+        }
+        p.edit().putBoolean("focus_block_active", true).putLong("focus_block_end", now + 60_000L).commit()
+        assertEquals("focus", StrictLimits.blockReason(context, pkg, reached, now))
+        assertFalse(StrictLimits.startYouTube(context, reached))
+        p.edit().putBoolean("focus_block_active", false).commit()
+        assertFalse(StrictLimits.save(context, pkg, 30, 0, true))
+        assertNull(StrictLimits.blockReason(context, pkg, reached, now))
+        assertFalse(StrictLimits.save(context, pkg, 0, 127, true))
+        assertNull(StrictLimits.blockReason(context, pkg, reached, now))
+    }
+
     @Test fun storedYoutubeQuotaResetsAtMidnightAndSurvivesReadingAgain() {
         val p = StrictLimits.prefs(context)
-        val keys = listOf("youtube_day", "youtube_sessions", "youtube_started", "youtube_elapsed")
+        val keys = listOf("youtube_bypass_day", "youtube_bypass_sessions", "youtube_bypass_started", "youtube_bypass_elapsed")
         val previous = p.all.filterKeys { it in keys }
         val midnight = LocalDay.start(System.currentTimeMillis())
         try {
-            p.edit().putLong("youtube_day", LocalDay.start(midnight - 1)).putInt("youtube_sessions", 2)
-                .putLong("youtube_started", midnight - 400_000).putLong("youtube_elapsed", 1).commit()
+            p.edit().putLong("youtube_bypass_day", LocalDay.start(midnight - 1)).putInt("youtube_bypass_sessions", 2)
+                .putLong("youtube_bypass_started", midnight - 400_000).putLong("youtube_bypass_elapsed", 1).commit()
             assertEquals(2, StrictLimits.quota(context, midnight - 1).sessions)
             assertEquals(0, StrictLimits.quota(context, midnight).sessions)
-            assertEquals(midnight, p.getLong("youtube_day", 0))
+            assertEquals(midnight, p.getLong("youtube_bypass_day", 0))
             assertEquals(0, StrictLimits.quota(context, midnight + 1).sessions)
         } finally {
             val edit = p.edit(); keys.forEach(edit::remove)

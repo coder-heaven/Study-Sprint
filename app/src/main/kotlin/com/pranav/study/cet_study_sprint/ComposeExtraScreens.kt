@@ -118,7 +118,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         SettingsRow("Focus preferences", "Custom timing and distraction control") { go("focus") }
         SettingsRow("Student leaderboards", "Live study effort and quiz wins") { go("leaderboard") }
         SectionLabel("Digital wellbeing")
-        SettingsRow("App Limits", "Daily limits · YouTube 2 × 5 min") { go("limits") }
+        SettingsRow("App Limits", "Daily limits · YouTube extra time") { go("limits") }
         SettingsRow("App Usage Statistics") { go("statistics") }
         SectionLabel("Notifications")
         SettingsRow("Timer sound", "Alarm sound and vibration") {
@@ -222,7 +222,7 @@ private fun appRecords(context: Context, days: Int = 1): List<AppRecord> {
             val label = launcherLabels[pkg] ?: runCatching {
                 pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
             }.getOrDefault(if (pkg == YouTubeQuota.PACKAGE) "YouTube" else pkg)
-            AppRecord(pkg, label, usage[pkg] ?: 0L, if (pkg == YouTubeQuota.PACKAGE) 10 else prefs.getInt("limit_$pkg", 0), today)
+            AppRecord(pkg, label, usage[pkg] ?: 0L, StrictLimits.dailyLimit(prefs, pkg), today)
         }.distinctBy { it.pkg }
         .sortedWith(compareByDescending<AppRecord> { it.limit > 0 }.thenByDescending { it.usedMs }.thenBy { it.label })
         .toList()
@@ -241,7 +241,6 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
     val focusManager = LocalFocusManager.current
     var revision by remember { mutableIntStateOf(0) }
     var showBlockingGuide by remember { mutableStateOf(false) }
-    var showYouTubeAllowance by remember { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { revision++ }
     var day by remember { mutableLongStateOf(LocalDay.start(System.currentTimeMillis())) }
     LaunchedEffect(Unit) {
@@ -280,14 +279,14 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                 if (!allowed) TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }) { Text("Enable Usage Access") }
                 if (!blockerEnabled(context)) OutlinedButton(onClick = { showBlockingGuide = true }, modifier = Modifier.fillMaxWidth()) { Text("Set up app blocking") }
                 Text("Daily usage and YouTube sessions reset at 12:00 AM in your phone's time zone.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
-                Text("Regular app limits update immediately and offer a five-minute extension when reached. YouTube stays at two five-minute sessions per day. Active focus locks last until the session ends.",
+                Text("Tap any app, including YouTube, to edit its daily limit. YouTube offers two five-minute bypasses after its daily limit is reached. Active focus locks cannot be bypassed.",
                     style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetricCardLocal("${apps.sumOf { it.usedMs } / 60000}m", "App use", Modifier.weight(1f))
-                MetricCardLocal("${apps.count { it.limit > 0 || it.pkg == YouTubeQuota.PACKAGE }}", "Protected", Modifier.weight(1f))
+                MetricCardLocal("${apps.count { it.limit > 0 }}", "Protected", Modifier.weight(1f))
             }
         }
         item {
@@ -303,12 +302,12 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
         }
         val visible = apps.filter {
             (it.label.contains(search, ignoreCase = true) || it.pkg.contains(search, ignoreCase = true)) &&
-                (!onlyLimited || it.limit > 0 || it.pkg == YouTubeQuota.PACKAGE)
+                (!onlyLimited || it.limit > 0)
         }
         items(visible, key = { it.pkg }) { app ->
             StudyCard(Modifier.testTag("limit_app_${app.pkg}").clickable {
                 focusManager.clearFocus()
-                if (app.pkg == YouTubeQuota.PACKAGE) showYouTubeAllowance = true else chosen = app
+                chosen = app
             }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AndroidView(factory = { ImageView(it).apply {
@@ -317,11 +316,10 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(app.label, fontWeight = FontWeight.SemiBold)
-                        Text(if (app.pkg == YouTubeQuota.PACKAGE) "${app.usedMs / 60000}m of 10m · 2 sessions × 5 min"
-                             else if (app.limit > 0) "${app.usedMs / 60000}m of ${app.limit}m · Daily limit"
+                        Text(if (app.limit > 0) "${app.usedMs / 60000}m of ${app.limit}m · Daily limit"
                              else "${app.usedMs / 60000}m today · No limit",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (app.pkg != YouTubeQuota.PACKAGE && StrictLimits.prefs(context).contains("pending_at_${app.pkg}"))
+                        if (StrictLimits.prefs(context).contains("pending_at_${app.pkg}"))
                             Text("Change queued until focus ends", style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary)
                     }
@@ -334,15 +332,6 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
         if (visible.isEmpty()) item { StudyCard { Text(if (apps.isEmpty()) "Loading apps…" else "No apps match this filter.") } }
         item { Text("Hidden apps appear after use. Separate private profiles and browser versions of YouTube are outside this app's allowance.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-    }
-    if (showYouTubeAllowance) ModalBottomSheet(onDismissRequest = { showYouTubeAllowance = false }) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp)
-            .testTag("youtube_limit_controls"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            YouTubeAllowanceCard()
-            Text("YouTube uses two five-minute sessions per day. Its allowance resets at 12:00 AM in your phone's time zone.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = { showYouTubeAllowance = false }, modifier = Modifier.fillMaxWidth()) { Text("Done") }
-        }
     }
     if (showBlockingGuide) ModalBottomSheet(onDismissRequest = { showBlockingGuide = false }) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 24.dp).padding(bottom = 30.dp)) {
@@ -384,6 +373,9 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
             Text(chosen!!.label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text("Used today: ${chosen!!.usedMs / 60000} min",
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (chosen!!.pkg == YouTubeQuota.PACKAGE) Text(
+                "Use YouTube normally until this limit is reached, then choose up to two five-minute bypasses per day.",
+                style = MaterialTheme.typography.bodySmall)
             SectionLabel("Daily limit")
             listOf(0, 15, 30, 45, 60, 120).chunked(3).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

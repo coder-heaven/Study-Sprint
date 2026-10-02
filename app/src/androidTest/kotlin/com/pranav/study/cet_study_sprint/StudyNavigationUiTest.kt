@@ -73,7 +73,7 @@ class StudyNavigationUiTest {
         compose.onNodeWithTag("tab_focus").performClick()
         compose.onNodeWithText("App limits", useUnmergedTree = true).performScrollTo().performClick()
         compose.onNodeWithTag("screen_limits").assertIsDisplayed()
-        compose.onNodeWithText("2 sessions per day · 5 minutes each").assertIsDisplayed()
+        compose.onNodeWithText("2 bypasses per day · 5 minutes each · after your daily limit").assertIsDisplayed()
         capture("limits-dark")
         compose.onNodeWithTag("tab_home").performClick()
         compose.onNodeWithContentDescription("Settings", useUnmergedTree = true).performClick()
@@ -93,7 +93,7 @@ class StudyNavigationUiTest {
         }
     }
 
-    @Test fun youtubeAppearsInAllLimitedAndSearchWithItsSessionControls() {
+    @Test fun youtubeAppearsInAllLimitedAndSearchWithEditableLimit() {
         showApp("dark")
         compose.onNodeWithTag("tab_focus").performClick()
         compose.onNodeWithText("App limits", useUnmergedTree = true).performScrollTo().performClick()
@@ -104,7 +104,7 @@ class StudyNavigationUiTest {
             runCatching { list.performScrollToNode(hasTestTag(row)); true }.getOrDefault(false)
         }
         compose.onNodeWithTag(row).assertIsDisplayed()
-        compose.onNodeWithTag(row).assertTextContains("2 sessions × 5 min", substring = true)
+        compose.onNodeWithTag(row).assertTextContains("Daily limit", substring = true)
         list.performScrollToNode(hasTestTag("app_limits_filters"))
         compose.onNodeWithText("Limited", useUnmergedTree = true).performClick()
         list.performScrollToNode(hasTestTag(row))
@@ -115,11 +115,14 @@ class StudyNavigationUiTest {
         list.performScrollToNode(hasTestTag(row))
         compose.onNodeWithTag(row).assertIsDisplayed()
         compose.onNodeWithTag(row).performClick()
-        compose.onNodeWithTag("youtube_limit_controls").assertIsDisplayed()
-        compose.onNodeWithText("Save limit").assertDoesNotExist()
-        capture("youtube-controls-dark", "youtube_limit_controls")
-        compose.onNodeWithText("Done").performScrollTo().performClick()
+        compose.onNodeWithText("30 min").performScrollTo().performClick()
+        compose.onNodeWithText("Save limit").performScrollTo().performClick()
         compose.onNodeWithTag("screen_limits").assertIsDisplayed()
+        compose.waitUntil(15_000) {
+            runCatching { compose.onNodeWithTag(row).assertTextContains("of 30m", substring = true); true }.getOrDefault(false)
+        }
+        compose.onNodeWithTag(row).performClick()
+        compose.onNodeWithText("Custom: 30 min").assertExists()
     }
 
     @Test fun privacyTermsAndOptionalConsentAreAccessible() {

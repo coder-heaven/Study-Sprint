@@ -55,8 +55,7 @@ class BlockedActivity : ComponentActivity() {
                     null -> "Your allowance is available. Daily limits reset at 12:00 AM in your phone's time zone."
                     "checking" -> "Checking today's allowance…"
                     "focus" -> "Your focus session is still running. Come back when it finishes."
-                    "youtube_daily" -> "YouTube's 10-minute daily allowance is finished. New sessions are available tomorrow."
-                    "youtube_session" -> "Start a five-minute window below. You get two windows per day, with no extensions."
+                    "youtube_daily" -> "Your YouTube daily limit is reached. You can choose up to two five-minute bypasses each day."
                     "permission" -> "Finish Usage Access setup in App Limits before opening $label."
                     else -> "Your daily limit for $label is reached. Take a break or choose five more minutes."
                 }
@@ -72,7 +71,7 @@ class BlockedActivity : ComponentActivity() {
                     Text(detail, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 20.dp))
                     if (pkg == YouTubeQuota.PACKAGE) YouTubeAllowanceCard()
-                    else if (reason == null && launchApp != null) Button(onClick = {
+                    if (reason == null && launchApp != null) Button(onClick = {
                         startActivity(launchApp); finish()
                     }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Open $label") }
                     if (reason == "daily" && pkg != YouTubeQuota.PACKAGE && launchApp != null) TextButton(onClick = {
