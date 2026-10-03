@@ -19,7 +19,11 @@ internal object StrictLimits {
 
     fun focusBlocked(prefs: SharedPreferences, pkg: String, now: Long = System.currentTimeMillis()): Boolean =
         prefs.getBoolean("focus_block_active", false) && now < prefs.getLong("focus_block_end", 0L) &&
-            (pkg == YouTubeQuota.PACKAGE || prefs.getBoolean("focus_block_$pkg", false))
+            focusSelected(prefs, pkg)
+
+    /** Focus protects every limited app, plus apps selected for focus only. */
+    fun focusSelected(prefs: SharedPreferences, pkg: String): Boolean =
+        pkg == YouTubeQuota.PACKAGE || dailyLimit(prefs, pkg) > 0 || prefs.getBoolean("focus_block_$pkg", false)
 
     fun dailyLimit(p: SharedPreferences, pkg: String): Int =
         p.getInt("limit_$pkg", if (pkg == YouTubeQuota.PACKAGE) YouTubeQuota.DEFAULT_LIMIT_MINUTES else 0)
@@ -60,7 +64,7 @@ internal object StrictLimits {
     @Synchronized fun save(context: Context, pkg: String, minutes: Int, days: Int, focus: Boolean): Boolean {
         val p = prefs(context)
         applyPending(context)
-        val weaker = focusBlocked(p, pkg) && !focus
+        val weaker = focusBlocked(p, pkg) && minutes <= 0 && !focus && pkg != YouTubeQuota.PACKAGE
         val edit = p.edit()
         if (weaker) {
             edit.putLong("pending_at_$pkg", p.getLong("focus_block_end", System.currentTimeMillis()))
@@ -73,6 +77,16 @@ internal object StrictLimits {
         edit.remove("bypass_until_$pkg").commit()
         return weaker
     }
+    /** A paused lock has no wall-clock deadline; queued removals become due when it ends. */
+    @Synchronized fun endFocus(context: Context) {
+        val p = prefs(context)
+        val now = System.currentTimeMillis()
+        val edit = p.edit().putBoolean("focus_block_active", false).putLong("focus_block_end", 0L)
+        p.all.keys.filter { it.startsWith("pending_at_") }.forEach { edit.putLong(it, now) }
+        edit.commit()
+        applyPending(context, now)
+    }
+
     @Synchronized fun applyPending(context: Context, now: Long = System.currentTimeMillis()) {
         val p = prefs(context)
         val due = p.all.keys.filter { it.startsWith("pending_at_") && now >= p.getLong(it, Long.MAX_VALUE) }

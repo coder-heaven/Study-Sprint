@@ -38,6 +38,43 @@ class StudyNavigationUiTest {
         checkNotNull(resolver.openOutputStream(uri)).use { stream -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream) }
         resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
     }
+    @Test fun figmaCoreScreensAndProtectedFocusSetupAreReachable() {
+        val studyPrefs = compose.activity.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)
+        val previousBlocking = studyPrefs.getBoolean("focus_block_enabled", true)
+        studyPrefs.edit().putBoolean("focus_block_enabled", true).putBoolean("focus_active", false)
+            .putBoolean("focus_running", false).commit()
+        try {
+            showApp("dark")
+            val displayPrefs = compose.activity.getSharedPreferences("navigation_ui_test", Context.MODE_PRIVATE)
+            saveTasks(displayPrefs, listOf("Revise electrostatics", "Read 30 pages", "Practice calculus"))
+            compose.onNodeWithTag("tab_plan").performClick()
+            capture("focusiq-tasks-dark")
+            compose.onNodeWithTag("tab_home").performClick()
+            compose.onNodeWithText("Today's Focus Time").assertIsDisplayed()
+            capture("focusiq-home-dark")
+            compose.onNodeWithTag("tab_focus").performClick()
+            compose.onNodeWithText("Start Focus").assertIsDisplayed()
+            val startBounds = compose.onNodeWithTag("focus_start").fetchSemanticsNode().boundsInRoot
+            org.junit.Assert.assertTrue("The entire Start Focus button must fit above navigation",
+                startBounds.height >= 63f * compose.activity.resources.displayMetrics.density)
+            capture("focusiq-timer-dark")
+            compose.onNodeWithTag("focus_protection_card").performScrollTo()
+            compose.onNodeWithTag("focus_block_toggle").assertIsOn()
+            compose.onNodeWithTag("focus_protection_status").assertIsDisplayed()
+            capture("focusiq-protection-dark")
+            if (!StrictLimits.blockerEnabled(compose.activity)) {
+                compose.onNodeWithTag("focus_start").performScrollTo().performClick()
+                compose.onNodeWithText("Enable app blocking").assertIsDisplayed()
+                compose.onNodeWithText("Set up blocking").performClick()
+                compose.onNodeWithTag("screen_limits").assertIsDisplayed()
+            }
+            compose.onNodeWithTag("tab_home").performClick()
+            compose.onNodeWithTag("screen_home").assertIsDisplayed()
+        } finally {
+            studyPrefs.edit().putBoolean("focus_block_enabled", previousBlocking).commit()
+        }
+    }
+
     @Test fun studyThenTodayWorksRepeatedly() {
         showApp()
         capture("today")

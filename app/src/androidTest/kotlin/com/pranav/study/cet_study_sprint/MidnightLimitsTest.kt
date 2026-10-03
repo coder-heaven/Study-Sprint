@@ -88,6 +88,18 @@ class MidnightLimitsTest {
             DailyUsage.Measurement(LocalDay.start(now), 600_000L, YouTubeQuota.PACKAGE), now))
     }
 
+    @Test fun queuedRemovalAppliesWhenPausedFocusEnds() = withClassicLimit { p, pkg, now ->
+        p.edit().putBoolean("focus_block_active", true).putLong("focus_block_end", Long.MAX_VALUE).commit()
+        assertEquals("focus", StrictLimits.blockReason(context, pkg, null, now))
+        assertTrue(StrictLimits.save(context, pkg, 0, 127, false))
+        assertEquals(Long.MAX_VALUE, p.getLong("pending_at_$pkg", 0))
+        StrictLimits.endFocus(context)
+        assertFalse(p.getBoolean("focus_block_active", true))
+        assertFalse(p.contains("pending_at_$pkg"))
+        assertEquals(0, StrictLimits.dailyLimit(p, pkg))
+        assertNull(StrictLimits.blockReason(context, pkg, null, System.currentTimeMillis()))
+    }
+
     @Test fun oldDayOrAnotherAppsUsageCannotBlockTodaysFreshAllowance() {
         val p = StrictLimits.prefs(context)
         val pkg = "test.midnight.measurement"

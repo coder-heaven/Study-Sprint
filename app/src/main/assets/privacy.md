@@ -28,7 +28,7 @@ Google sign-in is optional. Google/Firebase process sign-in information and prov
 
 ## Device permissions
 
-Usage Access reads app-usage timing for local limits and statistics. Accessibility observes app window changes and can open the block/limits screen; the configured service does not retrieve window content. Camera/photo/document access is used for actions you choose, such as profile photos or importing questions. Notification, vibration and alarm access supports reminders and focus alerts. These permissions are optional and controlled in Android Settings; blocking requires the relevant permissions.
+Usage Access reads app-usage timing for local limits and statistics. Accessibility observes app window changes and reads only the foreground window’s app package identifier to enforce focus and daily limits. Android grants window-content access for this lookup; Study Sprint does not traverse, read, store or upload screen text. It can open the block/limits screen and return to Home if Android prevents that screen from opening. Camera/photo/document access is used for actions you choose, such as profile photos or importing questions. Notification, vibration and alarm access supports reminders and focus alerts. These permissions are optional and controlled in Android Settings; blocking requires the relevant permissions.
 
 ## Sharing with AI or other apps
 

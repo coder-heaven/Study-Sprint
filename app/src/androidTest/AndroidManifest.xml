@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name="com.pranav.study.cet_study_sprint.BlockingFixtureActivity"
+            android:exported="true" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+    </application>
+</manifest>

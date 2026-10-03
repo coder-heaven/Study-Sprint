@@ -47,7 +47,7 @@ internal fun ArihantPracticeScreen(prefs: SharedPreferences, onBack: () -> Unit)
     }
 
     Column(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        Modifier.fillMaxSize()
             .verticalScroll(rememberScrollState()).imePadding()
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
