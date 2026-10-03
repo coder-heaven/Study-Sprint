@@ -2,13 +2,13 @@
 
 Native Android study companion for CET, JEE and NEET students, built with Kotlin and Jetpack Compose.
 
-## v4.6.0 — FocusIQ UI and reliable app blocking
+## v4.7.0 — FocusIQ UI with 3D artwork
 
-Charcoal surfaces, emerald accents, Poppins typography and original artwork from the supplied [FocusIQ Figma reference](https://www.figma.com/design/WvokxNRgdRmYLZmKF5mNvl/). Home shows real focus progress and study tasks. The focus timer exposes distraction blocking and protection status directly.
+Charcoal surfaces, emerald accents, Poppins typography and original artwork from the supplied [FocusIQ Figma reference](https://www.figma.com/design/WvokxNRgdRmYLZmKF5mNvl/). Coordinated transparent 3D timer, notebook, shield and trophy artwork brings focus, tasks, protection and progress into one visual system. The original Study Sprint logo remains in the navigation and brand screens. Home shows real focus progress and study tasks. The focus timer exposes distraction blocking and protection status directly.
 
 App blocking checks the foreground window's package every second, including after service reconnection and while an app stays open past its limit. Protected focus covers limited apps and focus-only selections without waiting for usage queries. Blocking history failures cannot stop enforcement. If Android silently refuses the block screen, the service verifies the denied app is still foreground before returning to Home.
 
-[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v4.6.0.md)
+[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v4.7.0.md)
 
 Install the signed update over the existing app to retain local data. Do not uninstall or clear storage. After updating, reconnect **Study Sprint app limits** in Android Accessibility if necessary; **Usage Access** is required for daily limits. The app shows these settings in App Limits and on the focus screen.
 
