@@ -53,6 +53,10 @@ class StudyNavigationUiTest {
             compose.onNodeWithText("Today's Focus Time").assertIsDisplayed()
             capture("focusiq-home-dark")
             compose.onNodeWithTag("tab_focus").performClick()
+            compose.onNodeWithText("Start Focus").assertIsDisplayed()
+            val startBounds = compose.onNodeWithTag("focus_start").fetchSemanticsNode().boundsInRoot
+            org.junit.Assert.assertTrue("The entire Start Focus button must fit above navigation",
+                startBounds.height >= 63f * compose.activity.resources.displayMetrics.density)
             capture("focusiq-timer-dark")
             compose.onNodeWithTag("focus_protection_card").performScrollTo()
             compose.onNodeWithTag("focus_block_toggle").assertIsOn()
