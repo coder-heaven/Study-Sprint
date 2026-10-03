@@ -1,0 +1,30 @@
+name: Export design assets
+on:
+  push:
+    branches: [design/focusiq-assets]
+permissions:
+  contents: read
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download original Figma exports
+        run: |
+          set -euo pipefail
+          mkdir -p design-assets/drawable design-assets/font
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/89d943f1-14d1-4f8d-a1d3-6a3396b1503e.png' -o design-assets/drawable/figma_focus_background.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/4ef55e9e-4d43-4426-bb6a-532134120b08.png' -o design-assets/drawable/figma_timer_ring.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b84a8666-afbf-4e88-80a0-4ad6f2cee2ca.png' -o design-assets/drawable/figma_play.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/21a76461-14cf-48a3-80aa-920c3576cdd4.png' -o design-assets/drawable/figma_notification.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/c817c062-24b7-4a9c-80ae-006995006ba2.png' -o design-assets/drawable/figma_suggestion.png
+          curl --fail -L --max-time 30 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Regular.ttf' -o design-assets/font/poppins_regular.ttf
+          curl --fail -L --max-time 30 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Medium.ttf' -o design-assets/font/poppins_medium.ttf
+          curl --fail -L --max-time 30 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-SemiBold.ttf' -o design-assets/font/poppins_semibold.ttf
+          curl --fail -L --max-time 30 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/OFL.txt' -o design-assets/Poppins-OFL.txt
+          file design-assets/drawable/*.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: focusiq-design-assets
+          path: design-assets/
+          if-no-files-found: error
+
