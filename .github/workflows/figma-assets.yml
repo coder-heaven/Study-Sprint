@@ -8,40 +8,26 @@ jobs:
   assets:
     runs-on: ubuntu-latest
     steps:
-      - name: Download original Figma exports
+      - name: Download original transparent Figma vectors
         run: |
           set -euo pipefail
-          mkdir -p design-assets/drawable design-assets/font
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/89d943f1-14d1-4f8d-a1d3-6a3396b1503e.png' -o design-assets/drawable/figma_focus_background.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/4ef55e9e-4d43-4426-bb6a-532134120b08.png' -o design-assets/drawable/figma_timer_ring.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b84a8666-afbf-4e88-80a0-4ad6f2cee2ca.png' -o design-assets/drawable/figma_play.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/21a76461-14cf-48a3-80aa-920c3576cdd4.png' -o design-assets/drawable/figma_notification.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/c817c062-24b7-4a9c-80ae-006995006ba2.png' -o design-assets/drawable/figma_suggestion.png
-          curl --fail -L --max-time 30 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Regular.ttf' -o design-assets/font/poppins_regular.ttf
-          curl --fail -L --max-time 30 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Medium.ttf' -o design-assets/font/poppins_medium.ttf
-          curl --fail -L --max-time 30 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-SemiBold.ttf' -o design-assets/font/poppins_semibold.ttf
-          curl --fail -L --max-time 30 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/OFL.txt' -o design-assets/Poppins-OFL.txt
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/58e50e44-2500-48e6-9718-98b29f746f88.png' -o design-assets/drawable/figma_task_play.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/98a6d723-3f7c-4160-a637-1c78d2c660aa.png' -o design-assets/drawable/figma_task_glow_wide.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/dcfced3d-cf2c-4923-be56-b582a64084eb.png' -o design-assets/drawable/figma_task_glow_soft.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/bb309e7d-3842-4263-b6b2-b4fa1635ad59.png' -o design-assets/drawable/figma_task_glow_near.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/29c6d30b-93c8-40cf-b891-1e120279f275.png' -o design-assets/drawable/figma_chevron.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/05ad047f-985c-47dc-b84e-8ca905860dd9.png' -o design-assets/drawable/figma_dark_mode.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/1fc1634f-4104-4663-8f25-e527babc3aaa.png' -o design-assets/drawable/figma_sound.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/2c2e1935-027f-415c-b86e-e943e6b449b1.png' -o design-assets/drawable/figma_logout.png
+          mkdir -p design-assets/originals design-assets/drawable
           sudo apt-get update -qq
           sudo apt-get install -y -qq librsvg2-bin
-          mkdir -p design-assets/originals
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b53e1dac-ee10-419a-a376-3ccc9d14ce4f/7e12e.svg' -o design-assets/originals/figma_calendar.svg
-          rsvg-convert design-assets/originals/figma_calendar.svg -o design-assets/drawable/figma_calendar.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b53e1dac-ee10-419a-a376-3ccc9d14ce4f/d4718.svg' -o design-assets/originals/figma_notifications.svg
-          rsvg-convert design-assets/originals/figma_notifications.svg -o design-assets/drawable/figma_notifications.png
-          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b53e1dac-ee10-419a-a376-3ccc9d14ce4f/feb36.svg' -o design-assets/originals/figma_privacy.svg
-          rsvg-convert design-assets/originals/figma_privacy.svg -o design-assets/drawable/figma_privacy.png
-          file design-assets/drawable/*.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/3edf9574-596f-4e22-9917-e604a5fd07d1/5d6ec.svg' -o design-assets/originals/figma_timer_ring.svg
+          rsvg-convert design-assets/originals/figma_timer_ring.svg -o design-assets/drawable/figma_timer_ring.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/3edf9574-596f-4e22-9917-e604a5fd07d1/9c9b9.svg' -o design-assets/originals/figma_notification.svg
+          rsvg-convert design-assets/originals/figma_notification.svg -o design-assets/drawable/figma_notification.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/3edf9574-596f-4e22-9917-e604a5fd07d1/1b55a.svg' -o design-assets/originals/figma_notification_badge.svg
+          rsvg-convert design-assets/originals/figma_notification_badge.svg -o design-assets/drawable/figma_notification_badge.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/efc5ea17-b757-446e-84d9-7e8a7fe1d6a8/b2b95.svg' -o design-assets/originals/figma_task_glow_wide.svg
+          rsvg-convert design-assets/originals/figma_task_glow_wide.svg -o design-assets/drawable/figma_task_glow_wide.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/efc5ea17-b757-446e-84d9-7e8a7fe1d6a8/3fde2.svg' -o design-assets/originals/figma_task_glow_soft.svg
+          rsvg-convert design-assets/originals/figma_task_glow_soft.svg -o design-assets/drawable/figma_task_glow_soft.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/efc5ea17-b757-446e-84d9-7e8a7fe1d6a8/0a6dd.svg' -o design-assets/originals/figma_task_glow_near.svg
+          rsvg-convert design-assets/originals/figma_task_glow_near.svg -o design-assets/drawable/figma_task_glow_near.png
       - uses: actions/upload-artifact@v4
         with:
           name: focusiq-design-assets
           path: design-assets/
           if-no-files-found: error
-
