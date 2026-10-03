@@ -77,6 +77,16 @@ internal object StrictLimits {
         edit.remove("bypass_until_$pkg").commit()
         return weaker
     }
+    /** A paused lock has no wall-clock deadline; queued removals become due when it ends. */
+    @Synchronized fun endFocus(context: Context) {
+        val p = prefs(context)
+        val now = System.currentTimeMillis()
+        val edit = p.edit().putBoolean("focus_block_active", false).putLong("focus_block_end", 0L)
+        p.all.keys.filter { it.startsWith("pending_at_") }.forEach { edit.putLong(it, now) }
+        edit.commit()
+        applyPending(context, now)
+    }
+
     @Synchronized fun applyPending(context: Context, now: Long = System.currentTimeMillis()) {
         val p = prefs(context)
         val due = p.all.keys.filter { it.startsWith("pending_at_") && now >= p.getLong(it, Long.MAX_VALUE) }

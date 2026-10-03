@@ -160,8 +160,9 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
         if (seconds == 0) finish(true)
     }
     private fun setBlocking(active: Boolean, end: Long) {
-        blocker.edit().putBoolean("focus_block_active", active && state.value.blockApps)
-            .putLong("focus_block_end", end).apply()
+        val enabled = active && state.value.blockApps
+        if (!enabled && blocker.getBoolean("focus_block_active", false)) StrictLimits.endFocus(getApplication())
+        else blocker.edit().putBoolean("focus_block_active", enabled).putLong("focus_block_end", end).apply()
     }
 }
 
@@ -199,7 +200,6 @@ internal fun FocusScreen(
     var customText by remember { mutableStateOf("") }
     val phaseSeconds = if (state.isBreak) state.breakMinutes * 60 else state.focusMinutes * 60
     val progress = 1f - state.remainingSeconds.toFloat() / phaseSeconds.coerceAtLeast(1)
-    val ringTrack = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
     val ringColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
