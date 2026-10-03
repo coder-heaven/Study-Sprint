@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import org.junit.Assert.*
 import org.junit.Rule
@@ -36,6 +37,8 @@ class OnboardingUiTest {
         compose.onNodeWithTag("terms_accept_checkbox").performScrollTo().assertIsOff().performClick().assertIsOn()
         compose.onNodeWithTag("terms_continue").performScrollTo().assertIsEnabled().performClick()
         compose.waitUntil(5_000) { OnboardingStore.stage(prefs) == StartupStage.PROFILE }
+        compose.onNodeWithTag("login_3d_art").assertExists()
+        saveUiProof(compose.activity, compose.onRoot().captureToImage().asAndroidBitmap(), "login-light")
         compose.onNodeWithText("Continue as guest").performScrollTo().performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithTag("setup_screen").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("setup_continue").assertIsDisplayed().performClick()

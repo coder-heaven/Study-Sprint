@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -239,6 +240,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
     val primary = StudyNavigation.tabs.map { it.route }
     val selectedTab = StudyNavigation.tabFor(route)
     val focusModel: FocusViewModel = viewModel()
+    val chatModel: StudyChatViewModel = viewModel()
     val focusState by focusModel.state.collectAsStateWithLifecycle()
     var quickTask by remember { mutableStateOf(false) }
     var chapterSubject by remember { mutableStateOf<String?>(null) }
@@ -279,7 +281,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
             val name = prefs.getString("profile_name", "").orEmpty().ifBlank { "Student" }
             val groups = listOf(
                 "OVERVIEW" to listOf("Dashboard" to "home", "Statistics" to "statistics", "Leaderboards" to "leaderboard"),
-                "STUDY" to listOf("Study history" to "study_history", "Focus history" to "focus_history", "What I learned" to "notes"),
+                "STUDY" to listOf("Study buddy" to "chat", "Study history" to "study_history", "Focus history" to "focus_history", "What I learned" to "notes"),
                 "DIGITAL WELLBEING" to listOf("App Limits" to "limits", "App Usage" to "app_usage"),
                 "PERSONAL" to listOf("Profile" to "profile", "Settings" to "settings", "Setup checklist" to "setup", "How to use the app" to "tutorial")
             )
@@ -326,8 +328,9 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
             topBar = {
                 TopAppBar(
                     title = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Image(painterResource(R.drawable.study_sprint_logo_v110), null, Modifier.size(28.dp))
+                        Image(painterResource(R.drawable.ic_launcher), null, Modifier.size(28.dp))
                         Text(when (route) {
+                        "chat" -> "Study buddy"
                         "home" -> "Today"
                         "study" -> "Study"
                         "statistics" -> "Progress"
@@ -368,6 +371,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                 )
             },
             bottomBar = {
+                if (route != "chat" || WindowInsets.ime.getBottom(LocalDensity.current) == 0) {
                 Column {
                     if (focusState.active && route != "focus") ActiveFocusBar(focusState) { go("focus") }
                     NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
@@ -395,6 +399,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         }
                     }
                 }
+                }
             }
         ) { padding ->
             NavHost(
@@ -418,6 +423,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         ExitTransition.None else fadeOut(tween(90))
                 }
             ) {
+                composable("chat") { StudyChatScreen(chatModel, ::go) }
                 composable("home") { HomeScreen(prefs, revision, ::go) }
                 composable("study") { StudyHubScreen(prefs, revision, ::go) { subject ->
                     chapterSubject = subject; chapterToOpen = null; go("syllabus")
@@ -665,10 +671,10 @@ internal fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String
     var grade by remember { mutableStateOf(prefs.getString("grade", "11") ?: "11") }
     var authMessage by remember { mutableStateOf<String?>(null) }
     var authLoading by remember { mutableStateOf(false) }
-    val loginBlue = Color(0xFF1828E8)
+    val loginEmerald = Color(0xFF0B2B23)
     var policyDocument by remember { mutableStateOf<String?>(null) }
     if (policyDocument != null) PrivacyDocumentDialog(policyDocument == "terms") { policyDocument = null }
-    val loginIndigo = Color(0xFF4E46DF)
+    val loginDeep = Color(0xFF145C46)
 
     Column(
         Modifier.fillMaxSize()
@@ -677,8 +683,8 @@ internal fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            Modifier.fillMaxWidth().height(310.dp)
-                .background(Brush.linearGradient(listOf(loginBlue, loginIndigo))),
+            Modifier.fillMaxWidth().height(280.dp)
+                .background(Brush.linearGradient(listOf(loginEmerald, loginDeep))),
             contentAlignment = Alignment.Center
         ) {
             Box(
@@ -695,10 +701,10 @@ internal fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
-                    painter = painterResource(R.drawable.study_journey_art),
-                    contentDescription = "Illustration of a book and graduation cap",
-                    modifier = Modifier.size(width = 240.dp, height = 174.dp)
-                        .clip(RoundedCornerShape(32.dp)).background(Color.White.copy(alpha = 0.95f))
+                    painter = painterResource(R.drawable.art_login_3d),
+                    contentDescription = "3D study book, graduation cap and focus timer",
+                    modifier = Modifier.size(width = 240.dp, height = 160.dp).testTag("login_3d_art"),
+                    contentScale = ContentScale.Fit
                 )
                 Spacer(Modifier.height(10.dp))
                 Text("Study Sprint", color = Color.White, fontWeight = FontWeight.Bold,
@@ -781,12 +787,12 @@ internal fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String
                         }
                     },
                     enabled = !authLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = loginBlue, contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     if (authLoading) {
-                        CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                         Spacer(Modifier.width(10.dp))
                         Text("Opening Google…")
                     } else {

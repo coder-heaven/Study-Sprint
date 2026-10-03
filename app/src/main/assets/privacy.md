@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Study Sprint · Pranav / coder-heaven · Policy version 1 · Effective 1 October 2026
+Study Sprint · Pranav / coder-heaven · Policy version 2 · Effective 3 October 2026
 
 ## Your choice
 
@@ -29,6 +29,12 @@ Google sign-in is optional. Google/Firebase process sign-in information and prov
 ## Device permissions
 
 Usage Access reads app-usage timing for local limits and statistics. Accessibility observes app window changes and reads only the foreground window’s app package identifier to enforce focus and daily limits. Android grants window-content access for this lookup; Study Sprint does not traverse, read, store or upload screen text. It can open the block/limits screen and return to Home if Android prevents that screen from opening. Camera/photo/document access is used for actions you choose, such as profile photos or importing questions. Notification, vibration and alarm access supports reminders and focus alerts. These permissions are optional and controlled in Android Settings; blocking requires the relevant permissions.
+
+## Optional Study buddy chatbot
+
+Study buddy connects directly to OpenRouter and its model provider only when you send a message. The request includes your question and up to 20 recent chat messages, plus a general study-tutor instruction. Your profile, photos, notes, files and app-usage history are not added automatically. Chat conversation is held in memory for the current app session and is not saved as study history; New chat clears it. OpenRouter and its providers may retain requests under their own policies; clearing this app session does not delete their records. See https://openrouter.ai/privacy.
+
+You provide your own OpenRouter API key. It is encrypted with an Android Keystore key and saved in app-private storage excluded from Android backup. The key is sent to OpenRouter for authentication and is never included in a public APK or repository. API key settings let you replace it or remove it and clear the chat. An encrypted saved key may become unavailable after device or Keystore changes; add your key again to reconnect. The free model has service availability and request limits; you are responsible for your account and key settings.
 
 ## Sharing with AI or other apps
 

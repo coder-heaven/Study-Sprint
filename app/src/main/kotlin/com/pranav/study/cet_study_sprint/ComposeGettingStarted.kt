@@ -35,6 +35,8 @@ private val homeShortcuts = listOf(
     "plan" to "Plan",
     "study" to "Study",
     "practice" to "Practice",
+    "chat" to "Study buddy",
+    "notes" to "Notes",
     "limits" to "App limits",
     "statistics" to "Progress"
 )
@@ -61,7 +63,7 @@ internal fun HomeShortcuts(go: (String) -> Unit) {
                                 "limits", "setup" -> R.drawable.art_protection_3d
                                 "statistics", "leaderboard" -> R.drawable.art_progress_3d
                                 "focus" -> R.drawable.art_focus_3d
-                                "tutorial" -> R.drawable.study_sprint_logo_v110
+                                "tutorial" -> R.drawable.ic_launcher
                                 else -> R.drawable.art_study_3d
                             }, 40.dp)
                             Text(label, style = MaterialTheme.typography.titleSmall,

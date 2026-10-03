@@ -58,7 +58,7 @@ internal fun FirstRunTermsScreen(onAccept: () -> Unit) {
     if (document != null) PrivacyDocumentDialog(document == "terms") { document = null }
     Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState())
         .padding(24.dp).testTag("first_run_terms"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Image(painterResource(R.drawable.study_journey_art),
+        Image(painterResource(R.drawable.art_login_3d),
             contentDescription = "Illustration of a book and graduation cap",
             modifier = Modifier.fillMaxWidth().height(120.dp))
         AppHeading("Welcome to Study Sprint", "Step 1 · Terms & privacy")

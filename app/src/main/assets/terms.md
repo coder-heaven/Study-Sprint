@@ -1,6 +1,6 @@
 # Terms of Use
 
-Study Sprint · Pranav / coder-heaven · Version 1 · Effective 1 October 2026
+Study Sprint · Pranav / coder-heaven · Version 2 · Effective 3 October 2026
 
 ## Purpose
 
@@ -21,6 +21,10 @@ You choose whether to grant Android permissions. App limits depend on those perm
 ## Students and guardians
 
 If you are under 18, involve a parent or guardian before using optional online features. Obtain any permission required where you live before publishing personal information. The app does not verify age or guardian approval. Local study features remain available without public sharing.
+
+## Optional AI study help
+
+Study buddy uses your personal OpenRouter API key for the Nemotron free model. AI answers may be inaccurate; verify important answers against your study material. Do not use it to cheat or send information you lack permission to share. Your API usage is subject to your OpenRouter account and provider terms. This app does not supply a shared public API key, promise unlimited access or guarantee the free model will remain available.
 
 ## Other services and availability
 

@@ -121,6 +121,7 @@ internal fun StudySearchScreen(prefs: SharedPreferences, revision: Int, go: (Str
                 add(StudySearchItem("Setup checklist", "All key settings and optional Android permissions", "setup"))
                 add(StudySearchItem("How to use the app", "Step-by-step Study Sprint tutorial", "tutorial"))
                 add(StudySearchItem("Leaderboard", "Study and quiz rankings", "leaderboard"))
+                add(StudySearchItem("Study buddy", "Nemotron AI chatbot · concept help and original practice", "chat"))
                 add(StudySearchItem("MCQ practice", "Concept questions and saved quizzes", "practice"))
                 add(StudySearchItem("Import PDF questions", "Add or edit your questions", "mcq_editor"))
                 add(StudySearchItem("Progress", "Statistics, study history and app usage", "statistics"))
