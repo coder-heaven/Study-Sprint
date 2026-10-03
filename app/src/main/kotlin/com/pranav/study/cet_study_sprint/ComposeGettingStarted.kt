@@ -77,7 +77,7 @@ internal fun HomeShortcuts(go: (String) -> Unit) {
 @Composable
 internal fun AppTutorialScreen(go: (String) -> Unit) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+        modifier = Modifier.fillMaxSize()
             .testTag("tutorial_steps"),
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)

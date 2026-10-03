@@ -4,6 +4,12 @@ import android.content.SharedPreferences
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,9 +51,9 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
     var sheet by remember { mutableStateOf(false) }
     var noteExpanded by remember { mutableStateOf(false) }
     var note by remember(day) { mutableStateOf(store.note(day).ifBlank { prefs.getString("journal", "").orEmpty() }) }
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+    Column(Modifier.fillMaxSize()
         .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)) {
-        AppHeading("Today's plan", SimpleDateFormat("d MMMM", Locale.getDefault()).format(Date()))
+        FocusIqHeader(prefs, "My Tasks", go)
         Spacer(Modifier.height(15.dp))
         StudyCard {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -75,13 +81,12 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
             Spacer(Modifier.height(8.dp))
             StudyCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = false, onCheckedChange = { checked ->
-                        if (checked) {
-                            saveTasks(prefs, tasks - task)
-                            store.recordTask()
-                            localRevision++
-                        }
-                    })
+                    Box(Modifier.size(44.dp).semantics { contentDescription = "Complete $task" }
+                        .toggleable(value = false, role = Role.Checkbox, onValueChange = { checked ->
+                            if (checked) { saveTasks(prefs, tasks - task); store.recordTask(); localRevision++ }
+                        }), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(20.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape))
+                    }
                     Text(task, modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium)
                     TextButton(onClick = {
@@ -90,6 +95,12 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
                         draft = if (" • " in task) task.substringAfter(" • ") else task
                         sheet = true
                     }) { Text("Edit") }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Study", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { prefs.edit().putString("focus_intention", task).apply(); go("focus") }) {
+                        Image(painterResource(R.drawable.figma_task_play), "Focus on $task", Modifier.size(24.dp))
+                    }
                 }
                 if (tasks.size > 1) Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End) {

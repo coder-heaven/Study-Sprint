@@ -30,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
@@ -44,11 +45,19 @@ import java.util.Calendar
 @Composable
 private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Unit) {
     Surface(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
-        Row(Modifier.heightIn(min = 64.dp).padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+        shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Row(Modifier.heightIn(min = 68.dp).padding(16.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
-                Text(label.take(1), modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold,
+            Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                val icon = when {
+                    label.contains("Privacy") || label.contains("Terms") -> R.drawable.figma_privacy
+                    label.contains("sound", ignoreCase = true) -> R.drawable.figma_sound
+                    label.contains("reminder", ignoreCase = true) || label.contains("date", ignoreCase = true) -> R.drawable.figma_calendar
+                    else -> null
+                }
+                if (icon != null) Image(painterResource(icon), null, Modifier.padding(8.dp).size(20.dp))
+                else Text(label.take(1), modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -56,7 +65,7 @@ private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Un
                 if (detail != null) Text(detail, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            Image(painterResource(R.drawable.figma_chevron), null, Modifier.size(16.dp))
         }
     }
 }
@@ -64,7 +73,7 @@ private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Un
 internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (String) -> Unit, refresh: () -> Unit, setupMode: Boolean = false, showPermissions: Boolean = true) {
     val context = LocalContext.current
     val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.2.0" }
-    var theme by remember { mutableStateOf(prefs.getString("theme_mode", "system") ?: "system") }
+    var theme by remember { mutableStateOf(prefs.getString("theme_mode", "dark") ?: "dark") }
     var goal by remember { mutableIntStateOf(prefs.getInt("daily_focus_goal", 120)) }
     var studyReminder by remember { mutableStateOf(StudyReminders.enabled(context, StudyReminders.STUDY)) }
     var planReminder by remember { mutableStateOf(StudyReminders.enabled(context, StudyReminders.PLAN)) }
@@ -288,7 +297,7 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                 if (!allowed) TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }) { Text("Enable Usage Access") }
                 if (!blockerEnabled(context)) OutlinedButton(onClick = { showBlockingGuide = true }, modifier = Modifier.fillMaxWidth()) { Text("Set up app blocking") }
                 Text("Daily usage and YouTube sessions reset at 12:00 AM in your phone's time zone.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
-                Text("Tap any app, including YouTube, to edit its daily limit. YouTube offers two five-minute bypasses after its daily limit is reached. Active focus locks cannot be bypassed.",
+                Text("Limited apps also block during protected focus. Turn on Block distracting apps on the timer. Tap any app, including YouTube, to edit its daily limit. YouTube offers two five-minute bypasses after its daily limit is reached. Active focus locks cannot be bypassed.",
                     style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
             }
         }
@@ -370,7 +379,7 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
             ) { Text("Open Accessibility settings") }
             Text(
-                "Only enable this if you trust this copy of Study Sprint. The service observes which app opens so it can enforce the limits you set.",
+                "Only enable this if you trust this copy of Study Sprint. The service reads only the active window’s app package identifier, never screen text, to enforce your limits. After updating, switch this service off and on here if blocking needs reconnecting.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 16.dp)
@@ -408,8 +417,9 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
                 }
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Block during focus", modifier = Modifier.weight(1f))
-                Switch(focusBlocked, onCheckedChange = { focusBlocked = it })
+                Text(if (minutes > 0 || chosen?.pkg == YouTubeQuota.PACKAGE) "Included during protected focus" else "Block during focus", modifier = Modifier.weight(1f))
+                Switch(focusBlocked || minutes > 0 || chosen?.pkg == YouTubeQuota.PACKAGE, onCheckedChange = { focusBlocked = it },
+                    enabled = minutes == 0 && chosen?.pkg != YouTubeQuota.PACKAGE)
             }
             Spacer(Modifier.height(12.dp))
             Button(onClick = {

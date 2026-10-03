@@ -13,6 +13,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -45,7 +50,7 @@ internal data class FocusState(
     val focusMinutes: Int = 25, val breakMinutes: Int = 5,
     val remainingSeconds: Int = 1500, val active: Boolean = false,
     val running: Boolean = false, val isBreak: Boolean = false,
-    val blockApps: Boolean = false, val completedMinutes: Int? = null
+    val blockApps: Boolean = true, val completedMinutes: Int? = null
 )
 
 internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
@@ -62,7 +67,7 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
             active = prefs.getBoolean("focus_active", false),
             running = prefs.getBoolean("focus_running", false),
             isBreak = prefs.getBoolean("focus_is_break", false),
-            blockApps = prefs.getBoolean("focus_block_enabled", false)
+            blockApps = prefs.getBoolean("focus_block_enabled", true)
         )
     )
     val state = _state.asStateFlow()
@@ -96,6 +101,7 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
     fun start() = begin(state.value.focusMinutes * 60, isBreak = false)
     fun startBreak() = begin(state.value.breakMinutes * 60, isBreak = true)
     private fun begin(seconds: Int, isBreak: Boolean) {
+        if (!isBreak && state.value.blockApps && !StrictLimits.blockerEnabled(getApplication())) return
         val end = System.currentTimeMillis() + seconds * 1000L
         _state.value = state.value.copy(active = true, running = true, isBreak = isBreak,
             remainingSeconds = seconds, completedMinutes = null)
@@ -181,6 +187,12 @@ internal fun FocusScreen(
         context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
     val state by model.state.collectAsStateWithLifecycle()
     val fullScreenAllowed = FocusAlarm.canOpenFullScreen(context)
+    var protectionRevision by remember { mutableIntStateOf(0) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { protectionRevision++ }
+    LaunchedEffect(Unit) { while (true) { delay(1_000L); protectionRevision++ } }
+    val blockingReady = remember(protectionRevision) { StrictLimits.blockerEnabled(context) }
+    val usageReady = remember(protectionRevision) { StrictLimits.usageAllowed(context) }
+    var needsBlocking by remember { mutableStateOf(false) }
     var optionsExpanded by remember { mutableStateOf(false) }
     var custom by remember { mutableStateOf(false) }
     var customBreak by remember { mutableStateOf(false) }
@@ -190,13 +202,14 @@ internal fun FocusScreen(
     val ringTrack = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
     val ringColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
     Column(
-        Modifier.fillMaxSize().background(androidx.compose.material3.MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 20.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(horizontal = 32.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        AppHeading(if (state.isBreak) "Break time" else if (state.active) "Focus in progress" else "Focus",
-            if (state.isBreak) "Rest, then return refreshed." else if (state.active) "Stay with this one task." else "Make time for what matters.")
-        Spacer(Modifier.height(4.dp))
+        FocusIqHeader(prefs, "Your focus space", onLegacy)
+        Spacer(Modifier.height(24.dp))
+        Text(if (state.isBreak) "BREAK" else "TIMER", fontSize = 32.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(16.dp))
         if (state.completedMinutes != null) {
             StudyCard {
                 Text("Session complete", style = MaterialTheme.typography.titleLarge, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
@@ -219,34 +232,51 @@ internal fun FocusScreen(
                     label = { Text("${minutes}m") })
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = { when {
-            !state.active && Build.VERSION.SDK_INT >= 33 &&
-                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ->
-                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-            !state.active -> model.start()
-            state.running -> model.pause()
-            else -> model.resume()
-        } },
-            modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) {
-            Text(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" })
-        }
-        Spacer(Modifier.height(12.dp))
-        BoxWithConstraints(Modifier.widthIn(max = 300.dp).fillMaxWidth().aspectRatio(1f).padding(8.dp),
+        BoxWithConstraints(Modifier.widthIn(max = 300.dp).fillMaxWidth().aspectRatio(1f),
             contentAlignment = Alignment.Center) {
             val timerFontSize = (maxWidth.value * 0.20f).coerceAtMost(56f).sp
-            Canvas(Modifier.fillMaxSize()) {
-                val stroke = 11.dp.toPx()
-                drawCircle(ringTrack, style = Stroke(stroke))
+            Image(painterResource(R.drawable.figma_timer_ring), contentDescription = null, modifier = Modifier.fillMaxSize())
+            Canvas(Modifier.fillMaxSize().padding(30.dp)) {
+                val stroke = 4.dp.toPx()
                 drawArc(ringColor, startAngle = -90f, sweepAngle = 360f * progress.coerceIn(0f, 1f),
                     useCenter = false, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
-                    fontSize = timerFontSize, maxLines = 1, fontWeight = FontWeight.SemiBold,
+                    fontSize = timerFontSize, maxLines = 1, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
                 Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+        Spacer(Modifier.height(16.dp))
+        FocusIqButton(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" },
+            Modifier.testTag("focus_start")) {
+            when {
+                !state.active && state.blockApps && !StrictLimits.blockerEnabled(context) -> needsBlocking = true
+                !state.active && Build.VERSION.SDK_INT >= 33 &&
+                    context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED ->
+                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                !state.active -> model.start()
+                state.running -> model.pause()
+                else -> model.resume()
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        StudyCard {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Block distracting apps", style = MaterialTheme.typography.titleSmall)
+                    Text("Limited apps + focus-only selections", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(state.blockApps, onCheckedChange = model::blocking, enabled = !state.active,
+                    modifier = Modifier.testTag("focus_block_toggle"))
+            }
+            Text(if (blockingReady) "App blocking is ready" else "App blocking needs setup",
+                color = if (blockingReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("focus_protection_status"))
+            if (!usageReady) Text("Usage Access is needed for daily limits", style = MaterialTheme.typography.bodySmall)
+            if (!blockingReady || !usageReady) TextButton(onClick = { onLegacy("limits") }) { Text("Set up protection") }
         }
         Spacer(Modifier.height(20.dp))
         if (state.active && state.blockApps && !state.isBreak) Text("App blocking stays active while paused.",
@@ -284,10 +314,6 @@ internal fun FocusScreen(
             TextButton(onClick = { customText = state.breakMinutes.toString(); customBreak = true }) {
                 Text("Custom break")
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Block distracting apps", modifier = Modifier.weight(1f), color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
-                Switch(state.blockApps, onCheckedChange = model::blocking)
-            }
             TextButton(onClick = { onLegacy("limits") }) { Text("Manage blocked apps and daily limits") }
             if (!exactAllowed) TextButton(onClick = {
                 context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
@@ -301,6 +327,11 @@ internal fun FocusScreen(
         }) { Text("Allow full-screen timer alarms") }
         Spacer(Modifier.height(20.dp))
     }
+    if (needsBlocking) AlertDialog(onDismissRequest = { needsBlocking = false },
+        title = { Text("Enable app blocking") },
+        text = { Text("Turn on Study Sprint app limits in Android Accessibility before starting a protected focus session.") },
+        confirmButton = { TextButton(onClick = { needsBlocking = false; onLegacy("limits") }) { Text("Set up blocking") } },
+        dismissButton = { TextButton(onClick = { needsBlocking = false; model.blocking(false); model.start() }) { Text("Focus without blocking") } })
     if (custom || customBreak) AlertDialog(onDismissRequest = { custom = false; customBreak = false },
         title = { Text(if (customBreak) "Custom break duration" else "Custom focus duration") },
         text = { OutlinedTextField(customText, { customText = it.filter(Char::isDigit) },

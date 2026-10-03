@@ -19,7 +19,11 @@ internal object StrictLimits {
 
     fun focusBlocked(prefs: SharedPreferences, pkg: String, now: Long = System.currentTimeMillis()): Boolean =
         prefs.getBoolean("focus_block_active", false) && now < prefs.getLong("focus_block_end", 0L) &&
-            (pkg == YouTubeQuota.PACKAGE || prefs.getBoolean("focus_block_$pkg", false))
+            focusSelected(prefs, pkg)
+
+    /** Focus protects every limited app, plus apps selected for focus only. */
+    fun focusSelected(prefs: SharedPreferences, pkg: String): Boolean =
+        pkg == YouTubeQuota.PACKAGE || dailyLimit(prefs, pkg) > 0 || prefs.getBoolean("focus_block_$pkg", false)
 
     fun dailyLimit(p: SharedPreferences, pkg: String): Int =
         p.getInt("limit_$pkg", if (pkg == YouTubeQuota.PACKAGE) YouTubeQuota.DEFAULT_LIMIT_MINUTES else 0)
@@ -60,7 +64,7 @@ internal object StrictLimits {
     @Synchronized fun save(context: Context, pkg: String, minutes: Int, days: Int, focus: Boolean): Boolean {
         val p = prefs(context)
         applyPending(context)
-        val weaker = focusBlocked(p, pkg) && !focus
+        val weaker = focusBlocked(p, pkg) && minutes <= 0 && !focus && pkg != YouTubeQuota.PACKAGE
         val edit = p.edit()
         if (weaker) {
             edit.putLong("pending_at_$pkg", p.getLong("focus_block_end", System.currentTimeMillis()))

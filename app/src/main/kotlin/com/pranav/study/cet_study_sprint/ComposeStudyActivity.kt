@@ -76,13 +76,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-internal val BrandBlue = Color(0xFF3155E7)
-internal val BrandIndigo = Color(0xFF5A4FE3)
+internal val BrandBlue = Color(0xFF07AE88)
+internal val BrandIndigo = Color(0xFF0A755E)
 internal val Pine = BrandBlue
-internal val DeepPine = Color(0xFF171B34)
-internal val MintBackground = Color(0xFFF7F8FF)
-internal val LeafMint = Color(0xFFE3E8FF)
-internal val MutedInk = Color(0xFF60657D)
+internal val DeepPine = Color(0xFF102B23)
+internal val MintBackground = Color(0xFFF4FAF7)
+internal val LeafMint = Color(0xFFD3F2E5)
+internal val MutedInk = Color(0xFF526C63)
 internal val WarmCream = Color(0xFFFDFDFF)
 
 class ComposeStudyActivity : ComponentActivity() {
@@ -144,31 +144,31 @@ class ComposeStudyActivity : ComponentActivity() {
 
 @Composable
 internal fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Composable () -> Unit) {
-    val selectedTheme = remember(revision) { prefs.getString("theme_mode", "system") }
+    val selectedTheme = remember(revision) { prefs.getString("theme_mode", "dark") }
     val dark = when (selectedTheme) {
         "dark" -> true
         "light" -> false
         else -> androidx.compose.foundation.isSystemInDarkTheme()
     }
     val colors = if (dark) darkColorScheme(
-        primary = Color(0xFFB9C4FF),
-        onPrimary = Color(0xFF06237A),
-        primaryContainer = Color(0xFF203FAE),
-        onPrimaryContainer = Color(0xFFE0E5FF),
-        secondary = Color(0xFFC9C0FF),
-        onSecondary = Color(0xFF30256C),
-        secondaryContainer = Color(0xFF473D84),
-        onSecondaryContainer = Color(0xFFE7E0FF),
-        tertiary = Color(0xFF87D1FF),
-        onTertiary = Color(0xFF00344D),
-        background = Color(0xFF0D1020),
+        primary = Color(0xFF10B981),
+        onPrimary = Color(0xFF002B1F),
+        primaryContainer = Color(0xFF194D3E),
+        onPrimaryContainer = Color(0xFFD3F2E5),
+        secondary = Color(0xFF73D1B7),
+        onSecondary = Color(0xFF073B2D),
+        secondaryContainer = Color(0xFF194D3E),
+        onSecondaryContainer = Color(0xFFD3F2E5),
+        tertiary = Color(0xFF77DEC3),
+        onTertiary = Color(0xFF00392B),
+        background = Color(0xFF080909),
         onBackground = Color.White,
-        surface = Color(0xFF161A2C),
+        surface = Color(0xFF0D0D0D),
         onSurface = Color.White,
-        surfaceVariant = Color(0xFF24283D),
-        onSurfaceVariant = Color(0xFFC5C8DA),
-        outline = Color(0xFF9094AA),
-        outlineVariant = Color(0xFF3D4259),
+        surfaceVariant = Color(0xFF1E1E1E),
+        onSurfaceVariant = Color(0xFFACB6B2),
+        outline = Color(0xFF6D8A7F),
+        outlineVariant = Color(0xFF01271B),
         error = Color(0xFFFFB4AB),
         errorContainer = Color(0xFF93000A),
         onErrorContainer = Color(0xFFFFDAD6)
@@ -176,21 +176,21 @@ internal fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compo
         primary = BrandBlue,
         onPrimary = Color.White,
         primaryContainer = LeafMint,
-        onPrimaryContainer = Color(0xFF0D247C),
+        onPrimaryContainer = Color(0xFF073B2D),
         secondary = BrandIndigo,
         onSecondary = Color.White,
-        secondaryContainer = Color(0xFFE8E2FF),
-        onSecondaryContainer = Color(0xFF271B68),
-        tertiary = Color(0xFF00668A),
+        secondaryContainer = Color(0xFFDFF2E9),
+        onSecondaryContainer = Color(0xFF073B2D),
+        tertiary = Color(0xFF08745A),
         onTertiary = Color.White,
         background = MintBackground,
         onBackground = DeepPine,
         surface = Color(0xFFFFFFFF),
         onSurface = DeepPine,
-        surfaceVariant = Color(0xFFEEF0F9),
+        surfaceVariant = Color(0xFFEAF2EC),
         onSurfaceVariant = MutedInk,
-        outline = Color(0xFF777C95),
-        outlineVariant = Color(0xFFDDE1F0),
+        outline = Color(0xFF668174),
+        outlineVariant = Color(0xFFC6DDD2),
         error = Color(0xFFBA1A1A),
         errorContainer = Color(0xFFFFDAD6),
         onErrorContainer = Color(0xFF410002)
@@ -207,7 +207,7 @@ internal fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compo
     }
     MaterialTheme(
         colorScheme = colors,
-        typography = Typography(),
+        typography = FocusIqTypography,
         shapes = Shapes(
             extraSmall = RoundedCornerShape(8.dp),
             small = RoundedCornerShape(12.dp),
@@ -218,11 +218,13 @@ internal fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compo
         content = {
             // MaterialTheme alone does not provide a foreground color to Text.
             // Give every screen, including the required update gate, a themed root.
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = colors.background,
-                contentColor = colors.onBackground
-            ) { content() }
+            Surface(modifier = Modifier.fillMaxSize(), color = colors.background, contentColor = colors.onBackground) {
+                Box(Modifier.fillMaxSize()) {
+                    if (dark) Image(painterResource(R.drawable.figma_focus_background), contentDescription = null,
+                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
+                    content()
+                }
+            }
         }
     )
 }
@@ -242,6 +244,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
     var chapterSubject by remember { mutableStateOf<String?>(null) }
     var chapterToOpen by remember { mutableStateOf<String?>(null) }
     fun go(target: String) {
+        if (target == "focus" && !focusState.active) focusModel.task(prefs.getString("focus_intention", "").orEmpty())
         scope.launch {
             val current = nav.currentBackStackEntry?.destination?.route
             if (current != target) {
@@ -319,6 +322,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
         }
     }) {
         Scaffold(
+            containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
                     title = { Text(when (route) {
@@ -353,7 +357,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         IconButton(onClick = { go("settings") }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
+                        containerColor = Color.Transparent,
                         titleContentColor = MaterialTheme.colorScheme.onBackground,
                         navigationIconContentColor = MaterialTheme.colorScheme.primary,
                         actionIconContentColor = MaterialTheme.colorScheme.primary
@@ -380,9 +384,9 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                                 label = { Text(item.label, style = MaterialTheme.typography.labelMedium, maxLines = 1) },
                                 alwaysShowLabel = true,
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
                                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                    indicatorColor = MaterialTheme.colorScheme.surface
                                 )
                             )
                         }
@@ -434,7 +438,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                     QuizScreen("My questions", savedQuestions(prefs), onBack = { go("practice") })
                 }
                 composable("plan") { PlannerScreen(prefs, revision, ::go) }
-                composable("focus") { FocusScreen(prefs, onBack = { go("home") }, onLegacy = { go("limits") }, model = focusModel, onHistory = { go("focus_history") }) }
+                composable("focus") { FocusScreen(prefs, onBack = { go("home") }, onLegacy = ::go, model = focusModel, onHistory = { go("focus_history") }) }
                 composable("settings") { SettingsScreen(prefs, ::go, refresh) }
                 composable("setup") { InitialSetupScreen(prefs, ::go, refresh) }
                 composable("tutorial") {
@@ -498,11 +502,11 @@ internal fun AppHeading(title: String, subtitle: String? = null, trailing: @Comp
 
 @Composable
 internal fun StudyCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+    Card(modifier = modifier.fillMaxWidth().focusIqGlow(), shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
-        Column(Modifier.padding(16.dp)) { content() }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) { content() }
     }
 }
 
@@ -510,7 +514,7 @@ internal fun StudyCard(modifier: Modifier = Modifier, content: @Composable () ->
 internal fun BlueHeroCard(content: @Composable ColumnScope.() -> Unit) {
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(listOf(BrandBlue, BrandIndigo)))
+            .background(Brush.linearGradient(listOf(Color(0xFF0D3E33), Color(0xFF0D0D0D))))
     ) {
         Column(Modifier.padding(20.dp), content = content)
     }
@@ -538,85 +542,73 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
     val streak by produceState(0, eventRevision) {
         value = withContext(Dispatchers.IO) { events.streak() }
     }
-    val chapters = SyllabusData.chapters(course, grade)
-    val total = chapters.values.sumOf { it.size }
-    val done = chapters.entries.sumOf { (subject, list) ->
-        list.indices.count { prefs.getBoolean(chapterKey(course, grade, subject, it), false) }
-    }
-    val examDate = prefs.getLong("exam_date", System.currentTimeMillis() + 547L * 86400000L)
-    val days = ((examDate - System.currentTimeMillis()) / 86400000L).coerceAtLeast(0)
     val tasks = orderedTasks(prefs)
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-        .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Welcome back", style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    val goal = prefs.getInt("daily_focus_goal", 120).coerceAtLeast(1)
+    val progress = (totals.focusedMinutes.toFloat() / goal).coerceIn(0f, 1f)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        .padding(horizontal = 32.dp, vertical = 16.dp)) {
+        FocusIqHeader(prefs, "Welcome back", go)
+        Spacer(Modifier.height(24.dp))
+        StudyCard {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("Today's Focus Time", style = MaterialTheme.typography.titleMedium)
+                    Text("${totals.focusedMinutes / 60}h ${totals.focusedMinutes % 60}m",
+                        style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                    Spacer(Modifier.height(16.dp))
+                    FocusIqTaskButton { go("plan") }
+                }
+                Box(Modifier.size(76.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.primary, trackColor = Color(0xFF74857F), strokeWidth = 7.dp)
+                    Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
+                }
             }
-            ProfileAvatar(name, 48.dp) { go("profile") }
         }
-        Spacer(Modifier.height(20.dp))
-        BlueHeroCard {
-            Text("TODAY'S FOCUS", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.85f))
-            Spacer(Modifier.height(12.dp))
-            Text("${totals.focusedMinutes} min", style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold, color = Color.White)
-            Text("of ${prefs.getInt("daily_focus_goal", 120)} min daily goal", color = Color.White.copy(alpha = 0.85f))
-            Spacer(Modifier.height(16.dp))
-            LinearProgressIndicator(progress = {
-                (totals.focusedMinutes.toFloat() / prefs.getInt("daily_focus_goal", 120).coerceAtLeast(1)).coerceIn(0f, 1f)
-            }, modifier = Modifier.fillMaxWidth(), color = Color.White,
-                trackColor = Color.White.copy(alpha = 0.25f))
-            Spacer(Modifier.height(20.dp))
-            Button(onClick = { go("focus") }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = BrandBlue)) {
-                Text("Start focus", fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(22.dp))
+        StudyCard {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Image(painterResource(R.drawable.figma_suggestion), contentDescription = null, modifier = Modifier.size(24.dp))
+                Text("Study suggestion", style = MaterialTheme.typography.titleMedium)
             }
+            Spacer(Modifier.height(6.dp))
+            Text(if (tasks.isEmpty()) "Try a 25-minute focus session. Add one clear next step and give it your full attention."
+                else "Start with ${tasks.first()}. Give this one task 25 minutes of uninterrupted attention.",
+                style = MaterialTheme.typography.bodyMedium)
+        }
+        Spacer(Modifier.height(26.dp))
+        FocusIqButton("Start focus", Modifier.testTag("home_start_focus")) { go("focus") }
+        Spacer(Modifier.height(22.dp))
+        tasks.take(3).forEach { task ->
+            StudyCard(Modifier.clickable { go("plan") }) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.size(20.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape))
+                    Text(task, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                    Surface(shape = RoundedCornerShape(5.dp), color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, Color(0xFF428273))) {
+                        Text("Study", modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("$course · Class $grade", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                    IconButton(onClick = {
+                        prefs.edit().putString("focus_intention", task).apply(); go("focus")
+                    }) { Image(painterResource(R.drawable.figma_task_play), "Focus on $task", Modifier.size(24.dp)) }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+        if (tasks.isEmpty()) StudyCard(Modifier.clickable { go("plan") }) {
+            Text("Your next step", style = MaterialTheme.typography.titleMedium)
+            Text("Add your first study task", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp))
         }
         HomeShortcuts(go)
         SectionLabel("At a glance")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            HomeSnapshotCard("Tasks to do", "${tasks.size}", Color(0xFFDCEEFF), Modifier.weight(1f)) { go("plan") }
-            HomeSnapshotCard("Focus today", "${totals.focusedMinutes}m", Color(0xFFE6E3FF), Modifier.weight(1f)) { go("focus") }
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            HomeSnapshotCard("Questions", "${totals.questions}", Color(0xFFDDF4EB), Modifier.weight(1f)) { go("practice") }
-            HomeSnapshotCard("Study streak", "$streak days", Color(0xFFFFECCA), Modifier.weight(1f)) { go("statistics") }
-        }
-        SectionLabel("Continue")
-        StudyCard(Modifier.clickable { go("plan") }) {
-            Text("Next task", style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary)
-            Text(tasks.firstOrNull() ?: "Add your first study task", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
-            Text(if (tasks.isEmpty()) "Make a plan →" else "Open plan →", color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 10.dp))
-        }
-        Spacer(Modifier.height(10.dp))
-        StudyCard(Modifier.clickable { go(if (savedQuestions(prefs).isEmpty()) "practice" else "my_quiz") }) {
-            Text("Practice", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            Text(if (savedQuestions(prefs).isEmpty()) "Try a quick quiz"
-                else "${prefs.getString("owned_mcqs_chapter", "My questions")} · ${savedQuestions(prefs).size} questions",
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 6.dp))
-            Text("Open practice →", color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 10.dp))
-        }
-        SectionLabel("Your exam goal")
-        StudyCard(Modifier.clickable { go("profile") }) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("$course · Class $grade", fontWeight = FontWeight.SemiBold)
-                    Text(SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(examDate)),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text("$days days", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-            }
-            Spacer(Modifier.height(12.dp))
-            LinearProgressIndicator(progress = { if (total == 0) 0f else done.toFloat() / total }, modifier = Modifier.fillMaxWidth())
-            Text("$done of $total chapters complete", modifier = Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium)
+            HomeSnapshotCard("Tasks to do", "${tasks.size}", LeafMint, Modifier.weight(1f)) { go("plan") }
+            HomeSnapshotCard("Study streak", "$streak days", LeafMint, Modifier.weight(1f)) { go("statistics") }
         }
         TextButton(onClick = { go("statistics") }) { Text("See your progress and leaderboard →") }
         Spacer(Modifier.height(24.dp))
