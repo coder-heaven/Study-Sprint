@@ -571,6 +571,8 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
                 modifier = Modifier.padding(top = 8.dp))
         }
         Spacer(Modifier.height(18.dp))
+        FocusIqButton("Start focus", Modifier.testTag("home_start_focus")) { go("focus") }
+        Spacer(Modifier.height(18.dp))
         StudyCard {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Image(painterResource(R.drawable.figma_suggestion), contentDescription = null, modifier = Modifier.size(24.dp),
@@ -582,8 +584,6 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
                 else "Start with ${tasks.first()}. Give this one task 25 minutes of uninterrupted attention.",
                 style = MaterialTheme.typography.bodyMedium)
         }
-        Spacer(Modifier.height(26.dp))
-        FocusIqButton("Start focus", Modifier.testTag("home_start_focus")) { go("focus") }
         Spacer(Modifier.height(22.dp))
         tasks.take(3).forEach { task ->
             StudyCard(Modifier.clickable { go("plan") }) {
