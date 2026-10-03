@@ -233,19 +233,24 @@ internal fun FocusScreen(
         if (!state.active) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(25, 45, 60, 90).forEach { minutes ->
                 FilterChip(selected = state.focusMinutes == minutes, onClick = { model.duration(minutes) },
-                    label = { Text("${minutes}m") })
+                    modifier = Modifier.weight(1f),
+                    label = { Text("${minutes}m", fontSize = 12.sp, maxLines = 1) })
             }
         }
         BoxWithConstraints(Modifier.widthIn(max = ringSize).fillMaxWidth().aspectRatio(1f),
             contentAlignment = Alignment.Center) {
             val timerFontSize = (maxWidth.value * 0.20f).coerceAtMost(56f).sp
             Image(painterResource(R.drawable.figma_timer_ring), contentDescription = null, modifier = Modifier.fillMaxSize())
-            Canvas(Modifier.fillMaxSize().padding(30.dp)) {
+            Canvas(Modifier.fillMaxSize()) {
                 val stroke = 4.dp.toPx()
                 drawArc(ringColor, startAngle = -90f, sweepAngle = 360f * progress.coerceIn(0f, 1f),
-                    useCenter = false, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                    useCenter = false,
+                    topLeft = androidx.compose.ui.geometry.Offset(size.width * 36.033f / 299.067f, size.height * 21.767f / 299.067f),
+                    size = androidx.compose.ui.geometry.Size(size.width * 227f / 299.067f, size.height * 227f / 299.067f),
+                    style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.offset(y = (-maxWidth.value * 14.267f / 299.067f).dp),
+                horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
                     fontSize = timerFontSize, maxLines = 1, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
                     color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)

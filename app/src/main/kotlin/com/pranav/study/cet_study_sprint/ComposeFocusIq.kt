@@ -60,7 +60,10 @@ internal fun FocusIqHeader(prefs: SharedPreferences, greeting: String, go: (Stri
         }
         IconButton(onClick = { go("settings") }) {
             Surface(color = Color(0xFF0D0D0D), shape = RoundedCornerShape(12.dp)) {
-                Image(painterResource(R.drawable.figma_notification), "Timer and reminder settings", Modifier.padding(8.dp).size(24.dp))
+                Box(Modifier.padding(8.dp).size(24.dp)) {
+                    Image(painterResource(R.drawable.figma_notification), "Timer and reminder settings", Modifier.fillMaxSize())
+                    Image(painterResource(R.drawable.figma_notification_badge), null, Modifier.offset(x = 13.dp).size(8.dp))
+                }
             }
         }
     }
@@ -83,10 +86,9 @@ internal fun FocusIqButton(label: String, modifier: Modifier = Modifier, onClick
 @Composable
 internal fun FocusIqTaskButton(onClick: () -> Unit) {
     Box(Modifier.width(98.dp).height(35.dp), contentAlignment = Alignment.Center) {
-        Image(painterResource(R.drawable.figma_task_glow_wide), null, Modifier.requiredSize(144.dp, 96.dp))
-        Image(painterResource(R.drawable.figma_task_glow_soft), null, Modifier.requiredSize(104.dp, 56.dp))
-        Image(painterResource(R.drawable.figma_task_glow_near), null, Modifier.requiredSize(88.dp, 40.dp))
-        Surface(Modifier.fillMaxSize().clickable(role = Role.Button, onClick = onClick),
+        Surface(Modifier.fillMaxSize().shadow(8.dp, RoundedCornerShape(10.dp), clip = false,
+            ambientColor = Color(0xFF07AE88), spotColor = Color(0xFF07AE88))
+            .clickable(role = Role.Button, onClick = onClick),
             color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(10.dp),
             border = BorderStroke(1.dp, Color(0xFF428273))) {
             Box(contentAlignment = Alignment.Center) { Text("View Task", fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
