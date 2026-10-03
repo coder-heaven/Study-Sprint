@@ -201,6 +201,10 @@ internal fun FocusScreen(
     val phaseSeconds = if (state.isBreak) state.breakMinutes * 60 else state.focusMinutes * 60
     val progress = 1f - state.remainingSeconds.toFloat() / phaseSeconds.coerceAtLeast(1)
     val ringColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    // Keep the primary action visible on short screens while retaining the
+    // reference's full-size ring on taller devices.
+    val ringSize = (maxHeight - 330.dp).coerceIn(180.dp, 300.dp)
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp, vertical = 16.dp),
@@ -232,7 +236,7 @@ internal fun FocusScreen(
                     label = { Text("${minutes}m") })
             }
         }
-        BoxWithConstraints(Modifier.widthIn(max = 300.dp).fillMaxWidth().aspectRatio(1f),
+        BoxWithConstraints(Modifier.widthIn(max = ringSize).fillMaxWidth().aspectRatio(1f),
             contentAlignment = Alignment.Center) {
             val timerFontSize = (maxWidth.value * 0.20f).coerceAtMost(56f).sp
             Image(painterResource(R.drawable.figma_timer_ring), contentDescription = null, modifier = Modifier.fillMaxSize())
@@ -262,7 +266,7 @@ internal fun FocusScreen(
             }
         }
         Spacer(Modifier.height(16.dp))
-        StudyCard {
+        StudyCard(Modifier.testTag("focus_protection_card")) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Block distracting apps", style = MaterialTheme.typography.titleSmall)
@@ -326,6 +330,7 @@ internal fun FocusScreen(
             context.startActivity(FocusAlarm.fullScreenSettings(context))
         }) { Text("Allow full-screen timer alarms") }
         Spacer(Modifier.height(20.dp))
+    }
     }
     if (needsBlocking) AlertDialog(onDismissRequest = { needsBlocking = false },
         title = { Text("Enable app blocking") },
