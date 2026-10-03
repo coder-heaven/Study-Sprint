@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -370,6 +371,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                 )
             },
             bottomBar = {
+                if (route != "chat" || WindowInsets.ime.getBottom(LocalDensity.current) == 0) {
                 Column {
                     if (focusState.active && route != "focus") ActiveFocusBar(focusState) { go("focus") }
                     NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
@@ -396,6 +398,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                             )
                         }
                     }
+                }
                 }
             }
         ) { padding ->

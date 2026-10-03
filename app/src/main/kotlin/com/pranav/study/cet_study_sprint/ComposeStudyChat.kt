@@ -1,6 +1,8 @@
 package com.pranav.study.cet_study_sprint
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -118,7 +120,7 @@ private fun ChatKeyDialog(state: ChatUiState, save: (String) -> Unit, remove: ()
     }
     AlertDialog(onDismissRequest = { if (!state.keyBusy) close() }, title = { Text("Connect Nemotron") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Use your personal OpenRouter API key. It is encrypted on this phone and excluded from Android backups.")
                 OutlinedTextField(key, { key = it }, label = { Text("OpenRouter API key") }, singleLine = true,
                     visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
