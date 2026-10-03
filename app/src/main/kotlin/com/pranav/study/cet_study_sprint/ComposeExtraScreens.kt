@@ -65,7 +65,8 @@ private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Un
                 if (detail != null) Text(detail, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Image(painterResource(R.drawable.figma_chevron), null, Modifier.size(16.dp))
+            Image(painterResource(R.drawable.figma_chevron), null, Modifier.size(16.dp),
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant))
         }
     }
 }

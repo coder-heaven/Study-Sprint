@@ -568,7 +568,8 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
         Spacer(Modifier.height(22.dp))
         StudyCard {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Image(painterResource(R.drawable.figma_suggestion), contentDescription = null, modifier = Modifier.size(24.dp))
+                Image(painterResource(R.drawable.figma_suggestion), contentDescription = null, modifier = Modifier.size(24.dp),
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onSurface))
                 Text("Study suggestion", style = MaterialTheme.typography.titleMedium)
             }
             Spacer(Modifier.height(6.dp))
