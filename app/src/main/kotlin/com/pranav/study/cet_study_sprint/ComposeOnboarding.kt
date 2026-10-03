@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
@@ -56,6 +58,9 @@ internal fun FirstRunTermsScreen(onAccept: () -> Unit) {
     if (document != null) PrivacyDocumentDialog(document == "terms") { document = null }
     Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState())
         .padding(24.dp).testTag("first_run_terms"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Image(painterResource(R.drawable.study_journey_art),
+            contentDescription = "Illustration of a book and graduation cap",
+            modifier = Modifier.fillMaxWidth().height(120.dp))
         AppHeading("Welcome to Study Sprint", "Step 1 · Terms & privacy")
         Text("Before setting up your study profile, please review the Terms of Use and Privacy Policy.")
         OutlinedButton(onClick = { document = "terms" }, modifier = Modifier.fillMaxWidth()) { Text("Read Terms of Use") }

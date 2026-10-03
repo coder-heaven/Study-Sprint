@@ -30,7 +30,8 @@ class OnboardingUiTest {
         showApp()
         compose.onNodeWithTag("terms_accept_checkbox").assertIsOff()
         compose.onNodeWithTag("terms_continue").assertIsNotEnabled()
-        compose.onNodeWithText("Read Terms of Use").performClick()
+        compose.onNodeWithContentDescription("Illustration of a book and graduation cap").assertExists()
+        compose.onNodeWithText("Read Terms of Use").performScrollTo().performClick()
         compose.onNodeWithText("Close").performClick()
         compose.onNodeWithTag("terms_accept_checkbox").performScrollTo().assertIsOff().performClick().assertIsOn()
         compose.onNodeWithTag("terms_continue").performScrollTo().assertIsEnabled().performClick()
@@ -57,9 +58,11 @@ class OnboardingUiTest {
         showApp()
         compose.onNodeWithTag("screen_home").assertIsDisplayed()
         compose.onNodeWithText("At a glance").assertExists()
+        compose.onNodeWithText("Tasks to do").assertExists()
         listOf("focus", "plan", "study", "practice", "limits", "statistics").forEach { route ->
             compose.onNodeWithTag("home_action_$route").performScrollTo().performClick()
             compose.onNodeWithTag("screen_$route").assertIsDisplayed()
+            if (route == "statistics") compose.onNodeWithText("Learning at a glance").assertExists()
             compose.onNodeWithTag("tab_home").performClick()
             compose.onNodeWithTag("screen_home").assertIsDisplayed()
         }

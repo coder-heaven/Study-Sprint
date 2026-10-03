@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="256dp"
+    android:height="184dp"
+    android:viewportWidth="256"
+    android:viewportHeight="184">
+    <!-- Original Study Sprint illustration: an open book, graduation cap and progress spark. -->
+    <path android:fillColor="#E5E9FF" android:pathData="M21,104a83,67 0,1 0,166 0a83,67 0,1 0,-166 0" />
+    <path android:fillColor="#D8F4F0" android:pathData="M173,29a40,40 0,1 0,80 0a40,40 0,1 0,-80 0" />
+    <path android:fillColor="#B9C8FF" android:pathData="M46,70a11,11 0,1 0,22 0a11,11 0,1 0,-22 0" />
+    <path android:fillColor="#3155E7" android:pathData="M38,129 Q80,109 126,134 L126,170 Q82,148 38,165 Z" />
+    <path android:fillColor="#5A4FE3" android:pathData="M218,129 Q173,109 128,134 L128,170 Q173,148 218,165 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M45,119 Q83,103 126,126 L126,160 Q86,141 45,155 Z" />
+    <path android:fillColor="#F7F8FF" android:pathData="M211,119 Q170,103 128,126 L128,160 Q169,141 211,155 Z" />
+    <path android:fillColor="#91A6F8" android:pathData="M52,132 Q82,121 113,134 L113,139 Q82,128 52,139 Z" />
+    <path android:fillColor="#B8B1FA" android:pathData="M143,134 Q174,121 203,132 L203,139 Q174,128 143,139 Z" />
+    <path android:fillColor="#3155E7" android:pathData="M127,42 L181,61 L127,82 L73,61 Z" />
+    <path android:fillColor="#203FAE" android:pathData="M93,72 L93,88 Q127,106 161,88 L161,72 L127,85 Z" />
+    <path android:strokeColor="#203FAE" android:strokeWidth="3" android:fillColor="#00000000" android:pathData="M180,61 L180,91" />
+    <path android:fillColor="#FFCD73" android:pathData="M180,87 L174,102 L186,102 Z" />
+    <path android:fillColor="#FFCD73" android:pathData="M203,51 L207,61 L217,65 L207,69 L203,79 L199,69 L189,65 L199,61 Z" />
+    <path android:fillColor="#FFCD73" android:pathData="M51,34 L54,41 L61,44 L54,47 L51,54 L48,47 L41,44 L48,41 Z" />
+</vector>

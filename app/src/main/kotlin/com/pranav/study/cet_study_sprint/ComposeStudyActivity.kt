@@ -576,13 +576,15 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
         }
         HomeShortcuts(go)
         SectionLabel("At a glance")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MetricCard("${totals.focusedMinutes}m", "of ${prefs.getInt("daily_focus_goal", 120)}m", Modifier.weight(1f))
-            MetricCard("${tasks.size}", "Tasks left", Modifier.weight(1f))
-            MetricCard("${totals.questions}", "Questions", Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HomeSnapshotCard("Tasks to do", "${tasks.size}", Color(0xFFDCEEFF), Modifier.weight(1f)) { go("plan") }
+            HomeSnapshotCard("Focus today", "${totals.focusedMinutes}m", Color(0xFFE6E3FF), Modifier.weight(1f)) { go("focus") }
         }
-        Text("$streak-day study streak", style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            HomeSnapshotCard("Questions", "${totals.questions}", Color(0xFFDDF4EB), Modifier.weight(1f)) { go("practice") }
+            HomeSnapshotCard("Study streak", "$streak days", Color(0xFFFFECCA), Modifier.weight(1f)) { go("statistics") }
+        }
         SectionLabel("Continue")
         StudyCard(Modifier.clickable { go("plan") }) {
             Text("Next task", style = MaterialTheme.typography.labelMedium,
@@ -622,10 +624,16 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
 }
 
 @Composable
-private fun MetricCard(value: String, label: String, modifier: Modifier = Modifier) {
-    StudyCard(modifier) {
-        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun HomeSnapshotCard(label: String, value: String, tint: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val palette = MaterialTheme.colorScheme
+    val cardColor = if (palette.background == MintBackground) tint else palette.surfaceVariant
+    Surface(modifier = modifier.heightIn(min = 112.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp), color = cardColor) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = palette.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
+                color = palette.onSurface)
+        }
     }
 }
 
@@ -689,10 +697,10 @@ internal fun WelcomeScreen(prefs: SharedPreferences, onContinue: (String, String
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
-                    painter = painterResource(R.drawable.study_sprint_logo_v110),
-                    contentDescription = "Study Sprint logo",
-                    modifier = Modifier.size(126.dp).clip(RoundedCornerShape(30.dp)),
-                    contentScale = ContentScale.Crop
+                    painter = painterResource(R.drawable.study_journey_art),
+                    contentDescription = "Illustration of a book and graduation cap",
+                    modifier = Modifier.size(width = 240.dp, height = 174.dp)
+                        .clip(RoundedCornerShape(32.dp)).background(Color.White.copy(alpha = 0.95f))
                 )
                 Spacer(Modifier.height(10.dp))
                 Text("Study Sprint", color = Color.White, fontWeight = FontWeight.Bold,

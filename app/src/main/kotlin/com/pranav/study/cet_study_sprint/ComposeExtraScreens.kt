@@ -428,6 +428,19 @@ private fun MetricCardLocal(value: String, label: String, modifier: Modifier) {
     }
 }
 @Composable
+private fun ProgressMetricCard(value: String, label: String, tint: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
+    val palette = MaterialTheme.colorScheme
+    val cardColor = if (palette.background == MintBackground) tint else palette.surfaceVariant
+    Surface(modifier = modifier.heightIn(min = 106.dp), shape = RoundedCornerShape(24.dp), color = cardColor) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = palette.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold, color = palette.onSurface)
+        }
+    }
+}
+
+@Composable
 internal fun StatisticsScreen(
     prefs: android.content.SharedPreferences,
     initialTab: Int = 0,
@@ -461,19 +474,28 @@ internal fun StatisticsScreen(
             }
         }
         if (tab == 0) Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            SectionLabel("Learning at a glance")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricCardLocal("${totals.focusedMinutes}m", "Focused", Modifier.weight(1f))
-                MetricCardLocal("${totals.sessions}", "Sessions", Modifier.weight(1f))
+                ProgressMetricCard("${totals.focusedMinutes}m", "Focused", androidx.compose.ui.graphics.Color(0xFFDCEEFF), Modifier.weight(1f))
+                ProgressMetricCard("${totals.sessions}", "Sessions", androidx.compose.ui.graphics.Color(0xFFE6E3FF), Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MetricCardLocal("${totals.tasks}", "Tasks done", Modifier.weight(1f))
-                MetricCardLocal("${totals.questions}", "Questions", Modifier.weight(1f))
+                ProgressMetricCard("${totals.tasks}", "Tasks done", androidx.compose.ui.graphics.Color(0xFFDDF4EB), Modifier.weight(1f))
+                ProgressMetricCard("${totals.questions}", "Questions", androidx.compose.ui.graphics.Color(0xFFFFECCA), Modifier.weight(1f))
             }
-            SectionLabel("Study streak")
-            StudyCard { Text("$streak days with meaningful study activity") }
             SectionLabel("Daily focus")
-            StudyCard { WeeklyStudyChart(totals.dailyMinutes) }
+            Surface(shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+                Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                    Text("$streak-day study streak", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold)
+                    Text("Last 7 days · selected period", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(16.dp))
+                    WeeklyStudyChart(totals.dailyMinutes)
+                }
+            }
             SectionLabel("Subject focus")
             StudyCard {
                 if (subjects.isEmpty()) Text("No recorded subject time yet.")
@@ -493,10 +515,10 @@ internal fun StatisticsScreen(
             }
             SectionLabel("Study history")
             StudyCard {
-                Text("New focus sessions, completed tasks and quizzes are recorded here. Earlier focus counts have no duration, so they are not included in minutes.",
-                    style = MaterialTheme.typography.bodySmall)
-                Text("Completed sessions including earlier history: ${prefs.getInt("focus_sessions", 0)}",
-                    style = MaterialTheme.typography.bodySmall)
+                Text("${prefs.getInt("focus_sessions", 0)} completed sessions including earlier history",
+                    style = MaterialTheme.typography.bodyMedium)
+                Text("Earlier focus counts have no recorded duration and are excluded from minutes.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(20.dp))
         } else Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
