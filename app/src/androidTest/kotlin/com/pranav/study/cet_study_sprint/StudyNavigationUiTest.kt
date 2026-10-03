@@ -54,7 +54,8 @@ class StudyNavigationUiTest {
             capture("focusiq-home-dark")
             compose.onNodeWithTag("tab_focus").performClick()
             capture("focusiq-timer-dark")
-            compose.onNodeWithTag("focus_block_toggle").performScrollTo().assertIsOn()
+            compose.onNodeWithTag("focus_protection_card").performScrollTo()
+            compose.onNodeWithTag("focus_block_toggle").assertIsOn()
             compose.onNodeWithTag("focus_protection_status").assertIsDisplayed()
             capture("focusiq-protection-dark")
             if (!StrictLimits.blockerEnabled(compose.activity)) {
