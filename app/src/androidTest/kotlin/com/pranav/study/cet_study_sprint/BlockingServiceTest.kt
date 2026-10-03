@@ -80,7 +80,7 @@ class BlockingServiceTest {
             AppOpsManager.MODE_ALLOWED -> "allow"; AppOpsManager.MODE_IGNORED -> "ignore"
             AppOpsManager.MODE_ERRORED -> "deny"; else -> "default"
         }}")
-        automation.destroy()
+        instrumentation.getUiAutomation(0)
     }
     @Test fun focusBlocksLimitedAppWithoutSeparateFocusSelectionOrUsagePermission() {
         openFixture()
