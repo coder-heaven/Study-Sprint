@@ -61,7 +61,7 @@ private fun SettingsRow(label: String, detail: String? = null, onClick: () -> Un
     }
 }
 @Composable
-internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (String) -> Unit, refresh: () -> Unit, setupMode: Boolean = false) {
+internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (String) -> Unit, refresh: () -> Unit, setupMode: Boolean = false, showPermissions: Boolean = true) {
     val context = LocalContext.current
     val appVersion = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "2.2.0" }
     var theme by remember { mutableStateOf(prefs.getString("theme_mode", "system") ?: "system") }
@@ -111,7 +111,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         if (setupMode) {
             Text("Review your study goal, reminders, appearance and optional permissions below. Your choices save as you change them. Advanced features open from the relevant button; return with Back.",
                 style = MaterialTheme.typography.bodyMedium)
-            PermissionSetupCard()
+            if (showPermissions) PermissionSetupCard()
         } else {
             SettingsRow("Setup checklist", "Review settings and Android permissions together") { go("setup") }
             SettingsRow("How to use the app", "Replay the step-by-step tutorial") { go("tutorial") }

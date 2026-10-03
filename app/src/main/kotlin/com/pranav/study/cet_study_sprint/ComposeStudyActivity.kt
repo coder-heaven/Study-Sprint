@@ -442,11 +442,16 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                     Column(Modifier.fillMaxSize()) {
                         Box(Modifier.weight(1f)) { AppTutorialScreen(::go) }
                         if (error.isNotEmpty()) Text(error, color = MaterialTheme.colorScheme.error)
-                        Button(onClick = {
-                            if (OnboardingStore.finishTutorial(prefs)) { refresh(); go("home") }
-                            else error = "Could not save. Please try again."
-                        }, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)
-                            .heightIn(min = 48.dp).testTag("tutorial_done")) { Text("Got it · go to Home") }
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedButton(onClick = {
+                                if (OnboardingStore.finishTutorial(prefs)) { refresh(); go("home") }
+                                else error = "Could not save. Please try again."
+                            }, Modifier.weight(1f).heightIn(min = 48.dp).testTag("tutorial_skip")) { Text("Skip") }
+                            Button(onClick = {
+                                if (OnboardingStore.finishTutorial(prefs)) { refresh(); go("home") }
+                                else error = "Could not save. Please try again."
+                            }, Modifier.weight(1f).heightIn(min = 48.dp).testTag("tutorial_done")) { Text("Finish") }
+                        }
                     }
                 }
                 composable("leaderboard") { LeaderboardScreen(prefs, ::go) }

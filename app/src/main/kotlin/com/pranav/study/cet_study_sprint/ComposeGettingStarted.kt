@@ -24,20 +24,12 @@ import androidx.compose.ui.unit.dp
 
 // These are navigation destinations, not permission requests or one-time onboarding state.
 private val homeShortcuts = listOf(
+    "focus" to "Focus",
+    "plan" to "Plan",
+    "study" to "Study",
+    "practice" to "Practice",
     "limits" to "App limits",
-    "focus" to "Focus timer",
-    "plan" to "Study plan",
-    "study" to "Study & syllabus",
-    "practice" to "Practice quizzes",
-    "mcq_editor" to "Create / import MCQs",
-    "notes" to "Notes & PDFs",
-    "statistics" to "Your progress",
-    "leaderboard" to "Leaderboard",
-    "app_usage" to "App usage",
-    "profile" to "Your profile",
-    "settings" to "Settings",
-    "setup" to "Setup & permissions",
-    "tutorial" to "App tutorial"
+    "statistics" to "Progress"
 )
 
 /** Non-scrolling grid: the Home screen owns scrolling, including at large font sizes. */

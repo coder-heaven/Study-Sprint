@@ -75,22 +75,70 @@ internal fun FirstRunTermsScreen(onAccept: () -> Unit) {
     }
 }
 
+private data class SetupTask(val title: String, val detail: String, val ready: (android.content.Context) -> Boolean, val open: (android.content.Context) -> Unit)
+
 @Composable
 internal fun InitialSetupScreen(prefs: SharedPreferences, go: (String) -> Unit, refresh: () -> Unit) {
+    val context = LocalContext.current
+    var step by remember { mutableIntStateOf(OnboardingStore.setupStep(prefs)) }
+    var revision by remember { mutableIntStateOf(0) }
     var error by remember { mutableStateOf("") }
+    val notificationReady = remember(revision) { NotificationManagerCompat.from(context).areNotificationsEnabled() }
+    val usageReady = remember(revision) { StrictLimits.usageAllowed(context) }
+    val blockingReady = remember(revision) { StrictLimits.blockerEnabled(context) }
+    val alarmsReady = remember(revision) {
+        Build.VERSION.SDK_INT < 31 || context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { revision++ }
+    val tasks = listOf(
+            SetupTask("Notifications", "Allow reminders and focus alerts.", { notificationReady }) { c ->
+                c.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, c.packageName))
+            },
+            SetupTask("Usage access", "Measure app time for daily limits.", { usageReady }) { c -> c.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
+            SetupTask("App blocking", "Optional Accessibility access for distraction blocking.", { blockingReady }) { c -> c.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+            SetupTask("Precise alarms", "Keep reminders and timers on schedule.", { alarmsReady }) { c -> c.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${c.packageName}"))) }
+    )
+    fun saveStep(next: Int) {
+        if (OnboardingStore.saveSetupStep(prefs, next)) { step = next; error = ""; refresh() }
+        else error = "Could not save this step. Your existing data is unchanged."
+    }
     Column(Modifier.fillMaxSize().testTag("setup_screen")) {
-        Box(Modifier.weight(1f)) { SettingsScreen(prefs, go, refresh, setupMode = true) }
-        Surface(shadowElevation = 4.dp) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-                if (error.isNotEmpty()) Text(error, color = MaterialTheme.colorScheme.error)
-                Button(onClick = {
-                    if (OnboardingStore.finishSetup(prefs)) { refresh(); go("tutorial") }
-                    else error = "Could not save setup. Please try again."
-                }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("setup_continue")) {
-                    Text("Continue to app tutorial")
+        if (step == 0) {
+            Box(Modifier.weight(1f)) { SettingsScreen(prefs, go, refresh, setupMode = true, showPermissions = false) }
+            SetupFooter("Step 1 of 5", "Save preferences and continue", { saveStep(1) }, "setup_continue")
+        } else if (step in 1..4) {
+            val task = tasks[step - 1]
+            val ready = task.ready(context)
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                AppHeading("Set up your phone", "Step $step of 5")
+                LinearProgressIndicator({ step / 5f }, Modifier.fillMaxWidth())
+                StudyCard {
+                    Text(task.title, style = MaterialTheme.typography.headlineSmall)
+                    Text(task.detail, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(if (ready) "Ready" else "Not enabled", color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = { runCatching { task.open(context) }.onFailure { error = "Android Settings could not be opened." } }, Modifier.fillMaxWidth().testTag("setup_open_${step}")) { Text("Open Android settings") }
+                    Text("When you return, this screen stays open and refreshes automatically.", style = MaterialTheme.typography.bodySmall)
                 }
-                Text("Permissions are optional. Keep the defaults or change settings later.", style = MaterialTheme.typography.bodySmall)
+                if (error.isNotEmpty()) Text(error, color = MaterialTheme.colorScheme.error)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { saveStep(if (step == 4) 5 else step + 1) }, Modifier.weight(1f).testTag("setup_skip_${step}")) { Text("Skip") }
+                    Button(onClick = { saveStep(if (step == 4) 5 else step + 1) }, Modifier.weight(1f)) { Text(if (step == 4) "Finish settings" else "Next") }
+                }
             }
+        } else {
+            LaunchedEffect(Unit) { if (OnboardingStore.finishSetup(prefs)) { refresh(); go("tutorial") } }
+            Box(Modifier.fillMaxSize().testTag("setup_finished"))
+        }
+    }
+}
+
+@Composable
+private fun SetupFooter(label: String, action: String, onClick: () -> Unit, tag: String) {
+    Surface(shadowElevation = 4.dp) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(label, style = MaterialTheme.typography.labelMedium)
+            Button(onClick = onClick, Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)) { Text(action) }
+            Text("You can change these choices later in Settings.", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

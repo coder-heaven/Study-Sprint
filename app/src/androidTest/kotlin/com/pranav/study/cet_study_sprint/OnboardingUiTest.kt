@@ -38,6 +38,10 @@ class OnboardingUiTest {
         compose.onNodeWithText("Continue as guest").performScrollTo().performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithTag("setup_screen").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("setup_continue").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("setup_skip_1").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("setup_skip_2").performClick()
+        compose.onNodeWithTag("setup_skip_3").performClick()
+        compose.onNodeWithTag("setup_skip_4").performClick()
         compose.onNodeWithTag("screen_tutorial").assertIsDisplayed()
         compose.onNodeWithTag("tutorial_done").performClick()
         compose.onNodeWithTag("screen_home").assertIsDisplayed()
@@ -51,7 +55,7 @@ class OnboardingUiTest {
     @Test fun homeShortcutsOpenMainFeaturesAndTutorialCanBeReplayed() {
         prefs.edit().clear().putBoolean("onboarding_v3", true).putString("profile_name", "Returning student").commit()
         showApp()
-        listOf("limits", "plan", "study", "practice", "settings", "tutorial", "setup").forEach { route ->
+        listOf("focus", "plan", "study", "practice", "limits", "statistics").forEach { route ->
             compose.onNodeWithTag("home_action_$route").performScrollTo().performClick()
             compose.onNodeWithTag("screen_$route").assertIsDisplayed()
             compose.onNodeWithTag("tab_home").performClick()

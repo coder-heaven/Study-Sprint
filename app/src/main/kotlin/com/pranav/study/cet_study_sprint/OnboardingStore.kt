@@ -18,7 +18,13 @@ internal object OnboardingStore {
             .putString("exam", course).putString("grade", grade)
             .putBoolean("onboarding_v3", true).putBoolean("initial_setup_pending", true).commit()
 
+    fun setupStep(prefs: SharedPreferences): Int = prefs.getInt("initial_setup_step", 0)
+
+    fun saveSetupStep(prefs: SharedPreferences, step: Int): Boolean = prefs.edit()
+        .putInt("initial_setup_step", step.coerceIn(0, 4)).commit()
+
     fun finishSetup(prefs: SharedPreferences): Boolean = prefs.edit()
+        .remove("initial_setup_step")
         .putBoolean("initial_setup_pending", false).putBoolean("initial_tutorial_pending", true).commit()
 
     fun finishTutorial(prefs: SharedPreferences): Boolean = prefs.edit()
