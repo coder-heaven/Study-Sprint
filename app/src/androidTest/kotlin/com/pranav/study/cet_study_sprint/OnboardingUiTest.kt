@@ -38,9 +38,7 @@ class OnboardingUiTest {
         compose.onNodeWithTag("terms_continue").performScrollTo().assertIsEnabled().performClick()
         compose.waitUntil(5_000) { OnboardingStore.stage(prefs) == StartupStage.PROFILE }
         compose.onNodeWithTag("login_3d_art").assertExists()
-        val loginProof = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES), "StudySprintUi/login-light.png")
-        loginProof.parentFile?.mkdirs()
-        loginProof.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        saveUiProof(compose.activity, compose.onRoot().captureToImage().asAndroidBitmap(), "login-light")
         compose.onNodeWithText("Continue as guest").performScrollTo().performClick()
         compose.waitUntil(15_000) { compose.onAllNodesWithTag("setup_screen").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("setup_continue").assertIsDisplayed().performClick()

@@ -2,8 +2,6 @@ package com.pranav.study.cet_study_sprint
 
 import android.app.Application
 import android.content.Context
-import android.graphics.Bitmap
-import android.os.Environment
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
@@ -21,8 +19,7 @@ class StudyChatUiTest {
     private val key = "sk-or-v1-" + "a".repeat(64)
     private val prefs get() = compose.activity.getSharedPreferences("study_chat_ui_test", Context.MODE_PRIVATE)
     private fun capture(name: String) {
-        val directory = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "StudySprintUi").apply { mkdirs() }
-        File(directory, "$name.png").outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
+        saveUiProof(compose.activity, compose.onRoot().captureToImage().asAndroidBitmap(), name)
     }
     private fun fakeStorage() = object : ChatKeyStorage {
         private var saved: String? = key
