@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.test.espresso.Espresso
 import kotlinx.coroutines.awaitCancellation
 import org.junit.Assert.*
 import org.junit.Rule
@@ -59,6 +60,7 @@ class StudyChatUiTest {
         })
         show(vm)
         compose.onNodeWithTag("chat_input").performTextInput("What is 2 + 2?")
+        Espresso.closeSoftKeyboard()
         compose.onNodeWithTag("chat_send").performClick()
         compose.waitUntil(5000) { vm.state.value.canRetry }
         compose.onNodeWithTag("chat_retry").assertIsDisplayed().performClick()
@@ -74,6 +76,7 @@ class StudyChatUiTest {
         val vm = model(StudyChatTransport { _, _ -> if (calls.incrementAndGet() == 1) awaitCancellation() else "Ready again." })
         show(vm)
         compose.onNodeWithTag("chat_input").performTextInput("Help me study")
+        Espresso.closeSoftKeyboard()
         compose.onNodeWithTag("chat_send").performClick()
         compose.waitUntil(5000) { vm.state.value.busy && calls.get() == 1 }
         compose.onNodeWithText("Stop", useUnmergedTree = true).assertIsDisplayed().performClick()
@@ -93,6 +96,7 @@ class StudyChatUiTest {
         capture("chat-empty-dark")
         compose.onNodeWithTag("chat_key_settings").performClick()
         compose.onNodeWithTag("chat_key_input").performTextInput("invalid-key")
+        Espresso.closeSoftKeyboard()
         compose.onNodeWithTag("chat_save_key").performClick()
         compose.onNodeWithText("Enter a valid OpenRouter API key starting with sk-or-v1-.").assertExists()
         assertNull(ChatKeyVault(compose.activity).read())
