@@ -484,26 +484,25 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
 
 @Composable
 internal fun AppHeading(title: String, subtitle: String? = null, trailing: @Composable (() -> Unit)? = null) {
-    Surface(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-        shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
-        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium)
-            }
-            trailing?.invoke()
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 18.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground)
+            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        trailing?.invoke()
     }
 }
 
 @Composable
 internal fun StudyCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
-        Column(Modifier.padding(18.dp)) { content() }
+        Column(Modifier.padding(16.dp)) { content() }
     }
 }
 
@@ -553,49 +552,55 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
             Column(Modifier.weight(1f)) {
                 Text("Welcome back", style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text(name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             }
-            ProfileAvatar(name, 44.dp) { go("profile") }
+            ProfileAvatar(name, 48.dp) { go("profile") }
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(20.dp))
+        BlueHeroCard {
+            Text("TODAY'S FOCUS", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.85f))
+            Spacer(Modifier.height(12.dp))
+            Text("${totals.focusedMinutes} min", style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold, color = Color.White)
+            Text("of ${prefs.getInt("daily_focus_goal", 120)} min daily goal", color = Color.White.copy(alpha = 0.85f))
+            Spacer(Modifier.height(16.dp))
+            LinearProgressIndicator(progress = {
+                (totals.focusedMinutes.toFloat() / prefs.getInt("daily_focus_goal", 120).coerceAtLeast(1)).coerceIn(0f, 1f)
+            }, modifier = Modifier.fillMaxWidth(), color = Color.White,
+                trackColor = Color.White.copy(alpha = 0.25f))
+            Spacer(Modifier.height(20.dp))
+            Button(onClick = { go("focus") }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = BrandBlue)) {
+                Text("Start focus", fontWeight = FontWeight.Bold)
+            }
+        }
         HomeShortcuts(go)
-        Spacer(Modifier.height(16.dp))
-        Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-            Column(Modifier.padding(20.dp)) {
-                Text("MAKE ROOM FOR FOCUS", style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(8.dp))
-                Text("One session. One clear goal.", style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(8.dp))
-                Text("${totals.focusedMinutes} of ${prefs.getInt("daily_focus_goal", 120)} minutes today",
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = { go("focus") }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Start focus") }
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        StudyCard(Modifier.clickable { go(if (savedQuestions(prefs).isEmpty()) "practice" else "my_quiz") }) {
-            Text("Continue studying", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(if (savedQuestions(prefs).isEmpty()) "Try a short concept practice session"
-                else "${prefs.getString("owned_mcqs_chapter", "My questions")} · ${savedQuestions(prefs).size} questions",
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Open practice →", color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
-        }
-        SectionLabel("Today")
+        SectionLabel("At a glance")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MetricCard("${totals.focusedMinutes}m", "of ${prefs.getInt("daily_focus_goal", 120)}m", Modifier.weight(1f))
             MetricCard("${tasks.size}", "Tasks left", Modifier.weight(1f))
             MetricCard("${totals.questions}", "Questions", Modifier.weight(1f))
         }
         Text("$streak-day study streak", style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionLabel("Next task")
-        StudyCard {
-            Text(tasks.firstOrNull() ?: "Your plan is clear. Add a task when you're ready.",
-                style = MaterialTheme.typography.bodyLarge)
-            TextButton(onClick = { go("plan") }) { Text(if (tasks.isEmpty()) "Add a task" else "Open plan") }
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
+        SectionLabel("Continue")
+        StudyCard(Modifier.clickable { go("plan") }) {
+            Text("Next task", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary)
+            Text(tasks.firstOrNull() ?: "Add your first study task", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
+            Text(if (tasks.isEmpty()) "Make a plan →" else "Open plan →", color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 10.dp))
+        }
+        Spacer(Modifier.height(10.dp))
+        StudyCard(Modifier.clickable { go(if (savedQuestions(prefs).isEmpty()) "practice" else "my_quiz") }) {
+            Text("Practice", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(if (savedQuestions(prefs).isEmpty()) "Try a quick quiz"
+                else "${prefs.getString("owned_mcqs_chapter", "My questions")} · ${savedQuestions(prefs).size} questions",
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 6.dp))
+            Text("Open practice →", color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 10.dp))
         }
         SectionLabel("Your exam goal")
         StudyCard(Modifier.clickable { go("profile") }) {

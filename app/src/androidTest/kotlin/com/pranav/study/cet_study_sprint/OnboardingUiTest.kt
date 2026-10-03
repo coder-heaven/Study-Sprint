@@ -55,6 +55,8 @@ class OnboardingUiTest {
     @Test fun homeShortcutsOpenMainFeaturesAndTutorialCanBeReplayed() {
         prefs.edit().clear().putBoolean("onboarding_v3", true).putString("profile_name", "Returning student").commit()
         showApp()
+        compose.onNodeWithTag("screen_home").assertIsDisplayed()
+        compose.onNodeWithText("At a glance").assertExists()
         listOf("focus", "plan", "study", "practice", "limits", "statistics").forEach { route ->
             compose.onNodeWithTag("home_action_$route").performScrollTo().performClick()
             compose.onNodeWithTag("screen_$route").assertIsDisplayed()
