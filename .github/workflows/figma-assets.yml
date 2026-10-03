@@ -26,6 +26,20 @@ jobs:
           rsvg-convert design-assets/originals/figma_task_glow_soft.svg -o design-assets/drawable/figma_task_glow_soft.png
           curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/efc5ea17-b757-446e-84d9-7e8a7fe1d6a8/0a6dd.svg' -o design-assets/originals/figma_task_glow_near.svg
           rsvg-convert design-assets/originals/figma_task_glow_near.svg -o design-assets/drawable/figma_task_glow_near.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/3edf9574-596f-4e22-9917-e604a5fd07d1/ba358.svg' -o design-assets/originals/figma_play.svg
+          rsvg-convert design-assets/originals/figma_play.svg -o design-assets/drawable/figma_play.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/efc5ea17-b757-446e-84d9-7e8a7fe1d6a8/ad01e.svg' -o design-assets/originals/figma_suggestion.svg
+          rsvg-convert design-assets/originals/figma_suggestion.svg -o design-assets/drawable/figma_suggestion.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/efc5ea17-b757-446e-84d9-7e8a7fe1d6a8/b19f9.svg' -o design-assets/originals/figma_task_play.svg
+          rsvg-convert design-assets/originals/figma_task_play.svg -o design-assets/drawable/figma_task_play.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b53e1dac-ee10-419a-a376-3ccc9d14ce4f/60cb7.svg' -o design-assets/originals/figma_chevron.svg
+          rsvg-convert design-assets/originals/figma_chevron.svg -o design-assets/drawable/figma_chevron.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b53e1dac-ee10-419a-a376-3ccc9d14ce4f/698b9.svg' -o design-assets/originals/figma_dark_mode.svg
+          rsvg-convert design-assets/originals/figma_dark_mode.svg -o design-assets/drawable/figma_dark_mode.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b53e1dac-ee10-419a-a376-3ccc9d14ce4f/e664f.svg' -o design-assets/originals/figma_sound.svg
+          rsvg-convert design-assets/originals/figma_sound.svg -o design-assets/drawable/figma_sound.png
+          curl --fail -L --max-time 30 'https://www.figma.com/api/mcp/asset/b53e1dac-ee10-419a-a376-3ccc9d14ce4f/5412c.svg' -o design-assets/originals/figma_logout.svg
+          rsvg-convert design-assets/originals/figma_logout.svg -o design-assets/drawable/figma_logout.png
       - uses: actions/upload-artifact@v4
         with:
           name: focusiq-design-assets
