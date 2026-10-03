@@ -8,7 +8,7 @@ internal object StudyNavigation {
 
     fun tabFor(route: String): String? = when (route) {
         "home" -> "home"
-        "study", "syllabus", "practice", "arihant", "mcq_editor", "my_quiz", "notes" -> "study"
+        "study", "syllabus", "practice", "arihant", "mcq_editor", "my_quiz", "notes", "chat" -> "study"
         "focus", "limits" -> "focus"
         "plan" -> "plan"
         "statistics", "leaderboard", "study_history", "focus_history", "app_usage" -> "statistics"
