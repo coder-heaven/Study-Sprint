@@ -161,14 +161,14 @@ internal fun StudyTheme(prefs: SharedPreferences, revision: Int, content: @Compo
         onSecondaryContainer = Color(0xFFD3F2E5),
         tertiary = Color(0xFF77DEC3),
         onTertiary = Color(0xFF00392B),
-        background = Color(0xFF080909),
+        background = Color(0xFF0B1411),
         onBackground = Color.White,
-        surface = Color(0xFF0D0D0D),
+        surface = Color(0xFF14201B),
         onSurface = Color.White,
-        surfaceVariant = Color(0xFF1E1E1E),
+        surfaceVariant = Color(0xFF1E3027),
         onSurfaceVariant = Color(0xFFACB6B2),
         outline = Color(0xFF6D8A7F),
-        outlineVariant = Color(0xFF01271B),
+        outlineVariant = Color(0xFF28483A),
         error = Color(0xFFFFB4AB),
         errorContainer = Color(0xFF93000A),
         onErrorContainer = Color(0xFFFFDAD6)
@@ -325,7 +325,9 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text(when (route) {
+                    title = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Image(painterResource(R.drawable.study_sprint_logo_v110), null, Modifier.size(28.dp))
+                        Text(when (route) {
                         "home" -> "Today"
                         "study" -> "Study"
                         "statistics" -> "Progress"
@@ -341,7 +343,8 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         "tutorial" -> "How to use Study Sprint"
                         else -> route.replace('_', ' ').replaceFirstChar { it.uppercase() }
                     },
-                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) },
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) } },
                     navigationIcon = {
                         if (route in primary) IconButton(onClick = { scope.launch { drawer.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "All features")
@@ -386,7 +389,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.primary,
                                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    indicatorColor = MaterialTheme.colorScheme.surface
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
                                 )
                             )
                         }
@@ -489,14 +492,14 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
 @Composable
 internal fun AppHeading(title: String, subtitle: String? = null, trailing: @Composable (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 18.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground)
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        trailing?.invoke()
+        if (trailing != null) trailing() else FeatureArtwork(headingArtwork(title))
     }
 }
 
@@ -514,7 +517,7 @@ internal fun StudyCard(modifier: Modifier = Modifier, content: @Composable () ->
 internal fun BlueHeroCard(content: @Composable ColumnScope.() -> Unit) {
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF0D3E33), Color(0xFF0D0D0D))))
+            .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.surface)))
     ) {
         Column(Modifier.padding(20.dp), content = content)
     }
@@ -546,7 +549,7 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
     val goal = prefs.getInt("daily_focus_goal", 120).coerceAtLeast(1)
     val progress = (totals.focusedMinutes.toFloat() / goal).coerceIn(0f, 1f)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-        .padding(horizontal = 32.dp, vertical = 16.dp)) {
+        .padding(horizontal = 20.dp, vertical = 16.dp)) {
         FocusIqHeader(prefs, "Welcome back", go)
         Spacer(Modifier.height(24.dp))
         StudyCard {
@@ -558,14 +561,16 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
                     Spacer(Modifier.height(16.dp))
                     FocusIqTaskButton { go("plan") }
                 }
-                Box(Modifier.size(76.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.primary, trackColor = Color(0xFF74857F), strokeWidth = 7.dp)
-                    Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
-                }
+                FeatureArtwork(R.drawable.art_focus_3d, 88.dp)
             }
+            Spacer(Modifier.height(14.dp))
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(6.dp),
+                color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
+            Text("${(progress * 100).toInt()}% of your ${goal} min daily goal",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp))
         }
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(18.dp))
         StudyCard {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Image(painterResource(R.drawable.figma_suggestion), contentDescription = null, modifier = Modifier.size(24.dp),

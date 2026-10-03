@@ -213,8 +213,11 @@ internal fun FocusScreen(
     ) {
         FocusIqHeader(prefs, "Your focus space", onLegacy)
         Spacer(Modifier.height(if (compact) 12.dp else 24.dp))
-        Text(if (state.isBreak) "BREAK" else "TIMER", fontSize = if (compact) 28.sp else 32.sp,
-            lineHeight = if (compact) 36.sp else 40.sp, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FeatureArtwork(R.drawable.art_focus_3d, if (compact) 36.dp else 40.dp)
+            Text(if (state.isBreak) "BREAK" else "TIMER", fontSize = if (compact) 28.sp else 32.sp,
+                lineHeight = if (compact) 36.sp else 40.sp, fontWeight = FontWeight.Medium)
+        }
         Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         if (state.completedMinutes != null) {
             StudyCard {
@@ -274,7 +277,9 @@ internal fun FocusScreen(
         }
         Spacer(Modifier.height(16.dp))
         StudyCard(Modifier.testTag("focus_protection_card")) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FeatureArtwork(R.drawable.art_protection_3d, 40.dp)
                 Column(Modifier.weight(1f)) {
                     Text("Block distracting apps", style = MaterialTheme.typography.titleSmall)
                     Text("Limited apps + focus-only selections", style = MaterialTheme.typography.bodySmall,
