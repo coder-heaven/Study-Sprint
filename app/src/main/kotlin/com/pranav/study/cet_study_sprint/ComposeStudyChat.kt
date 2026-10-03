@@ -83,18 +83,17 @@ internal fun StudyChatContent(
                     }
                 }
             }
-            if (state.busy) item {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text("Preparing your answer…", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                    TextButton(onClick = stop) { Text("Stop") }
-                }
-            }
             if (state.error != null) item {
                 Text(state.error, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("chat_error"))
                 if (state.canRetry) OutlinedButton(onClick = retry, enabled = !state.busy && !state.keyBusy,
                     modifier = Modifier.testTag("chat_retry")) { Text("Retry") }
             }
+        }
+        if (state.busy) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            Text("Preparing your answer…", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = stop) { Text("Stop") }
         }
         if (state.messages.isNotEmpty()) TextButton(onClick = clear, modifier = Modifier.align(Alignment.End)) { Text("New chat") }
         Surface(color = MaterialTheme.colorScheme.surface) {
