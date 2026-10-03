@@ -384,7 +384,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                                 selected = selectedTab == item.route,
                                 onClick = { go(item.route) },
                                 icon = { Icon(painterResource(res), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                                label = { Text(item.label, style = MaterialTheme.typography.labelMedium, maxLines = 1) },
+                                label = { Text(item.label, style = MaterialTheme.typography.labelMedium, fontSize = 10.sp, letterSpacing = 0.sp, maxLines = 1) },
                                 alwaysShowLabel = true,
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.primary,
