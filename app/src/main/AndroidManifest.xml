@@ -19,8 +19,8 @@
 
     <application
         android:label="Study Sprint"
-        android:icon="@drawable/study_sprint_logo_v110"
-        android:roundIcon="@drawable/study_sprint_logo_v110"
+        android:icon="@mipmap/ic_study_sprint"
+        android:roundIcon="@mipmap/ic_study_sprint"
         android:allowBackup="true"
         android:usesCleartextTraffic="false">
         <provider android:name="androidx.core.content.FileProvider"
