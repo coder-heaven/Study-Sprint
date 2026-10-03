@@ -6,14 +6,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,6 +35,8 @@ internal fun StudyChatContent(
 ) {
     var draft by remember { mutableStateOf("") }
     var keyDialog by remember { mutableStateOf(false) }
+    val keyboard = LocalSoftwareKeyboardController.current
+    fun submit() { if (send(draft)) { draft = ""; keyboard?.hide() } }
     val list = rememberLazyListState()
     LaunchedEffect(state.messages.size, state.busy, state.error) {
         if (list.layoutInfo.totalItemsCount > 0) list.animateScrollToItem(list.layoutInfo.totalItemsCount - 1)
@@ -97,8 +102,10 @@ internal fun StudyChatContent(
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(draft, { draft = it.take(StudyChatClient.MAX_PROMPT + 1) },
                         label = { Text("Ask a study question") }, maxLines = 4,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { submit() }),
                         modifier = Modifier.weight(1f).testTag("chat_input"))
-                    Button(onClick = { if (send(draft)) draft = "" }, enabled = state.ready && state.keyConfigured &&
+                    Button(onClick = { submit() }, enabled = state.ready && state.keyConfigured &&
                         !state.busy && !state.keyBusy && draft.isNotBlank(),
                         modifier = Modifier.heightIn(min = 56.dp).testTag("chat_send"), contentPadding = PaddingValues(12.dp)) { Text("Send") }
                 }
@@ -115,6 +122,7 @@ private fun ChatKeyDialog(state: ChatUiState, save: (String) -> Unit, remove: ()
     // Never put credentials in saved instance state, preferences, logging or backups.
     var key by remember { mutableStateOf("") }
     var submitted by remember { mutableStateOf(false) }
+    val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(state.keyBusy, state.keyConfigured, state.keyError) {
         if (submitted && !state.keyBusy && state.keyConfigured && state.keyError == null) { key = ""; close() }
     }
@@ -131,7 +139,7 @@ private fun ChatKeyDialog(state: ChatUiState, save: (String) -> Unit, remove: ()
                     modifier = Modifier.testTag("chat_remove_key")) { Text("Remove saved key and clear chat") }
             }
         }, confirmButton = {
-            TextButton(onClick = { submitted = true; save(key) }, enabled = key.isNotBlank() && !state.keyBusy,
+            TextButton(onClick = { keyboard?.hide(); submitted = true; save(key) }, enabled = key.isNotBlank() && !state.keyBusy,
                 modifier = Modifier.testTag("chat_save_key")) { Text(if (state.keyBusy) "Saving…" else "Save key") }
         }, dismissButton = { TextButton(onClick = close, enabled = !state.keyBusy) { Text("Close") } })
 }
