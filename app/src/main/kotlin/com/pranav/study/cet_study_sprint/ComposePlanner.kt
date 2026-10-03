@@ -56,9 +56,14 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
         FocusIqHeader(prefs, "My Tasks", go)
         Spacer(Modifier.height(15.dp))
         StudyCard {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("$completed done", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("${tasks.size} next steps", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FeatureArtwork(R.drawable.art_study_3d, 64.dp)
+                Column(Modifier.weight(1f)) {
+                    Text("$completed done", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("${tasks.size} next steps", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary)
+                }
             }
             Spacer(Modifier.height(10.dp))
             LinearProgressIndicator(progress = { completed.toFloat() / (completed + tasks.size).coerceAtLeast(1) },

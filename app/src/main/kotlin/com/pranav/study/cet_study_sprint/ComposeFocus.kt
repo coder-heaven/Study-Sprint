@@ -203,7 +203,7 @@ internal fun FocusScreen(
     val ringColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
     BoxWithConstraints(Modifier.fillMaxSize()) {
     // Keep the primary action visible on short screens while retaining the
-    // reference's full-size ring on taller devices.
+    // full-size centered ring on taller devices.
     val compact = maxHeight < 520.dp
     val ringSize = (maxHeight - if (compact) 280.dp else 330.dp).coerceIn(100.dp, 300.dp)
     Column(
@@ -213,8 +213,11 @@ internal fun FocusScreen(
     ) {
         FocusIqHeader(prefs, "Your focus space", onLegacy)
         Spacer(Modifier.height(if (compact) 12.dp else 24.dp))
-        Text(if (state.isBreak) "BREAK" else "TIMER", fontSize = if (compact) 28.sp else 32.sp,
-            lineHeight = if (compact) 36.sp else 40.sp, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FeatureArtwork(R.drawable.art_focus_3d, if (compact) 36.dp else 40.dp)
+            Text(if (state.isBreak) "BREAK" else "TIMER", fontSize = if (compact) 28.sp else 32.sp,
+                lineHeight = if (compact) 36.sp else 40.sp, fontWeight = FontWeight.Medium)
+        }
         Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         if (state.completedMinutes != null) {
             StudyCard {
@@ -239,24 +242,37 @@ internal fun FocusScreen(
                     label = { Text("$minutes", fontSize = 12.sp, maxLines = 1) })
             }
         }
-        BoxWithConstraints(Modifier.widthIn(max = ringSize).fillMaxWidth().aspectRatio(1f),
-            contentAlignment = Alignment.Center) {
-            val timerFontSize = (maxWidth.value * 0.20f).coerceAtMost(56f).sp
-            Image(painterResource(R.drawable.figma_timer_ring), contentDescription = null, modifier = Modifier.fillMaxSize())
+        BoxWithConstraints(Modifier.widthIn(max = ringSize).fillMaxWidth().aspectRatio(1f)
+            .testTag("focus_clock"), contentAlignment = Alignment.Center) {
+            val timerFontSize = (maxWidth.value * 0.23f).coerceIn(22f, 56f).sp
+            val statusFontSize = (maxWidth.value * 0.065f).coerceIn(11f, 14f).sp
+            val faceColor = MaterialTheme.colorScheme.surface
+            val trackColor = MaterialTheme.colorScheme.primaryContainer
             Canvas(Modifier.fillMaxSize()) {
-                val stroke = 4.dp.toPx()
-                drawArc(ringColor, startAngle = -90f, sweepAngle = 360f * progress.coerceIn(0f, 1f),
-                    useCenter = false,
-                    topLeft = androidx.compose.ui.geometry.Offset(size.width * 36.033f / 299.067f, size.height * 21.767f / 299.067f),
-                    size = androidx.compose.ui.geometry.Size(size.width * 227f / 299.067f, size.height * 227f / 299.067f),
+                val stroke = 6.dp.toPx()
+                val inset = 8.dp.toPx() + stroke / 2f
+                val diameter = size.minDimension - 2f * inset
+                val origin = androidx.compose.ui.geometry.Offset(
+                    (size.width - diameter) / 2f, (size.height - diameter) / 2f)
+                drawCircle(color = faceColor, radius = diameter / 2f)
+                drawCircle(color = trackColor, radius = diameter / 2f, style = Stroke(stroke))
+                if (progress > 0f) drawArc(ringColor, startAngle = -90f,
+                    sweepAngle = 360f * progress.coerceIn(0f, 1f), useCenter = false,
+                    topLeft = origin, size = androidx.compose.ui.geometry.Size(diameter, diameter),
                     style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }
-            Column(Modifier.offset(y = (-maxWidth.value * 14.267f / 299.067f).dp),
-                horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.widthIn(max = maxWidth * 0.76f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text("%02d:%02d".format(state.remainingSeconds / 60, state.remainingSeconds % 60),
-                    fontSize = timerFontSize, maxLines = 1, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
-                Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+                    modifier = Modifier.testTag("focus_countdown"),
+                    fontSize = timerFontSize, lineHeight = timerFontSize * 1.1f,
+                    maxLines = 1, fontWeight = FontWeight.SemiBold,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
+                    color = MaterialTheme.colorScheme.onSurface)
+                Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = statusFontSize,
+                    maxLines = 1, textAlign = TextAlign.Center)
             }
         }
         Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
@@ -274,7 +290,9 @@ internal fun FocusScreen(
         }
         Spacer(Modifier.height(16.dp))
         StudyCard(Modifier.testTag("focus_protection_card")) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FeatureArtwork(R.drawable.art_protection_3d, 40.dp)
                 Column(Modifier.weight(1f)) {
                     Text("Block distracting apps", style = MaterialTheme.typography.titleSmall)
                     Text("Limited apps + focus-only selections", style = MaterialTheme.typography.bodySmall,

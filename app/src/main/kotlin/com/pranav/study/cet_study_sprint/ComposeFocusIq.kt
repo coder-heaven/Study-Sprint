@@ -17,7 +17,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
 
 private val Poppins = FontFamily(
@@ -45,8 +47,8 @@ internal val FocusIqTypography = Typography(
 )
 
 /** Native counterpart of the reference's emerald card shadows. */
-internal fun Modifier.focusIqGlow() = shadow(8.dp, RoundedCornerShape(24.dp), clip = false,
-    ambientColor = Color(0xFF07AE88), spotColor = Color(0xFF07AE88))
+internal fun Modifier.focusIqGlow() = shadow(5.dp, RoundedCornerShape(24.dp), clip = false,
+    ambientColor = Color(0x2207AE88), spotColor = Color(0x3307AE88))
 
 @Composable
 internal fun FocusIqHeader(prefs: SharedPreferences, greeting: String, go: (String) -> Unit) {
@@ -73,11 +75,12 @@ internal fun FocusIqHeader(prefs: SharedPreferences, greeting: String, go: (Stri
 @Composable
 internal fun FocusIqButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(modifier = modifier.fillMaxWidth().focusIqGlow().clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)) {
+        shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary) {
         Row(Modifier.heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            Image(painterResource(R.drawable.figma_play), null, Modifier.size(24.dp))
+            Image(painterResource(R.drawable.figma_play), null, Modifier.size(24.dp),
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onPrimary))
             Spacer(Modifier.width(10.dp))
             Text(label, style = MaterialTheme.typography.bodyMedium)
         }
@@ -95,4 +98,23 @@ internal fun FocusIqTaskButton(onClick: () -> Unit) {
             Box(contentAlignment = Alignment.Center) { Text("View Task", fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
         }
     }
+}
+
+
+/** Decorative imagery stays outside functional controls and carries no duplicate accessibility label. */
+@Composable
+internal fun FeatureArtwork(resource: Int, size: Dp = 72.dp, modifier: Modifier = Modifier) {
+    Image(painterResource(resource), contentDescription = null,
+        modifier = modifier.size(size), contentScale = ContentScale.Fit)
+}
+
+internal fun headingArtwork(title: String): Int = when {
+    title.contains("privacy", true) || title.contains("terms", true) ||
+        title.contains("limit", true) || title.contains("protection", true) -> R.drawable.art_protection_3d
+    title.contains("progress", true) || title.contains("history", true) ||
+        title.contains("leaderboard", true) || title.contains("complete", true) -> R.drawable.art_progress_3d
+    title.contains("focus", true) || title.contains("timer", true) -> R.drawable.art_focus_3d
+    title.contains("profile", true) || title.contains("settings", true) ||
+        title.contains("welcome", true) || title.contains("set up", true) -> R.drawable.study_sprint_logo_v110
+    else -> R.drawable.art_study_3d
 }

@@ -57,12 +57,13 @@ internal fun HomeShortcuts(go: (String) -> Unit) {
                     ) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(38.dp)) {
-                                Text(label.take(1), modifier = Modifier.padding(top = 8.dp),
-                                    textAlign = TextAlign.Center, fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            }
+                            FeatureArtwork(when (route) {
+                                "limits", "setup" -> R.drawable.art_protection_3d
+                                "statistics", "leaderboard" -> R.drawable.art_progress_3d
+                                "focus" -> R.drawable.art_focus_3d
+                                "tutorial" -> R.drawable.study_sprint_logo_v110
+                                else -> R.drawable.art_study_3d
+                            }, 40.dp)
                             Text(label, style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         }

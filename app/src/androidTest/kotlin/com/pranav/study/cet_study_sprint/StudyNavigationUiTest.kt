@@ -57,6 +57,13 @@ class StudyNavigationUiTest {
             val startBounds = compose.onNodeWithTag("focus_start").fetchSemanticsNode().boundsInRoot
             org.junit.Assert.assertTrue("The entire Start Focus button must fit above navigation",
                 startBounds.height >= 63f * compose.activity.resources.displayMetrics.density)
+            val clockBounds = compose.onNodeWithTag("focus_clock").fetchSemanticsNode().boundsInRoot
+            val countdownBounds = compose.onNodeWithTag("focus_countdown").fetchSemanticsNode().boundsInRoot
+            org.junit.Assert.assertTrue("Countdown must stay centered inside the circle",
+                kotlin.math.abs(clockBounds.center.x - countdownBounds.center.x) <= compose.activity.resources.displayMetrics.density)
+            org.junit.Assert.assertTrue("Countdown must fit completely inside the focus circle",
+                countdownBounds.left > clockBounds.left && countdownBounds.right < clockBounds.right &&
+                    countdownBounds.top > clockBounds.top && countdownBounds.bottom < clockBounds.bottom)
             capture("focusiq-timer-dark")
             compose.onNodeWithTag("focus_protection_card").performScrollTo()
             compose.onNodeWithTag("focus_block_toggle").assertIsOn()

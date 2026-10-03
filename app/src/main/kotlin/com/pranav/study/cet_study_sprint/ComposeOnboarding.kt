@@ -114,7 +114,7 @@ internal fun InitialSetupScreen(prefs: SharedPreferences, go: (String) -> Unit, 
         } else if (step in 1..4) {
             val task = tasks[step - 1]
             val ready = task.ready(context)
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 AppHeading("Set up your phone", "Step $step of 5")
                 LinearProgressIndicator({ step / 5f }, Modifier.fillMaxWidth())
                 StudyCard {
@@ -125,9 +125,14 @@ internal fun InitialSetupScreen(prefs: SharedPreferences, go: (String) -> Unit, 
                     Text("When you return, this screen stays open and refreshes automatically.", style = MaterialTheme.typography.bodySmall)
                 }
                 if (error.isNotEmpty()) Text(error, color = MaterialTheme.colorScheme.error)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { saveStep(if (step == 4) 5 else step + 1) }, Modifier.weight(1f).testTag("setup_skip_${step}")) { Text("Skip") }
-                    Button(onClick = { saveStep(if (step == 4) 5 else step + 1) }, Modifier.weight(1f)) { Text(if (step == 4) "Finish settings" else "Next") }
+            }
+            Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 4.dp) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { saveStep(if (step == 4) 5 else step + 1) },
+                        Modifier.weight(1f).heightIn(min = 48.dp).testTag("setup_skip_${step}")) { Text("Skip") }
+                    Button(onClick = { saveStep(if (step == 4) 5 else step + 1) },
+                        Modifier.weight(1f).heightIn(min = 48.dp)) { Text(if (step == 4) "Finish settings" else "Next") }
                 }
             }
         } else {
