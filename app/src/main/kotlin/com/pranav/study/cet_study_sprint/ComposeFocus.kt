@@ -204,16 +204,18 @@ internal fun FocusScreen(
     BoxWithConstraints(Modifier.fillMaxSize()) {
     // Keep the primary action visible on short screens while retaining the
     // reference's full-size ring on taller devices.
-    val ringSize = (maxHeight - 330.dp).coerceIn(180.dp, 300.dp)
+    val compact = maxHeight < 520.dp
+    val ringSize = (maxHeight - if (compact) 280.dp else 330.dp).coerceIn(100.dp, 300.dp)
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         FocusIqHeader(prefs, "Your focus space", onLegacy)
-        Spacer(Modifier.height(24.dp))
-        Text(if (state.isBreak) "BREAK" else "TIMER", fontSize = 32.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(if (compact) 12.dp else 24.dp))
+        Text(if (state.isBreak) "BREAK" else "TIMER", fontSize = if (compact) 28.sp else 32.sp,
+            lineHeight = if (compact) 36.sp else 40.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         if (state.completedMinutes != null) {
             StudyCard {
                 Text("Session complete", style = MaterialTheme.typography.titleLarge, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
@@ -234,7 +236,7 @@ internal fun FocusScreen(
             listOf(25, 45, 60, 90).forEach { minutes ->
                 FilterChip(selected = state.focusMinutes == minutes, onClick = { model.duration(minutes) },
                     modifier = Modifier.weight(1f),
-                    label = { Text("${minutes}m", fontSize = 12.sp, maxLines = 1) })
+                    label = { Text("$minutes", fontSize = 12.sp, maxLines = 1) })
             }
         }
         BoxWithConstraints(Modifier.widthIn(max = ringSize).fillMaxWidth().aspectRatio(1f),
@@ -257,7 +259,7 @@ internal fun FocusScreen(
                 Text(if (state.active) if (state.running) if (state.isBreak) "On break" else "Focusing" else "Paused" else "Ready to begin", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
         FocusIqButton(when { !state.active -> "Start Focus"; state.running -> "Pause"; else -> "Resume" },
             Modifier.testTag("focus_start")) {
             when {
