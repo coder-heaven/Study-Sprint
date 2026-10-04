@@ -107,6 +107,6 @@ internal fun headingArtwork(title: String): Int = when {
         title.contains("leaderboard", true) || title.contains("complete", true) -> R.drawable.art_progress_3d
     title.contains("focus", true) || title.contains("timer", true) -> R.drawable.art_focus_3d
     title.contains("profile", true) || title.contains("settings", true) ||
-        title.contains("welcome", true) || title.contains("set up", true) -> R.drawable.ic_launcher
+        title.contains("welcome", true) || title.contains("set up", true) -> R.drawable.study_sprint_logo_emerald
     else -> R.drawable.art_study_3d
 }
