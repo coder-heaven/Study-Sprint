@@ -106,7 +106,8 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                         if (message.photoCount > 0) Text("${message.photoCount} photo${if (message.photoCount == 1) "" else "s"} attached", style = MaterialTheme.typography.labelSmall)
                         if (user) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
                         else {
-                            ChatMarkdown(message.content, Modifier.fillMaxWidth())
+                            if (message.quiz) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
+                            else ChatMarkdown(message.content, Modifier.fillMaxWidth())
                             if (message.sources.isNotBlank()) { Text("Question sources", fontWeight = FontWeight.Bold); ChatMarkdown(message.sources, Modifier.fillMaxWidth()) }
                             if (message.suggestions.isNotBlank()) GoogleSearchSuggestions(message.suggestions)
                             if (message.quiz) OutlinedButton(onClick = { startQuiz(message) }, enabled = !state.busy, modifier = Modifier.testTag("chat_start_web_quiz")) { Text("Start MCQ test") }
