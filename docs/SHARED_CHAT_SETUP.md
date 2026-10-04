@@ -33,3 +33,13 @@ The app generates up to two successful PDFs per device per local calendar day. A
 Set the existing service branch to `main` and deploy the latest commit. Existing environment overrides are retained by Render: set `CHAT_DAILY_LIMIT=1000`, `CHAT_USER_DAILY_LIMIT=100`, and `NVIDIA_DAILY_LIMIT=100`. All three NVIDIA models share one allowance; retain server-side identity/App Check verification. The old `KIMI_DAILY_LIMIT` setting is no longer used.
 
 Auto tries Nemotron, GPT-OSS 20B, GLM 5.3, then Kimi K3 on retryable errors. Students can explicitly select a model for text. Photo requests always use Kimi vision; GPT-OSS 20B and GLM 5.3 are text-only. Model IDs are `openai/gpt-oss-20b`, `z-ai/glm-5.3`, and `moonshotai/kimi-k3`. Kimi uses low reasoning effort and an 8,192-token budget. NVIDIA/provider account credits and rate limits remain provider-controlled; these settings raise only Study Sprint's own daily allowance.
+
+## Google image understanding and exam web MCQs (v4.9.3)
+
+Add `GEMINI_API_KEY` in the Render service's Environment page and choose Save, rebuild and deploy. Use a key from Google AI Studio. Never paste it into chat, source code, APK settings, or a tracked `.env` file. Existing NVIDIA/OpenRouter secrets stay unchanged. Google quotas and search pricing still apply; no paid subscription is enabled by this change.
+
+Gemini 2.5 Flash reads photos when configured, using a ten-question JSON schema with exactly four options for photo PDFs. Retryable Google failures fall back to Kimi; authorization errors ask the owner to fix setup. PDF bytes are still generated locally.
+
+Online MCQ mode retrieves 1–5 single-correct questions for the selected MHT-CET, JEE Main or NEET UG exam. It requires actual Google search queries, supporting citations and exam-specific source titles. Missing, mixed-exam or malformed results fail closed. The selected tutor may format the retrieved questions but cannot change their stems, choices or answers. Source links and Google's search suggestions accompany the result. Start MCQ test is optional and does not spend the photo-PDF allowance. Regular explanations do not require web search; direct MCQ requests also use retrieval.
+
+Live verification after supplying the private key: send one topic for each exam in online MCQ mode; check sources and all four options; start one optional test; generate one PDF from a clear photo; resend after reopening the app. Automated tests use mock provider responses and do not verify a live Google account's access or credits.

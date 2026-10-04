@@ -37,7 +37,7 @@ export function chatServer({ verify, reserve, keys, chat = runChat }) {
     } catch (error) {
       const code = error instanceof ChatError ? error.code : 'unavailable';
       // Never expose or log provider errors, credentials, questions or photos.
-      send(status[code] ?? 503, { error: { status: code.replaceAll('-', '_').toUpperCase() } });
+      send(status[code] ?? 503, { error: { status: code.replaceAll('-', '_').toUpperCase(), ...(error instanceof ChatError ? {message:error.message} : {}) } });
     } finally { active--; }
   });
 }

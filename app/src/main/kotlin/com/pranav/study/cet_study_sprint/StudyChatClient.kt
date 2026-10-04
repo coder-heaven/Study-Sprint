@@ -14,12 +14,13 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-internal data class ChatMessage(val role: String, val content: String, val photoCount: Int = 0, val model: String? = null)
-internal data class ChatReply(val answer: String, val model: String)
+internal data class ChatMessage(val role: String, val content: String, val photoCount: Int = 0, val model: String? = null, val quiz: Boolean = false, val sources: String = "", val suggestions: String = "")
+internal data class ChatReply(val answer: String, val model: String, val quiz: Boolean = false, val sources: String = "", val suggestions: String = "")
 internal data class ChatSession(val idToken: String, val appToken: String)
 internal class ChatProblem(message: String) : IOException(message)
 internal fun interface StudyChatTransport {
     suspend fun reply(messages: List<ChatMessage>, photos: List<ChatPhoto>): ChatReply
+    suspend fun replyWithOptions(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String, mode: String): ChatReply = replyWithModel(messages, photos, model)
     suspend fun replyWithModel(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String): ChatReply = reply(messages, photos)
 }
 internal class StudyChatClient(
@@ -42,15 +43,16 @@ internal class StudyChatClient(
         const val MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
         const val FALLBACK_MODEL = "moonshotai/kimi-k3"
         const val GPT_MODEL = "openai/gpt-oss-20b"
+        const val GEMINI_MODEL = "gemini-2.5-flash"
         const val GLM_MODEL = "z-ai/glm-5.3"
         val models = linkedMapOf("auto" to "Auto", MODEL to "Nemotron", FALLBACK_MODEL to "Kimi K3", GPT_MODEL to "GPT-OSS 20B", GLM_MODEL to "GLM 5.3")
-        fun modelName(model: String?) = models[model] ?: "AI"
+        fun modelName(model: String?) = if (model == GEMINI_MODEL) "Gemini Flash" else models[model] ?: "AI"
         fun introduction(model: String, exam: String) = when (model) {
             MODEL -> "Nemotron helps explain $exam concepts and work through study questions."
             FALLBACK_MODEL -> "Kimi K3 can read your study photos and help with $exam questions and photo MCQs."
             GPT_MODEL -> "GPT-OSS 20B helps with text-based $exam questions, worked solutions and revision."
             GLM_MODEL -> "GLM 5.3 helps break down text-based $exam concepts and practise question-solving."
-            else -> "Auto chooses an available study model for $exam. Photos use Kimi K3 vision."
+            else -> "Auto chooses an available study model for $exam. Photos prefer Gemini Flash when configured, with Kimi K3 backup."
         }
         const val MAX_PROMPT = 4000
         const val MAX_CONTEXT_MESSAGES = 20
@@ -63,14 +65,14 @@ internal class StudyChatClient(
             while (turns.size > 1 && turns.sumOf { it.content.length } > 24000) turns = turns.drop(1).dropWhile { it.role != "user" }
             return turns
         }
-        fun requestBody(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String = "auto", exam: String = "CET", grade: String = "11"): String {
+        fun requestBody(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String = "auto", exam: String = "CET", grade: String = "11", mode: String = "chat"): String {
             require(photos.size <= MAX_PHOTOS)
             require(messages.all { it.role == "user" || it.role == "assistant" })
             val turns = JSONArray()
             bounded(messages).forEach { turns.put(JSONObject().put("role", it.role).put("content", it.content)) }
             val images = JSONArray()
             photos.forEach { require(it.dataUrl.length <= 350000); images.put(it.dataUrl) }
-            return JSONObject().put("data", JSONObject().put("messages", turns).put("photos", images).put("model", model).put("exam", exam).put("grade", grade)).toString()
+            return JSONObject().put("data", JSONObject().put("messages", turns).put("photos", images).put("model", model).put("exam", exam).put("grade", grade).put("mode", mode)).toString()
         }
         fun statusMessage(code: Int): String = when (code) {
             401, 403 -> "Study Sprint could not verify this installation. Retry, or report this to the app owner."
@@ -84,20 +86,27 @@ internal class StudyChatClient(
                 val status = json.optJSONObject("error")?.optString("status")
                 throw ChatProblem(when (status) {
                     "RESOURCE_EXHAUSTED" -> "The study chat allowance is reached. Please try later."
-                    "FAILED_PRECONDITION" -> "Shared study chat needs setup or attention from the app owner."
+                    "FAILED_PRECONDITION" -> if (json.optJSONObject("error")?.optString("message") == "Online MCQ search needs GEMINI_API_KEY in Render.") "Online MCQ search needs Google setup by the app owner. Normal study chat is still available." else "Shared study chat needs setup or attention from the app owner."
                     "INVALID_ARGUMENT" -> "This question or photo could not be accepted. Use up to 4 photos and a shorter question."
                     else -> "Study buddy could not respond. Please retry later."
                 })
             }
-            val result = json.optJSONObject("result") ?: json.optJSONObject("data")
+            val result = (json.optJSONObject("result") ?: json.optJSONObject("data")) ?: throw ChatProblem("The chat service returned no result.")
             val text = result?.opt("answer") as? String
             val model = result?.optString("model")
-            if (text.isNullOrBlank() || model !in models.keys) throw ChatProblem("No readable answer was returned. Please retry.")
-            return ChatReply(text.trim().take(16000), model!!)
+            if (text.isNullOrBlank() || (model !in models.keys && model != GEMINI_MODEL)) throw ChatProblem("No readable answer was returned. Please retry.")
+            val sources = result.optJSONArray("sources")
+            val links = (0 until (sources?.length() ?: 0)).take(8).mapNotNull { i ->
+                val source = sources!!.optJSONObject(i) ?: return@mapNotNull null
+                val url = source.optString("url"); val title = source.optString("title").replace("[", "").replace("]", "")
+                if (url.startsWith("https://")) "[$title]($url)" else null
+            }.joinToString("\n\n")
+            return ChatReply(text.trim().take(16000), model!!, result.optBoolean("quiz"), links, result.optString("suggestions").take(32768))
         }
     }
     override suspend fun reply(messages: List<ChatMessage>, photos: List<ChatPhoto>): ChatReply = replyWithModel(messages, photos, "auto")
-    override suspend fun replyWithModel(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String): ChatReply {
+    override suspend fun replyWithModel(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String): ChatReply = replyWithOptions(messages, photos, model, "chat")
+    override suspend fun replyWithOptions(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String, mode: String): ChatReply {
         val url = endpoint()
         if (url.isBlank()) throw ChatProblem("Shared study chat is awaiting Render setup. Please update after the app owner activates it.")
         val credential = try { session() } catch (error: kotlinx.coroutines.CancellationException) { throw error }
@@ -105,7 +114,7 @@ internal class StudyChatClient(
         val (exam, grade) = profile()
         val request = Request.Builder().url(url).header("Authorization", "Bearer ${credential.idToken}")
             .header("X-Firebase-AppCheck", credential.appToken)
-            .post(requestBody(messages, photos, model, exam, grade).toRequestBody("application/json".toMediaType())).build()
+            .post(requestBody(messages, photos, model, exam, grade, mode).toRequestBody("application/json".toMediaType())).build()
         return suspendCancellableCoroutine { continuation ->
             val call = client.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
@@ -116,7 +125,7 @@ internal class StudyChatClient(
                 override fun onResponse(call: Call, response: Response) {
                     val result = runCatching {
                         response.use {
-                            if (!it.isSuccessful) throw ChatProblem(statusMessage(it.code))
+                            if (!it.isSuccessful && it.code != 503) throw ChatProblem(statusMessage(it.code))
                             val bytes = ByteArrayOutputStream()
                             (it.body ?: throw ChatProblem("The chat service returned no answer.")).byteStream().use { input ->
                                 val chunk = ByteArray(8192)
