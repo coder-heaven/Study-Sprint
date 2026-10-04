@@ -1,6 +1,5 @@
 package com.pranav.study.cet_study_sprint
 
-import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.appcheck.FirebaseAppCheck
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -23,10 +22,10 @@ internal fun interface StudyChatTransport {
     suspend fun reply(messages: List<ChatMessage>, photos: List<ChatPhoto>): ChatReply
 }
 internal class StudyChatClient(
-    private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(240, TimeUnit.SECONDS).callTimeout(250, TimeUnit.SECONDS)
+    private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(90, TimeUnit.SECONDS)
+        .readTimeout(240, TimeUnit.SECONDS).callTimeout(360, TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).build(),
-    private val endpoint: () -> String = { "https://us-central1-${FirebaseApp.getInstance().options.projectId}.cloudfunctions.net/studyBuddy" },
+    private val endpoint: () -> String = { BuildConfig.STUDY_CHAT_URL },
     private val session: suspend () -> ChatSession = {
         val auth = FirebaseAuth.getInstance()
         val user = auth.currentUser ?: auth.signInAnonymously().awaitLeaderboardTask().user
@@ -62,7 +61,7 @@ internal class StudyChatClient(
         }
         fun statusMessage(code: Int): String = when (code) {
             401, 403 -> "Study Sprint could not verify this installation. Retry, or report this to the app owner."
-            404 -> "Shared study chat is awaiting Firebase activation. Please try after the app owner enables it."
+            404 -> "Shared study chat is awaiting server activation. Please try after the app owner enables it."
             429 -> "The study chat allowance was reached. Wait a little, then retry."
             else -> "Study buddy is temporarily unavailable. Please try again later."
         }
@@ -85,9 +84,11 @@ internal class StudyChatClient(
         }
     }
     override suspend fun reply(messages: List<ChatMessage>, photos: List<ChatPhoto>): ChatReply {
+        val url = endpoint()
+        if (url.isBlank()) throw ChatProblem("Shared study chat is awaiting Render setup. Please update after the app owner activates it.")
         val credential = try { session() } catch (error: kotlinx.coroutines.CancellationException) { throw error }
             catch (_: Exception) { throw ChatProblem("Could not verify Study Sprint. Check your connection, then retry or report the issue.") }
-        val request = Request.Builder().url(endpoint()).header("Authorization", "Bearer ${credential.idToken}")
+        val request = Request.Builder().url(url).header("Authorization", "Bearer ${credential.idToken}")
             .header("X-Firebase-AppCheck", credential.appToken)
             .post(requestBody(messages, photos).toRequestBody("application/json".toMediaType())).build()
         return suspendCancellableCoroutine { continuation ->
