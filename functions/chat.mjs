@@ -83,9 +83,9 @@ async function query(input, model, key, fetcher) {
     }
     const result = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     const choice = result.choices?.[0];
-    const answer = choice?.message?.content;
+    let answer = choice?.message?.content;
     if (result.error || typeof answer !== 'string' || !answer.trim()) throw new Error('empty');
-    if (hasOptions(answer)) { try { parseMcqs(answer); } catch { throw new Error('invalid MCQ options'); } }
+    if (hasOptions(answer)) { try { answer = canonicalMcqs(parseMcqs(answer)); } catch { throw new Error('invalid MCQ options'); } }
     return { answer: answer.trim().slice(0, 16000) + (choice.finish_reason === 'length' ? '\n\n[Response limit reached. Ask me to continue.]' : ''), model, fallback: model === KIMI };
   } catch { throw new ChatError('unavailable', 'No readable final answer was returned. Please retry.', true); }
   finally { reader.releaseLock(); }
