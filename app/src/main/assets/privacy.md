@@ -51,3 +51,5 @@ Only share information you have permission to use. Ask a parent or guardian befo
 ## Contact and changes
 
 Maintainer: Pranav, GitHub account coder-heaven. Use https://github.com/coder-heaven/Study-Sprint/issues to request a private contact method for privacy questions or deletion requests; the issue tracker is public, so do not post personal data there. The policy is available offline in Settings. A new version of the sharing notice requires renewed consent before further public uploads. This policy describes the app's behavior and does not claim certification under any particular privacy law.
+
+The shared chatbot server is hosted on Render. It receives questions and selected photos to forward them to the AI provider. It does not store conversation content or raw request logs; persistent Firebase quota records contain counts and hashed identity. Render processes network requests as the hosting provider.
