@@ -27,12 +27,14 @@ internal object ChatMcqPdf {
         clean = clean.map { symbols[it] ?: it.toString() }.joinToString("")
         return clean.trim()
     }
-    fun questions(raw: String): List<PdfImportedMcq> {
+    fun questions(raw: String, count: Int = 10): List<PdfImportedMcq> {
         val text = normalize(raw)
         val starts = Regex("(?m)^\\s*(\\d{1,2})[.)]\\s+").findAll(text).map { it.groupValues[1].toInt() }.toList()
-        require(starts == (1..10).toList()) { "The AI did not return exactly 10 numbered MCQs. Retry with clearer photos." }
+        require(count in 1..10 && starts == (1..count).toList()) { "The AI did not return the expected numbered MCQs. Retry with clearer photos." }
+        val blocks = text.split(Regex("(?m)(?=^\\s*\\d{1,2}[.)]\\s+)" )).filter { it.isNotBlank() }
+        require(blocks.all { block -> Regex("(?m)^\\s*\\(?([A-Z])[.)]\\s+").findAll(block).map { it.groupValues[1] }.toList() == listOf("A", "B", "C", "D") }) { "Every MCQ must have exactly four options A-D. Please retry." }
         val parsed = PdfQuestionImporter.parse(text)
-        require(parsed.questions.size == 10 && parsed.missingAnswers == 0) { "The AI returned incomplete MCQs or answers. Retry with clearer photos." }
+        require(parsed.questions.size == count && parsed.missingAnswers == 0) { "The AI returned incomplete MCQs or answers. Retry with clearer photos." }
         return parsed.questions
     }
     fun canonical(questions: List<PdfImportedMcq>): String = questions.mapIndexed { i, q ->
@@ -92,7 +94,7 @@ internal object ChatMcqPdf {
     }
     @Synchronized fun addToPractice(context: Context, questions: List<PdfImportedMcq>, fileName: String): String {
         val prefs = context.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)
-        val name = "Photo MCQs ${LocalDate.now()} ${fileName.take(8)}"
+        val name = if (fileName.startsWith("web-")) "Online MCQs ${LocalDate.now()} ${fileName.take(16)}" else "Photo MCQs ${LocalDate.now()} ${fileName.take(8)}"
         val sets = runCatching { JSONObject(prefs.getString("owned_mcq_sets", "{}")) }.getOrDefault(JSONObject())
         if (sets.has(name)) return name // Reopening never duplicates a generated set.
         val old = prefs.getString("owned_mcqs_chapter", "My saved MCQs").orEmpty().ifBlank { "My saved MCQs" }

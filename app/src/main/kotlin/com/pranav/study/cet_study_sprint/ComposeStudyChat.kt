@@ -52,20 +52,21 @@ internal fun StudyChatScreen(model: StudyChatViewModel, go: (String) -> Unit, re
             Toast.makeText(context, if (saved) "PDF saved" else "Could not save PDF. Please retry.", Toast.LENGTH_SHORT).show()
         }
     }
-    StudyChatContent(state, model::send, model::retry, model::stop, model::clear, model::removePhoto,
+    StudyChatContent(state, { model.send(it) }, model::retry, model::stop, model::clear, model::removePhoto,
         { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { go("privacy") }, model::generatePdf,
         { export.launch("Study-Sprint-Photo-MCQs.pdf") },
         { state.pdfFile?.let { name -> runCatching { ChapterFiles.openPdf(context, name) }.onFailure { Toast.makeText(context, "No PDF viewer is available. Use Save PDF.", Toast.LENGTH_SHORT).show() } } },
-        { refresh(); go("my_quiz") }, model::selectModel)
+        { refresh(); go("my_quiz") }, model::selectModel, { model.send(it, true) }, model::resend, { message -> if (model.startQuiz(message)) { refresh(); go("my_quiz") } })
 }
 @Composable
 internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, retry: () -> Unit, stop: () -> Unit,
     clear: () -> Unit, removePhoto: (String) -> Unit, choosePhotos: () -> Unit, privacy: () -> Unit,
-    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}, selectModel: (String) -> Unit = {}) {
+    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}, selectModel: (String) -> Unit = {}, sendMcq: (String) -> Boolean = send, resend: () -> Unit = {}, startQuiz: (ChatMessage) -> Unit = {}) {
+    var mcqMode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var autoPractice by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val keyboard = LocalSoftwareKeyboardController.current
-    fun submit() { if (send(draft)) { draft = ""; keyboard?.hide() } }
+    fun submit() { if ((if (mcqMode && state.photos.isEmpty()) sendMcq else send)(draft)) { draft = ""; keyboard?.hide() } }
     val preferences = LocalContext.current.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE)
     val exam = preferences.getString("exam", "CET") ?: "CET"
     val list = rememberLazyListState()
@@ -87,8 +88,8 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                 StudyCard {
                     Text("Let's learn together", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("Ask a concept question, work through a problem, or practise for CET, JEE and NEET.")
-                    Text("Attach up to 4 photos of your question. Photo questions use Kimi K3.", style = MaterialTheme.typography.bodySmall)
-                    Text("Only questions and photos you send go to Study Sprint's Render chat service and OpenRouter or NVIDIA. Your notes, profile and app usage are not attached.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Attach up to 4 photos of your question. Photos prefer Gemini Flash when configured, with Kimi K3 backup.", style = MaterialTheme.typography.bodySmall)
+                    Text("Only questions and photos you send go to Study Sprint's Render chat service and Google, OpenRouter or NVIDIA. Your notes, profile and app usage are not attached.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = privacy) { Text("Privacy details") }
                     listOf("Explain photon energy simply", "Give me one mole-concept MCQ", "Help me plan a 25-minute study session").forEach { prompt ->
                         OutlinedButton(onClick = { draft = prompt }, modifier = Modifier.fillMaxWidth()) { Text(prompt) }
@@ -104,7 +105,12 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                             fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         if (message.photoCount > 0) Text("${message.photoCount} photo${if (message.photoCount == 1) "" else "s"} attached", style = MaterialTheme.typography.labelSmall)
                         if (user) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
-                        else ChatMarkdown(message.content, Modifier.fillMaxWidth())
+                        else {
+                            ChatMarkdown(message.content, Modifier.fillMaxWidth())
+                            if (message.sources.isNotBlank()) { Text("Question sources", fontWeight = FontWeight.Bold); ChatMarkdown(message.sources, Modifier.fillMaxWidth()) }
+                            if (message.suggestions.isNotBlank()) GoogleSearchSuggestions(message.suggestions)
+                            if (message.quiz) OutlinedButton(onClick = { startQuiz(message) }, enabled = !state.busy, modifier = Modifier.testTag("chat_start_web_quiz")) { Text("Start MCQ test") }
+                        }
                     }
                 }
             }
@@ -131,15 +137,21 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
             Text("Preparing your answer…", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = stop) { Text("Stop") }
         }
-        if (state.messages.isNotEmpty()) TextButton(onClick = { keyboard?.hide(); draft = ""; clear() }, modifier = Modifier.align(Alignment.End)) { Text("New chat") }
+        if (state.messages.isNotEmpty()) Row(Modifier.align(Alignment.End)) {
+            if (state.canResend && !state.canRetry) TextButton(onClick = resend, enabled = !state.busy && !state.photoBusy, modifier = Modifier.testTag("chat_resend")) { Text("Resend") }
+            TextButton(onClick = { keyboard?.hide(); draft = ""; clear() }) { Text("New chat") }
+        }
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 var modelMenu by remember { mutableStateOf(false) }
-                Box {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Box(Modifier.weight(1f)) {
                     TextButton(onClick = { modelMenu = true }, enabled = !state.busy) { Text("Model: ${StudyChatClient.modelName(state.selectedModel)}") }
                     DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
                         StudyChatClient.models.forEach { (id, name) -> DropdownMenuItem(text = { Text(name) }, onClick = { selectModel(id); modelMenu = false }) }
                     }
+                  }
+                  FilterChip(selected = mcqMode, onClick = { mcqMode = !mcqMode }, enabled = !state.busy && state.photos.isEmpty(), label = { Text("Online MCQs") }, modifier = Modifier.testTag("chat_mcq_mode"))
                 }
                 Text(StudyChatClient.introduction(state.selectedModel, exam), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (state.photos.isNotEmpty()) LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("chat_photos")) {
@@ -179,4 +191,23 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
             }
         }
     }
+}
+
+@Composable
+private fun GoogleSearchSuggestions(html: String) {
+    val context = LocalContext.current
+    androidx.compose.ui.viewinterop.AndroidView(factory = {
+        android.webkit.WebView(it).apply {
+            settings.javaScriptEnabled = false; settings.allowFileAccess = false; settings.allowContentAccess = false
+            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            webViewClient = object : android.webkit.WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: android.webkit.WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                    val uri = request?.url ?: return true
+                    if (uri.scheme == "https") runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, uri)) }
+                    return true
+                }
+            }
+            loadDataWithBaseURL("https://www.google.com/", html, "text/html", "UTF-8", null)
+        }
+    }, modifier = Modifier.fillMaxWidth().height(140.dp))
 }
