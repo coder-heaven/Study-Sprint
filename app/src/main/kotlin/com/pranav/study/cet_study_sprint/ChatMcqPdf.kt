@@ -6,7 +6,7 @@ import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
-import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
+import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -43,7 +43,7 @@ internal object ChatMcqPdf {
         PDFBoxResourceLoader.init(context.applicationContext)
         try {
             PDDocument().use { doc ->
-                val font = context.resources.openRawResource(R.font.poppins_regular).use { PDType0Font.load(doc, it) }
+                val font = PDType1Font.HELVETICA
                 var stream: PDPageContentStream? = null; var y = 0f
                 fun page() {
                     stream?.close()
