@@ -7,9 +7,9 @@ import { ChatError, validate, runChat } from './chat.mjs';
 initializeApp();
 const apiKey = defineSecret('OPENROUTER_API_KEY');
 const nvidiaKey = defineSecret('NVIDIA_API_KEY');
-const daily = defineInt('CHAT_DAILY_LIMIT', { default: 100 });
-const userDaily = defineInt('CHAT_USER_DAILY_LIMIT', { default: 20 });
-const kimiDaily = defineInt('KIMI_DAILY_LIMIT', { default: 10 });
+const daily = defineInt('CHAT_DAILY_LIMIT', { default: 1000 });
+const userDaily = defineInt('CHAT_USER_DAILY_LIMIT', { default: 100 });
+const kimiDaily = defineInt('NVIDIA_DAILY_LIMIT', { default: 100 });
 async function reserve(uid, kimi = false) {
   const db = getFirestore();
   const day = new Date().toISOString().slice(0, 10);
