@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.test.platform.app.InstrumentationRegistry
+import io.noties.markwon.image.AsyncDrawableSpan
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -38,8 +40,16 @@ class ChatMarkdownUiTest {
             val spanned = view.text as Spanned
             assertTrue(spanned.getSpans(0, spanned.length, Any::class.java).any { it.javaClass.simpleName == "StrongEmphasisSpan" })
         }
-        // Allow asynchronous equation drawables to complete before capturing the actual device view.
-        compose.waitUntil(10000) { !compose.mainClock.hasPendingWork }
+        // Assert equations actually rendered, not just their placeholder text.
+        compose.waitUntil(10000) {
+            var rendered = false
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val view = textViews(compose.activity.window.decorView).first { it.text.contains("Photon energy") }
+                val spans = (view.text as Spanned).getSpans(0, view.text.length, AsyncDrawableSpan::class.java)
+                rendered = spans.isNotEmpty() && spans.all { it.drawable.hasResult() }
+            }
+            rendered
+        }
         saveUiProof(compose.activity, compose.onRoot().captureToImage().asAndroidBitmap(), "chat-formatted-$theme")
     }
     @Test fun markdownAndEquationInDarkMode() = verify("dark")
