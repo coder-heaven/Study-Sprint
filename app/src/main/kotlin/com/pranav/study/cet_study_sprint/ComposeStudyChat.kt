@@ -23,6 +23,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -61,7 +63,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                     Text("Let's learn together", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("Ask a concept question, work through a problem, or practise for CET, JEE and NEET.")
                     Text("Attach up to 4 photos of your question. Photo questions use Kimi K3.", style = MaterialTheme.typography.bodySmall)
-                    Text("Only questions and photos you send go to Study Sprint's Firebase chat service, OpenRouter and the AI provider. Your notes, profile and app usage are not attached.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Only questions and photos you send go to Study Sprint's Firebase chat service and OpenRouter or NVIDIA. Your notes, profile and app usage are not attached.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = privacy) { Text("Privacy details") }
                     listOf("Explain photon energy simply", "Give me one mole-concept MCQ", "Help me plan a 25-minute study session").forEach { prompt ->
                         OutlinedButton(onClick = { draft = prompt }, modifier = Modifier.fillMaxWidth()) { Text(prompt) }
@@ -101,7 +103,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                         Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (bitmap != null) Image(bitmap, "Selected photo", Modifier.size(48.dp), contentScale = ContentScale.Crop)
-                                TextButton(onClick = { removePhoto(photo.id) }, enabled = !state.busy, modifier = Modifier.testTag("remove_photo_${photo.id}")) { Text("×") }
+                                TextButton(onClick = { removePhoto(photo.id) }, enabled = !state.busy, modifier = Modifier.testTag("remove_photo_${photo.id}").semantics { contentDescription = "Remove selected photo" }) { Text("×") }
                             }
                         }
                     }
@@ -110,7 +112,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                     TextButton(onClick = choosePhotos, enabled = !state.busy && !state.photoBusy && state.photos.size < 4, modifier = Modifier.testTag("chat_attach")) {
                         Text(if (state.photoBusy) "Preparing photos…" else "＋ Photos · ${state.photos.size}/4")
                     }
-                    Text("Sent only when you tap Send", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Sent only when you tap Send", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(draft, { draft = it.take(StudyChatClient.MAX_PROMPT + 1) }, label = { Text("Ask a study question") }, maxLines = 4,
