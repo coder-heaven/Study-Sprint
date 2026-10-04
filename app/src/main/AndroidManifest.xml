@@ -18,6 +18,7 @@
     </queries>
 
     <application
+        android:name=".StudyApplication"
         android:label="Study Sprint"
         android:icon="@mipmap/ic_study_sprint"
         android:roundIcon="@mipmap/ic_study_sprint"
