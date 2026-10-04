@@ -18,7 +18,7 @@ internal class ChatSessionStore(application: Application, file: File = File(appl
     private fun photos(values: List<ChatPhoto>) = JSONArray().apply { values.take(4).forEach {
         put(JSONObject().put("id", it.id).put("url", it.dataUrl).put("thumbnail", Base64.encodeToString(it.thumbnail, Base64.NO_WRAP)))
     } }
-    private fun readMessages(values: JSONArray?) = (0 until (values?.length() ?: 0)).takeLast(80).map { index ->
+    private fun readMessages(values: JSONArray?) = (maxOf(0, (values?.length() ?: 0) - 80) until (values?.length() ?: 0)).map { index ->
         val v = values!!.getJSONObject(index)
         ChatMessage(v.getString("role"), v.getString("content").take(16000), v.optInt("photos"), v.optString("model").takeIf { it in StudyChatClient.models })
     }
