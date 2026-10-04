@@ -49,7 +49,7 @@ internal fun ChatMarkdown(text: String, modifier: Modifier = Modifier) {
                 builder.inlinesEnabled(true)
                 builder.theme().textColor(foreground)
             })
-            .usePlugin(TablePlugin.create(TableTheme.builder().tableBorderColor(border)
+            .usePlugin(TablePlugin.create(TableTheme.buildWithDefaults(context).tableBorderColor(border)
                 .tableBorderWidth(1).tableCellPadding(12).tableHeaderRowBackgroundColor(header).build()))
             .build()
     }
