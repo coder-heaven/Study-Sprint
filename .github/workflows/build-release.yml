@@ -11,12 +11,14 @@ on:
     paths:
       - 'app/**'
       - 'firebase/**'
+      - 'functions/**'
       - '.github/workflows/build-release.yml'
   push:
     branches: [main, feat/live-leaderboards]
     paths:
       - 'app/**'
       - 'firebase/**'
+      - 'functions/**'
       - 'firebase.json'
       - '.github/workflows/build-release.yml'
 
@@ -67,7 +69,7 @@ jobs:
 
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.publish_release && github.ref == 'refs/heads/main'
-    needs: [build, leaderboard-rules, navigation-ui]
+    needs: [build, leaderboard-rules, navigation-ui, chat-backend]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -159,3 +161,15 @@ jobs:
           path: |
             app/build/reports/androidTests/connected/**
             ui-proof/**
+
+  chat-backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix functions --ignore-scripts --no-audit --no-fund
+      - run: npm test --prefix functions
