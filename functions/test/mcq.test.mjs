@@ -10,6 +10,8 @@ test('rejects fifth option without silently deleting or remapping it',()=>{
  assert.throws(()=>parseMcqs(quiz.replace('Answer:', 'E. other\nAnswer:')));
  assert.throws(()=>parseMcqs(quiz.replace('Answer: A','Answer: E')));
  assert.equal(parseMcqs(quiz)[0].options.length,4);
+ assert.throws(()=>parseMcqs(quiz.replace('Answer:', 'E. extra\nAnswer:').replace(/^([A-E])\./gm,'- **$1.**')));
+ assert.equal(parseMcqs(quiz.replace(/^([A-D])\./gm,'- **$1:**'))[0].options.length,4);
 });
 test('five-option output is not returned by any selected study model',async()=>{
  for(const model of [GPT,NEMOTRON,KIMI,GLM]) await assert.rejects(runChat(validate({messages:[{role:'user',content:'Explain energy'}],model}),keys,async()=>{},async()=>provider(quiz.replace('Answer:', 'E. extra\nAnswer:'))));
