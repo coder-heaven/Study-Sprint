@@ -1,6 +1,12 @@
 package com.pranav.study.cet_study_sprint
 
 import android.graphics.BitmapFactory
+import android.widget.Toast
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,21 +37,38 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
-internal fun StudyChatScreen(model: StudyChatViewModel, go: (String) -> Unit) {
+internal fun StudyChatScreen(model: StudyChatViewModel, go: (String) -> Unit, refresh: () -> Unit = {}) {
     val state by model.state.collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(4), model::importPhotos)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        val name = state.pdfFile
+        if (uri != null && name != null) scope.launch {
+            val saved = withContext(Dispatchers.IO) { runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { output -> File(context.filesDir, "chapter_pdfs/$name").inputStream().use { it.copyTo(output) } }
+                    ?: error("Cannot open destination")
+            }.isSuccess }
+            Toast.makeText(context, if (saved) "PDF saved" else "Could not save PDF. Please retry.", Toast.LENGTH_SHORT).show()
+        }
+    }
     StudyChatContent(state, model::send, model::retry, model::stop, model::clear, model::removePhoto,
-        { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { go("privacy") })
+        { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { go("privacy") }, model::generatePdf,
+        { export.launch("Study-Sprint-Photo-MCQs.pdf") },
+        { state.pdfFile?.let { name -> runCatching { ChapterFiles.openPdf(context, name) }.onFailure { Toast.makeText(context, "No PDF viewer is available. Use Save PDF.", Toast.LENGTH_SHORT).show() } } },
+        { refresh(); go("my_quiz") })
 }
 @Composable
 internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, retry: () -> Unit, stop: () -> Unit,
-    clear: () -> Unit, removePhoto: (String) -> Unit, choosePhotos: () -> Unit, privacy: () -> Unit) {
+    clear: () -> Unit, removePhoto: (String) -> Unit, choosePhotos: () -> Unit, privacy: () -> Unit,
+    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}) {
+    var autoPractice by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
     val keyboard = LocalSoftwareKeyboardController.current
     fun submit() { if (send(draft)) { draft = ""; keyboard?.hide() } }
     val list = rememberLazyListState()
     LaunchedEffect(state.messages.size, state.error) {
-        val count = state.messages.size + (if (state.messages.isEmpty()) 1 else 0) + (if (state.error != null) 1 else 0)
+        val count = state.messages.size + (if (state.messages.isEmpty()) 1 else 0) + (if (state.error != null) 1 else 0) + (if (state.pdfFile != null) 1 else 0)
         if (count > 0) list.animateScrollToItem(count - 1)
     }
     Column(Modifier.fillMaxSize().imePadding().testTag("study_chat")) {
@@ -63,7 +86,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                     Text("Let's learn together", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("Ask a concept question, work through a problem, or practise for CET, JEE and NEET.")
                     Text("Attach up to 4 photos of your question. Photo questions use Kimi K3.", style = MaterialTheme.typography.bodySmall)
-                    Text("Only questions and photos you send go to Study Sprint's Firebase chat service and OpenRouter or NVIDIA. Your notes, profile and app usage are not attached.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Only questions and photos you send go to Study Sprint's Render chat service and OpenRouter or NVIDIA. Your notes, profile and app usage are not attached.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = privacy) { Text("Privacy details") }
                     listOf("Explain photon energy simply", "Give me one mole-concept MCQ", "Help me plan a 25-minute study session").forEach { prompt ->
                         OutlinedButton(onClick = { draft = prompt }, modifier = Modifier.fillMaxWidth()) { Text(prompt) }
@@ -80,6 +103,17 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                         if (message.photoCount > 0) Text("${message.photoCount} photo${if (message.photoCount == 1) "" else "s"} attached", style = MaterialTheme.typography.labelSmall)
                         SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
                     }
+                }
+            }
+            if (state.pdfFile != null) item {
+                StudyCard {
+                    Text("Your photo MCQ PDF is ready", fontWeight = FontWeight.Bold)
+                    Text("10 questions · ${state.pdfRemaining}/2 PDFs left today. Verify AI answers.", style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = savePdf, modifier = Modifier.testTag("chat_save_pdf")) { Text("Save PDF") }
+                        TextButton(onClick = openPdf) { Text("Open") }
+                    }
+                    if (state.practiceReady) Button(onClick = startPractice, modifier = Modifier.fillMaxWidth().testTag("chat_start_mcqs")) { Text("Start imported quiz") }
                 }
             }
             if (state.error != null) item {
@@ -113,6 +147,16 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                         Text(if (state.photoBusy) "Preparing photos…" else "＋ Photos · ${state.photos.size}/4")
                     }
                     Text("Sent only when you tap Send", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (state.photos.isNotEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(autoPractice, { autoPractice = it }, enabled = !state.busy && !state.photoBusy, modifier = Modifier.testTag("chat_auto_mcqs"))
+                        Text("Automatically add MCQs to practice", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    }
+                    OutlinedButton(onClick = { if (generatePdf(autoPractice)) { draft = ""; keyboard?.hide() } },
+                        enabled = !state.busy && !state.photoBusy, modifier = Modifier.fillMaxWidth().testTag("chat_generate_pdf")) {
+                        Text("Generate 10-MCQ PDF · ${state.pdfRemaining}/2 left today")
+                    }
                 }
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(draft, { draft = it.take(StudyChatClient.MAX_PROMPT + 1) }, label = { Text("Ask a study question") }, maxLines = 4,

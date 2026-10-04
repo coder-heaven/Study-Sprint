@@ -403,7 +403,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         ExitTransition.None else fadeOut(tween(90))
                 }
             ) {
-                composable("chat") { StudyChatScreen(chatModel, ::go) }
+                composable("chat") { StudyChatScreen(chatModel, ::go, refresh) }
                 composable("bug_report") { BugReportScreen() }
                 composable("home") { HomeScreen(prefs, revision, ::go) }
                 composable("study") { StudyHubScreen(prefs, revision, ::go) { subject ->
