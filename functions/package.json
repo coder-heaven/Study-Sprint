@@ -1,6 +1,6 @@
 {
   "name": "study-sprint-private-chat", "private": true, "type": "module",
   "main": "index.mjs", "engines": { "node": "22" },
-  "scripts": { "test": "node --test test/*.test.mjs" },
+  "scripts": { "start": "node server.mjs", "test": "node --test test/*.test.mjs" },
   "dependencies": { "firebase-admin": "13.5.0", "firebase-functions": "7.0.0" }
 }
