@@ -1,4 +1,28 @@
 {
-  "firestore": { "rules": "firebase/firestore.rules", "indexes": "firebase/firestore.indexes.json" },
-  "emulators": { "firestore": { "port": 8080 }, "ui": { "enabled": false }, "singleProjectMode": true }
+  "firestore": {
+    "rules": "firebase/firestore.rules",
+    "indexes": "firebase/firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "study-chat",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "*.log",
+        ".env*",
+        ".secret*"
+      ]
+    }
+  ]
 }

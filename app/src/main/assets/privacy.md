@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Study Sprint · Pranav / coder-heaven · Policy version 2 · Effective 3 October 2026
+Study Sprint · Pranav / coder-heaven · Policy version 3 · Effective 4 October 2026
 
 ## Your choice
 
@@ -32,9 +32,13 @@ Usage Access reads app-usage timing for local limits and statistics. Accessibili
 
 ## Optional Study buddy chatbot
 
-Study buddy connects directly to OpenRouter and its model provider only when you send a message. The request includes your question and up to 20 recent chat messages, plus a general study-tutor instruction. Your profile, photos, notes, files and app-usage history are not added automatically. Chat conversation is held in memory for the current app session and is not saved as study history; New chat clears it. OpenRouter and its providers may retain requests under their own policies; clearing this app session does not delete their records. See https://openrouter.ai/privacy.
+Study buddy sends your question and up to 20 recent text turns through a Firebase HTTPS function. Text questions use OpenRouter's Nemotron model; temporary failures use NVIDIA's Kimi K3 endpoint. Photo questions use Kimi directly. You may attach up to four photos per question. Selected photos are resized and re-encoded as JPEG without original EXIF metadata. Only the photos you explicitly send are uploaded; your profile, notes, other gallery photos and app-usage history are not added automatically.
 
-You provide your own OpenRouter API key. It is encrypted with an Android Keystore key and saved in app-private storage excluded from Android backup. The key is sent to OpenRouter for authentication and is never included in a public APK or repository. API key settings let you replace it or remove it and clear the chat. An encrypted saved key may become unavailable after device or Keystore changes; add your key again to reconnect. The free model has service availability and request limits; you are responsible for your account and key settings.
+The app owner's provider keys are kept in encrypted Firebase Secret Manager and never bundled in the app or repository. Firebase Authentication and App Check verify requests, including anonymous guest identities. The server stores daily request counts and timestamps with a hashed user identifier to enforce allowances. Counters have an expiry timestamp for a seven-day Firestore TTL policy. The function does not store questions, photos or answers or deliberately log their content. Cloud services may retain operational records under their policies.
+
+Chat is held in memory for this app session; New chat clears it. Photos are sent with the current question and are not resent on later turns; Retry resends the pending question and its photos. Stop ends the app's wait; the server may still finish processing. OpenRouter, NVIDIA and model providers process submitted content under their own policies. Clearing a local chat does not delete provider records. See https://openrouter.ai/privacy, https://www.nvidia.com/en-us/about-nvidia/privacy-policy/ and https://firebase.google.com/support/privacy. The obsolete personal-key file from v4.8 is removed on opening Study buddy.
+
+The Report a bug button opens an editable GitHub issue draft with the description you enter, app version and Android API version. It does not automatically submit a report or include your photos, notes, API keys or usage history. GitHub issues are public; review your draft before submitting it.
 
 ## Sharing with AI or other apps
 
@@ -47,3 +51,5 @@ Only share information you have permission to use. Ask a parent or guardian befo
 ## Contact and changes
 
 Maintainer: Pranav, GitHub account coder-heaven. Use https://github.com/coder-heaven/Study-Sprint/issues to request a private contact method for privacy questions or deletion requests; the issue tracker is public, so do not post personal data there. The policy is available offline in Settings. A new version of the sharing notice requires renewed consent before further public uploads. This policy describes the app's behavior and does not claim certification under any particular privacy law.
+
+The shared chatbot server is hosted on Render. It receives questions and selected photos to forward them to the AI provider. It does not store conversation content or raw request logs; persistent Firebase quota records contain counts and hashed identity. Render processes network requests as the hosting provider.

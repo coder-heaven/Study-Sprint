@@ -17,25 +17,25 @@ class StudyChatClientTest {
     private val key = "sk-or-v1-" + "a".repeat(64)
     @Test fun requestUsesRequestedFreeModelAndBoundedUserAssistantContext() {
         val messages = (0..40).map { ChatMessage(if (it % 2 == 0) "user" else "assistant", "Turn $it") }
-        val body = JSONObject(StudyChatClient.requestBody(messages))
-        assertEquals("nvidia/nemotron-3-ultra-550b-a55b:free", body.getString("model"))
-        assertFalse(body.getBoolean("stream"))
-        val sent = body.getJSONArray("messages")
-        assertTrue(sent.length() <= 21)
-        assertEquals("system", sent.getJSONObject(0).getString("role"))
-        assertEquals("user", sent.getJSONObject(1).getString("role"))
+        val body = JSONObject(StudyChatClient.requestBody(messages, emptyList()))
+        assertFalse(body.has("model"))
+        val sent = body.getJSONObject("data").getJSONArray("messages")
+        assertTrue(sent.length() <= 20)
+        assertEquals("user", sent.getJSONObject(0).getString("role"))
         assertEquals("Turn 40", sent.getJSONObject(sent.length() - 1).getString("content"))
-        assertTrue(body.getJSONObject("reasoning").getBoolean("exclude"))
         assertFalse(body.toString().contains(key))
     }
     @Test fun successfulResponseShowsFinalContentOnly() = runBlocking {
         val server = MockWebServer()
         try {
-            server.enqueue(MockResponse().setBody("""{"choices":[{"message":{"content":"Frequency is cycles per second.","reasoning":"private reasoning"},"finish_reason":"stop"}]}"""))
-            val answer = StudyChatClient(endpoint = server.url("/chat").toString()).reply(key, listOf(ChatMessage("user", "Define frequency")))
-            assertEquals("Frequency is cycles per second.", answer)
+            server.enqueue(MockResponse().setBody("""{"result":{"answer":"Frequency is cycles per second.","model":"moonshotai/kimi-k3"}}"""))
+            val answer = StudyChatClient(endpoint = { server.url("/chat").toString() }, session = { ChatSession("firebase-token", "app-token") }).reply(listOf(ChatMessage("user", "Define frequency")), emptyList())
+            assertEquals("Frequency is cycles per second.", answer.answer)
+            assertEquals(StudyChatClient.FALLBACK_MODEL, answer.model)
             val request = server.takeRequest(2, TimeUnit.SECONDS)!!
-            assertEquals("Bearer $key", request.getHeader("Authorization"))
+            assertEquals("Bearer firebase-token", request.getHeader("Authorization"))
+            assertEquals("app-token", request.getHeader("X-Firebase-AppCheck"))
+            assertFalse(request.body.readUtf8().contains(key))
             assertEquals("POST", request.method)
         } finally { server.shutdown() }
     }
@@ -44,7 +44,7 @@ class StudyChatClientTest {
         try {
             server.enqueue(MockResponse().setResponseCode(429).setBody("private provider body $key"))
             try {
-                StudyChatClient(endpoint = server.url("/chat").toString()).reply(key, listOf(ChatMessage("user", "Hi")))
+                StudyChatClient(endpoint = { server.url("/chat").toString() }, session = { ChatSession("firebase-token", "app-token") }).reply(listOf(ChatMessage("user", "Hi")), emptyList())
                 fail("Expected rate-limit handling")
             } catch (error: ChatProblem) {
                 assertEquals(StudyChatClient.statusMessage(429), error.message)
@@ -62,8 +62,8 @@ class StudyChatClientTest {
         val server = MockWebServer()
         try {
             server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
-            val client = StudyChatClient(endpoint = server.url("/chat").toString())
-            val job = launch { client.reply(key, listOf(ChatMessage("user", "Hi"))) }
+            val client = StudyChatClient(endpoint = { server.url("/chat").toString() }, session = { ChatSession("firebase-token", "app-token") })
+            val job = launch { client.reply(listOf(ChatMessage("user", "Hi")), emptyList()) }
             assertNotNull(withContext(Dispatchers.IO) { server.takeRequest(3, TimeUnit.SECONDS) })
             job.cancelAndJoin()
             assertTrue(job.isCancelled)

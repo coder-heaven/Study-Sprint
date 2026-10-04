@@ -27,3 +27,14 @@ Thumbs.db
 firebase/node_modules/
 firebase/.firebase/
 .firebase/
+
+# Chat server secrets are configured in Firebase Secret Manager, never the APK
+.env
+.env.*
+!.env.example
+.secret*
+*.secret
+functions/node_modules/
+functions/.runtimeconfig.json
+functions/service-account*.json
+**/credentials*.json

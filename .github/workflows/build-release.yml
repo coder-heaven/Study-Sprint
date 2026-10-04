@@ -11,12 +11,16 @@ on:
     paths:
       - 'app/**'
       - 'firebase/**'
+      - 'functions/**'
+      - 'render.yaml'
       - '.github/workflows/build-release.yml'
   push:
     branches: [main, feat/live-leaderboards]
     paths:
       - 'app/**'
       - 'firebase/**'
+      - 'functions/**'
+      - 'render.yaml'
       - 'firebase.json'
       - '.github/workflows/build-release.yml'
 
@@ -52,6 +56,7 @@ jobs:
           printf '%s' "$GOOGLE_SERVICES_BASE64" | base64 --decode > app/google-services.json
       - name: Build release
         env:
+          STUDY_CHAT_URL: ${{ vars.STUDY_CHAT_URL }}
           RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/study-sprint-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -67,7 +72,7 @@ jobs:
 
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.publish_release && github.ref == 'refs/heads/main'
-    needs: [build, leaderboard-rules, navigation-ui]
+    needs: [build, leaderboard-rules, navigation-ui, chat-backend]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -86,6 +91,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          [ -n "${{ vars.STUDY_CHAT_URL }}" ] || { echo "Configure STUDY_CHAT_URL before publishing shared chat"; exit 1; }
           version=$(awk -F '"' '/versionName =/ {print $2}' app/build.gradle.kts)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           tag="v$version"
@@ -159,3 +165,15 @@ jobs:
           path: |
             app/build/reports/androidTests/connected/**
             ui-proof/**
+
+  chat-backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix functions --ignore-scripts --no-audit --no-fund
+      - run: npm test --prefix functions

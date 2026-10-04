@@ -280,10 +280,10 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
         ) {
             val name = prefs.getString("profile_name", "").orEmpty().ifBlank { "Student" }
             val groups = listOf(
-                "OVERVIEW" to listOf("Dashboard" to "home", "Statistics" to "statistics", "Leaderboards" to "leaderboard"),
+                "OVERVIEW" to listOf("Dashboard" to "home", "Search" to "search", "Statistics" to "statistics", "Leaderboards" to "leaderboard"),
                 "STUDY" to listOf("Study buddy" to "chat", "Study history" to "study_history", "Focus history" to "focus_history", "What I learned" to "notes"),
                 "DIGITAL WELLBEING" to listOf("App Limits" to "limits", "App Usage" to "app_usage"),
-                "PERSONAL" to listOf("Profile" to "profile", "Settings" to "settings", "Setup checklist" to "setup", "How to use the app" to "tutorial")
+                "PERSONAL" to listOf("Profile" to "profile", "Report a bug" to "bug_report", "Settings" to "settings", "Setup checklist" to "setup", "How to use the app" to "tutorial")
             )
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
                 item {
@@ -328,8 +328,8 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
             topBar = {
                 TopAppBar(
                     title = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Image(painterResource(R.drawable.ic_launcher), null, Modifier.size(28.dp))
                         Text(when (route) {
+                        "bug_report" -> "Report a bug"
                         "chat" -> "Study buddy"
                         "home" -> "Today"
                         "study" -> "Study"
@@ -359,7 +359,7 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         if (route == "home" || route == "plan") IconButton(onClick = { quickTask = true }) {
                             Icon(Icons.Default.Add, contentDescription = "Add study task")
                         }
-                        IconButton(onClick = { go("search") }) { Icon(Icons.Default.Search, contentDescription = "Search study materials and features") }
+                        IconButton(onClick = { go("bug_report") }, modifier = Modifier.testTag("report_bug")) { Icon(painterResource(R.drawable.ic_report_bug), contentDescription = "Report a bug") }
                         IconButton(onClick = { go("settings") }) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -370,34 +370,14 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                     )
                 )
             },
+            floatingActionButton = {
+                if (route !in listOf("chat", "setup", "tutorial", "bug_report") && WindowInsets.ime.getBottom(LocalDensity.current) == 0) StudyBuddyShortcut { go("chat") }
+            },
             bottomBar = {
                 if (route != "chat" || WindowInsets.ime.getBottom(LocalDensity.current) == 0) {
                 Column {
                     if (focusState.active && route != "focus") ActiveFocusBar(focusState) { go("focus") }
-                    NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-                        StudyNavigation.tabs.forEach { item ->
-                            val res = when (item.route) {
-                                "home" -> R.drawable.nav_home
-                                "study" -> R.drawable.nav_syllabus
-                                "plan" -> R.drawable.nav_plan
-                                "focus" -> R.drawable.nav_focus
-                                else -> R.drawable.nav_progress
-                            }
-                            NavigationBarItem(
-                                modifier = Modifier.testTag("tab_${item.route}"),
-                                selected = selectedTab == item.route,
-                                onClick = { go(item.route) },
-                                icon = { Icon(painterResource(res), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                                label = { Text(item.label, style = MaterialTheme.typography.labelMedium, fontSize = 10.sp, letterSpacing = 0.sp, maxLines = 1) },
-                                alwaysShowLabel = true,
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                            )
-                        }
-                    }
+                    StudyPillNavigation(selectedTab, ::go)
                 }
                 }
             }
@@ -423,7 +403,8 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
                         ExitTransition.None else fadeOut(tween(90))
                 }
             ) {
-                composable("chat") { StudyChatScreen(chatModel, ::go) }
+                composable("chat") { StudyChatScreen(chatModel, ::go, refresh) }
+                composable("bug_report") { BugReportScreen() }
                 composable("home") { HomeScreen(prefs, revision, ::go) }
                 composable("study") { StudyHubScreen(prefs, revision, ::go) { subject ->
                     chapterSubject = subject; chapterToOpen = null; go("syllabus")

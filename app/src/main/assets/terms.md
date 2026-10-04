@@ -1,6 +1,6 @@
 # Terms of Use
 
-Study Sprint · Pranav / coder-heaven · Version 2 · Effective 3 October 2026
+Study Sprint · Pranav / coder-heaven · Version 3 · Effective 4 October 2026
 
 ## Purpose
 
@@ -24,7 +24,7 @@ If you are under 18, involve a parent or guardian before using optional online f
 
 ## Optional AI study help
 
-Study buddy uses your personal OpenRouter API key for the Nemotron free model. AI answers may be inaccurate; verify important answers against your study material. Do not use it to cheat or send information you lack permission to share. Your API usage is subject to your OpenRouter account and provider terms. This app does not supply a shared public API key, promise unlimited access or guarantee the free model will remain available.
+Study buddy uses an app-owner managed Firebase service with Nemotron through OpenRouter and Kimi K3 through NVIDIA for backup and photo questions. AI answers may be inaccurate; verify them against your study material. Attach no more than four photos per question and only content you are permitted to share. Service availability, provider terms and daily allowances apply. NVIDIA access may be subject to trial limits; the app does not promise unlimited free access. Never publish API keys or private content in the public bug-report tracker.
 
 ## Other services and availability
 

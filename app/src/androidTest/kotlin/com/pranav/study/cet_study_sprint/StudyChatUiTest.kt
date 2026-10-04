@@ -20,13 +20,7 @@ class StudyChatUiTest {
     private fun capture(name: String) {
         saveUiProof(compose.activity, compose.onRoot().captureToImage().asAndroidBitmap(), name)
     }
-    private fun fakeStorage() = object : ChatKeyStorage {
-        private var saved: String? = key
-        override fun read() = saved
-        override fun save(key: String) { saved = key }
-        override fun remove() { saved = null }
-    }
-    private fun model(transport: StudyChatTransport) = StudyChatViewModel(compose.activity.application as Application, fakeStorage(), transport)
+    private fun model(transport: StudyChatTransport) = StudyChatViewModel(compose.activity.application as Application, transport)
     private fun show(model: StudyChatViewModel) {
         prefs.edit().clear().putString("theme_mode", "dark").commit()
         compose.setContent { StudyTheme(prefs, 0) { StudyChatScreen(model, {}) } }
@@ -49,10 +43,10 @@ class StudyChatUiTest {
     }
     @Test fun failedReplyCanBeRetriedWithoutDuplicatingTheQuestion() {
         val calls = AtomicInteger()
-        val vm = model(StudyChatTransport { _, messages ->
+        val vm = model(StudyChatTransport { messages, _ ->
             assertEquals("What is 2 + 2?", messages.last().content)
             if (calls.incrementAndGet() == 1) throw ChatProblem("Temporary test failure")
-            "2 + 2 = 4."
+            ChatReply("2 + 2 = 4.", StudyChatClient.FALLBACK_MODEL)
         })
         show(vm)
         compose.onNodeWithTag("chat_input").performTextInput("What is 2 + 2?")
@@ -68,7 +62,7 @@ class StudyChatUiTest {
     }
     @Test fun stoppingARequestRestoresSendingAndRetryWorks() {
         val calls = AtomicInteger()
-        val vm = model(StudyChatTransport { _, _ -> if (calls.incrementAndGet() == 1) awaitCancellation() else "Ready again." })
+        val vm = model(StudyChatTransport { _, _ -> if (calls.incrementAndGet() == 1) awaitCancellation() else ChatReply("Ready again.", StudyChatClient.MODEL) })
         show(vm)
         compose.onNodeWithTag("chat_input").performTextInput("Help me study")
         compose.onNodeWithTag("chat_send").performClick()
@@ -80,22 +74,41 @@ class StudyChatUiTest {
         assertEquals(1, vm.state.value.messages.count { it.role == "user" })
         vm.clear()
     }
-    @Test fun homeOpensChatKeyValidationAndReturnsToToday() {
-        ChatKeyVault(compose.activity).remove()
+    @Test fun floatingAvatarOpensChatAndReturnsToToday() {
         prefs.edit().clear().putBoolean("onboarding_v3", true).putString("theme_mode", "dark").commit()
         compose.setContent { StudyTheme(prefs, 0) { StudyRoot(prefs, 0, null, {}, {}, {}) } }
-        compose.onNodeWithTag("home_action_chat").performScrollTo().performClick()
+        compose.onNodeWithTag("chat_fab").performClick()
         compose.onNodeWithTag("screen_chat").assertIsDisplayed()
         compose.onNodeWithTag("chat_send").assertIsNotEnabled()
+        compose.onNodeWithTag("chat_key_settings").assertDoesNotExist()
         capture("chat-empty-dark")
-        compose.onNodeWithTag("chat_key_settings").performClick()
-        compose.onNodeWithTag("chat_key_input").performTextInput("invalid-key")
-        compose.onNodeWithTag("chat_save_key").performClick()
-        compose.onNodeWithText("Enter a valid OpenRouter API key starting with sk-or-v1-.").assertExists()
-        assertNull(ChatKeyVault(compose.activity).read())
-        compose.onNodeWithText("Close").performClick()
         compose.onNodeWithTag("tab_home").performClick()
         compose.onNodeWithTag("screen_home").assertIsDisplayed()
+        compose.onNodeWithTag("pill_navigation").assertExists()
+        compose.onNodeWithTag("report_bug").performClick()
+        compose.onNodeWithTag("bug_description").assertExists()
+    }
+    @Test fun photosAreCappedAtFourAndRetryKeepsAttachments() {
+        val calls = AtomicInteger()
+        val vm = model(StudyChatTransport { _, photos ->
+            assertEquals(4, photos.size)
+            if (calls.incrementAndGet() == 1) throw ChatProblem("Temporary test failure")
+            ChatReply("These are four photos.", StudyChatClient.FALLBACK_MODEL)
+        })
+        show(vm)
+        val bitmap = android.graphics.Bitmap.createBitmap(8, 8, android.graphics.Bitmap.Config.ARGB_8888)
+        val bytes = java.io.ByteArrayOutputStream().also { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, it) }.toByteArray()
+        bitmap.recycle()
+        compose.runOnIdle { vm.attach((1..5).map { ChatPhoto(it.toString(), "data:image/jpeg;base64," + android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP), bytes) }) }
+        assertEquals(4, vm.state.value.photos.size)
+        compose.onNodeWithTag("chat_attach").assertIsNotEnabled()
+        compose.onNodeWithTag("chat_send").performClick()
+        compose.waitUntil(5000) { vm.state.value.canRetry }
+        compose.onNodeWithTag("chat_retry").performClick()
+        compose.waitUntil(5000) { vm.state.value.messages.any { it.content == "These are four photos." } }
+        assertEquals(1, vm.state.value.messages.count { it.role == "user" })
+        assertEquals(2, calls.get())
+        vm.clear()
     }
     @Test fun darkLoginUses3dArtworkAndGuestFlowStillWorks() {
         prefs.edit().clear().putString("theme_mode", "dark").commit()

@@ -14,8 +14,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 26
         targetSdk = 35
-        versionCode = 29
-        versionName = "4.8.0"
+        versionCode = 31
+        versionName = "4.9.1"
+        val chatUrl = providers.environmentVariable("STUDY_CHAT_URL").orElse("").get()
+        require(chatUrl.isEmpty() || chatUrl.matches(Regex("https://[a-zA-Z0-9.-]+/studyBuddy"))) {
+            "STUDY_CHAT_URL must be an HTTPS /studyBuddy endpoint"
+        }
+        buildConfigField("String", "STUDY_CHAT_URL", "\"$chatUrl\"")
     }
 
     compileOptions {
@@ -24,7 +29,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = JavaVersion.VERSION_17.toString() }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     val releaseKeystore = System.getenv("RELEASE_KEYSTORE_PATH")
     if (releaseKeystore != null) {
         signingConfigs {
@@ -44,6 +49,10 @@ android {
 }
 
 dependencies {
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:ext-latex:4.6.2")
+    implementation("io.noties.markwon:inline-parser:4.6.2")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
@@ -71,5 +80,6 @@ dependencies {
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
     implementation("com.google.firebase:firebase-firestore")
 }
