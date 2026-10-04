@@ -60,15 +60,7 @@ internal fun FocusIqHeader(prefs: SharedPreferences, greeting: String, go: (Stri
             Text(greeting, fontSize = 12.sp, lineHeight = 16.sp)
             Text(name, fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium)
         }
-        IconButton(onClick = { go("settings") }) {
-            Surface(color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(12.dp)) {
-                Box(Modifier.padding(8.dp).size(24.dp)) {
-                    Image(painterResource(R.drawable.figma_notification), "Timer and reminder settings", Modifier.fillMaxSize(),
-                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onSurface))
-                    Image(painterResource(R.drawable.figma_notification_badge), null, Modifier.offset(x = 13.dp).size(8.dp))
-                }
-            }
-        }
+
     }
 }
 

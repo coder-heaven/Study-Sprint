@@ -1,13 +1,12 @@
 package com.pranav.study.cet_study_sprint
 
+import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.appcheck.FirebaseAppCheck
 import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.Call
-import okhttp3.Callback
+import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -16,90 +15,106 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-internal data class ChatMessage(val role: String, val content: String)
+internal data class ChatMessage(val role: String, val content: String, val photoCount: Int = 0, val model: String? = null)
+internal data class ChatReply(val answer: String, val model: String)
+internal data class ChatSession(val idToken: String, val appToken: String)
 internal class ChatProblem(message: String) : IOException(message)
 internal fun interface StudyChatTransport {
-    suspend fun reply(key: String, messages: List<ChatMessage>): String
+    suspend fun reply(messages: List<ChatMessage>, photos: List<ChatPhoto>): ChatReply
 }
-
 internal class StudyChatClient(
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS).readTimeout(150, TimeUnit.SECONDS)
-        .callTimeout(180, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build(),
-    private val endpoint: String = "https://openrouter.ai/api/v1/chat/completions"
+    private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(240, TimeUnit.SECONDS).callTimeout(250, TimeUnit.SECONDS)
+        .followRedirects(false).followSslRedirects(false).build(),
+    private val endpoint: () -> String = { "https://us-central1-${FirebaseApp.getInstance().options.projectId}.cloudfunctions.net/studyBuddy" },
+    private val session: suspend () -> ChatSession = {
+        val auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser ?: auth.signInAnonymously().awaitLeaderboardTask().user
+            ?: throw ChatProblem("Could not connect to Study Sprint. Please retry.")
+        val token = user.getIdToken(false).awaitLeaderboardTask().token
+            ?: throw ChatProblem("Could not reconnect. Please retry.")
+        val appToken = FirebaseAppCheck.getInstance().getAppCheckToken(false).awaitLeaderboardTask().token
+        ChatSession(token, appToken)
+    }
 ) : StudyChatTransport {
     companion object {
         const val MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
+        const val FALLBACK_MODEL = "moonshotai/kimi-k3"
         const val MAX_PROMPT = 4000
         const val MAX_CONTEXT_MESSAGES = 20
+        const val MAX_PHOTOS = 4
+        // Retained only for reading/removing the obsolete v4.8 personal-key vault.
         fun validKey(key: String) = key.length in 30..256 && key.startsWith("sk-or-v1-") &&
             key.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '-' || it == '_' }
-        fun requestBody(messages: List<ChatMessage>): String {
-            val turns = JSONArray().put(JSONObject().put("role", "system").put("content",
-                "You are Study Sprint's helpful study tutor for Indian Class 11 and 12 students preparing for MHT-CET, JEE or NEET. " +
-                "Explain concepts clearly, show concise worked solutions when asked, and create original practice questions. " +
-                "Ask for missing details instead of inventing them. Be honest about uncertainty. Answer in the student's language. " +
-                "Use readable plain text; mathematical expressions should be understandable without a renderer."))
+        fun bounded(messages: List<ChatMessage>): List<ChatMessage> {
+            var turns = messages.takeLast(MAX_CONTEXT_MESSAGES).dropWhile { it.role != "user" }
+            while (turns.size > 1 && turns.sumOf { it.content.length } > 24000) turns = turns.drop(1).dropWhile { it.role != "user" }
+            return turns
+        }
+        fun requestBody(messages: List<ChatMessage>, photos: List<ChatPhoto>): String {
+            require(photos.size <= MAX_PHOTOS)
             require(messages.all { it.role == "user" || it.role == "assistant" })
-            messages.takeLast(MAX_CONTEXT_MESSAGES).dropWhile { it.role != "user" }.forEach {
-                turns.put(JSONObject().put("role", it.role).put("content", it.content.take(16000)))
-            }
-            return JSONObject().put("model", MODEL).put("messages", turns).put("stream", false)
-                .put("max_tokens", 4096).put("reasoning", JSONObject().put("enabled", false).put("exclude", true)).toString()
+            val turns = JSONArray()
+            bounded(messages).forEach { turns.put(JSONObject().put("role", it.role).put("content", it.content)) }
+            val images = JSONArray()
+            photos.forEach { require(it.dataUrl.length <= 350000); images.put(it.dataUrl) }
+            return JSONObject().put("data", JSONObject().put("messages", turns).put("photos", images)).toString()
         }
         fun statusMessage(code: Int): String = when (code) {
-            401 -> "Your OpenRouter key was not accepted. Update it in API key settings."
-            402 -> "Your OpenRouter account needs available credits or a free-model allowance."
-            403 -> "OpenRouter could not allow this request. Check your account and key permissions."
-            404 -> "This Nemotron model is unavailable. Please try again later."
-            429 -> "OpenRouter's request limit was reached. Wait a little, then retry."
-            else -> "Nemotron is temporarily unavailable. Please try again."
+            401, 403 -> "Study Sprint could not verify this installation. Retry, or report this to the app owner."
+            404 -> "Shared study chat is awaiting Firebase activation. Please try after the app owner enables it."
+            429 -> "The study chat allowance was reached. Wait a little, then retry."
+            else -> "Study buddy is temporarily unavailable. Please try again later."
         }
-        fun answer(body: String): String {
+        fun answer(body: String): ChatReply {
             val json = JSONObject(body)
-            if (json.has("error")) throw ChatProblem("Nemotron could not complete this request. Please retry.")
-            val choice = json.optJSONArray("choices")?.optJSONObject(0)
-            val content = choice?.optJSONObject("message")?.opt("content") as? String
-            if (content.isNullOrBlank()) throw ChatProblem("No final answer was returned. Try a shorter question or retry later.")
-            return content.trim().take(16000) + if (choice?.optString("finish_reason") == "length")
-                "\n\n[Response limit reached. Ask me to continue.]" else ""
+            if (json.has("error")) {
+                val status = json.optJSONObject("error")?.optString("status")
+                throw ChatProblem(when (status) {
+                    "RESOURCE_EXHAUSTED" -> "The study chat allowance is reached. Please try later."
+                    "FAILED_PRECONDITION" -> "Shared study chat needs setup or attention from the app owner."
+                    "INVALID_ARGUMENT" -> "This question or photo could not be accepted. Use up to 4 photos and a shorter question."
+                    else -> "Study buddy could not respond. Please retry later."
+                })
+            }
+            val result = json.optJSONObject("result") ?: json.optJSONObject("data")
+            val text = result?.opt("answer") as? String
+            val model = result?.optString("model")
+            if (text.isNullOrBlank() || model !in listOf(MODEL, FALLBACK_MODEL)) throw ChatProblem("No readable answer was returned. Please retry.")
+            return ChatReply(text.trim().take(16000), model!!)
         }
     }
-
-    override suspend fun reply(key: String, messages: List<ChatMessage>): String {
-        require(validKey(key))
-        val request = Request.Builder().url(endpoint).header("Authorization", "Bearer $key")
-            .header("X-Title", "Study Sprint").post(requestBody(messages).toRequestBody("application/json".toMediaType())).build()
+    override suspend fun reply(messages: List<ChatMessage>, photos: List<ChatPhoto>): ChatReply {
+        val credential = try { session() } catch (error: kotlinx.coroutines.CancellationException) { throw error }
+            catch (_: Exception) { throw ChatProblem("Could not verify Study Sprint. Check your connection, then retry or report the issue.") }
+        val request = Request.Builder().url(endpoint()).header("Authorization", "Bearer ${credential.idToken}")
+            .header("X-Firebase-AppCheck", credential.appToken)
+            .post(requestBody(messages, photos).toRequestBody("application/json".toMediaType())).build()
         return suspendCancellableCoroutine { continuation ->
             val call = client.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-                    if (continuation.isActive) continuation.resumeWithException(
-                        ChatProblem("Could not connect to Nemotron. Check your internet connection, then retry."))
+                    if (continuation.isActive) continuation.resumeWithException(ChatProblem("Could not reach Study buddy. Check your connection and retry."))
                 }
                 override fun onResponse(call: Call, response: Response) {
                     val result = runCatching {
                         response.use {
                             if (!it.isSuccessful) throw ChatProblem(statusMessage(it.code))
-                            val body = it.body ?: throw ChatProblem("Nemotron returned an empty response. Please retry.")
                             val bytes = ByteArrayOutputStream()
-                            body.byteStream().use { input ->
+                            (it.body ?: throw ChatProblem("The chat service returned no answer.")).byteStream().use { input ->
                                 val chunk = ByteArray(8192)
                                 while (true) {
-                                    val count = input.read(chunk)
-                                    if (count == -1) break
-                                    if (bytes.size() + count > 1024 * 1024) throw ChatProblem("The response was too large. Ask a shorter question.")
+                                    val count = input.read(chunk); if (count == -1) break
+                                    if (bytes.size() + count > 1024 * 1024) throw ChatProblem("The answer was too large. Ask a shorter question.")
                                     bytes.write(chunk, 0, count)
                                 }
                             }
                             answer(bytes.toString("UTF-8"))
                         }
                     }
-                    if (continuation.isActive) result.fold(
-                        { continuation.resume(it) },
-                        { continuation.resumeWithException(if (it is ChatProblem) it else ChatProblem("Nemotron returned an unreadable response. Please retry.")) }
-                    )
+                    if (continuation.isActive) result.fold({ continuation.resume(it) },
+                        { continuation.resumeWithException(if (it is ChatProblem) it else ChatProblem("The chat service returned an unreadable answer.")) })
                 }
             })
         }
