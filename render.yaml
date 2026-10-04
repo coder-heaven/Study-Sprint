@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: study-sprint-chat
+    runtime: node
+    plan: free
+    branch: feat/chat-assistant-v490
+    rootDir: functions
+    buildCommand: npm ci --ignore-scripts --no-audit --no-fund
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: FIREBASE_APP_ID
+        sync: false
+      - key: CHAT_DAILY_LIMIT
+        value: 100
+      - key: CHAT_USER_DAILY_LIMIT
+        value: 20
+      - key: KIMI_DAILY_LIMIT
+        value: 10

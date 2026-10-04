@@ -39,6 +39,6 @@ Publish from the main-only release workflow after all checks pass. Android 8.0 o
 
 ## Study buddy (v4.9.0)
 
-Open the floating avatar at the bottom right. Text questions use Nemotron via OpenRouter, with Kimi K3 via NVIDIA as the backup. Up to four selected photos use Kimi vision directly. Provider keys are server secrets, never APK contents or committed files. See [shared chat deployment](docs/SHARED_CHAT_SETUP.md). The backend must be activated before shared chat works.
+Open the floating avatar at the bottom right. Text questions use Nemotron via OpenRouter, with Kimi K3 via NVIDIA as the backup. Up to four selected photos use Kimi vision directly. Render hosts the backend with Firebase identity/App Check verification and persistent quotas. Provider keys are server secrets, never APK contents or committed files. See [shared chat deployment](docs/SHARED_CHAT_SETUP.md). The backend must be activated before shared chat works.
 
 The floating pill navigation raises Focus in the center. A bug icon beside Settings opens a report draft; the decorative bell has been removed. Branding and login artwork are documented in [LOGIN_ARTWORK_v4.8.0.md](docs/LOGIN_ARTWORK_v4.8.0.md).
