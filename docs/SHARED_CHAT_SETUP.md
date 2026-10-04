@@ -4,7 +4,7 @@ Render hosts the Node backend. Firebase Authentication and App Check verify the 
 
 ## Phone-friendly owner setup
 
-1. In Render, choose **New > Blueprint**, connect `coder-heaven/Study-Sprint`, select branch `feat/chat-assistant-v490` and use root `render.yaml`. Confirm the web service is **Free**. Alternatively create a Node web service with root directory `functions`, build `npm ci --ignore-scripts --no-audit --no-fund`, start `npm start`, health path `/health`.
+1. In Render, choose **New > Blueprint**, connect `coder-heaven/Study-Sprint`, select branch `main` and use root `render.yaml`. Confirm the web service is **Free**. Alternatively create a Node web service with root directory `functions`, build `npm ci --ignore-scripts --no-audit --no-fund`, start `npm start`, health path `/health`.
 2. Set these private Render environment variables (never send their values in chat):
    - `OPENROUTER_API_KEY`: your Nemotron/OpenRouter key.
    - `NVIDIA_API_KEY`: your direct NVIDIA Kimi key.
@@ -17,9 +17,9 @@ Render hosts the Node backend. Firebase Authentication and App Check verify the 
 
 ## Limits and privacy
 
-Default daily quotas: 100 total attempts, 20 per Firebase user and 10 Kimi attempts, plus 5 seconds between user requests. They reset by UTC day and use Firestore transactions. Anonymous identity can be recreated, so global quotas also cap attempts. Existing rules deny client reads/writes to `_chatQuota`. Quota records contain counts, timestamps and hashed IDs, not questions/photos/answers. Old quota records can be removed by an owner; automatic Firestore TTL can incur deletion charges, so consider that before enabling it on a free budget.
+Default daily quotas: 1,000 total attempts, 100 per Firebase user and 100 NVIDIA attempts, plus 5 seconds between user requests. They reset by UTC day and use Firestore transactions. Anonymous identity can be recreated, so global quotas also cap attempts. Existing rules deny client reads/writes to `_chatQuota`. Quota records contain counts, timestamps and hashed IDs, not questions/photos/answers. Old quota records can be removed by an owner; automatic Firestore TTL can incur deletion charges, so consider that before enabling it on a free budget.
 
-The server verifies Firebase ID tokens and App Check tokens for the configured Android app, caps simultaneous requests at three, accepts only bounded JSON and at most four JPEG photos, and never returns raw provider errors or reasoning. Photos go directly to NVIDIA Kimi; text goes to OpenRouter Nemotron with one eligible NVIDIA fallback. Firebase service credentials are distinct from the Android Firebase config. Retain server verification and never put private service credentials in GitHub build secrets that enter an APK.
+The server verifies Firebase ID tokens and App Check tokens for the configured Android app, caps simultaneous requests at three, accepts only bounded JSON and at most four JPEG photos, and never returns raw provider errors or reasoning. Photos go directly to NVIDIA Kimi; text uses the selected model or eligible automatic NVIDIA fallbacks. Firebase service credentials are distinct from the Android Firebase config. Retain server verification and never put private service credentials in GitHub build secrets that enter an APK.
 
 Render Free sleeps after 15 minutes idle and waking takes roughly a minute. The app allows more time for this first request. Free quotas and external API traffic limits can interrupt service; Render says free instances are for testing/hobby use rather than production. No free-hosting or AI allowance is guaranteed forever. Do not add keep-alive pings to bypass sleep. Free Render local storage is ephemeral, so quotas use existing Firestore instead of a local file or in-memory counter. Existing Firebase features retain their own quotas and any billing settings.
 
@@ -27,3 +27,9 @@ The legacy `functions/index.mjs` Firebase deployment remains available for compa
 
 ## Photo MCQ PDFs
 The app generates up to two successful PDFs per device per local calendar day. Attach photos, optionally enable automatic practice import, then tap Generate 10-MCQ PDF. The AI response must contain exactly 10 complete numbered MCQs and answers before a text-based PDF is written. Failed/cancelled provider requests do not consume a PDF slot. Successful generation is stored locally with the daily count and latest file. This device limit is separate from authenticated server/provider quotas and can reset if app storage is cleared. Exporting or opening a saved PDF does not spend a slot. Review AI-generated answers.
+
+## v4.9.2 models and existing Render services
+
+Set the existing service branch to `main` and deploy the latest commit. Existing environment overrides are retained by Render: set `CHAT_DAILY_LIMIT=1000`, `CHAT_USER_DAILY_LIMIT=100`, and `NVIDIA_DAILY_LIMIT=100`. All three NVIDIA models share one allowance; retain server-side identity/App Check verification. The old `KIMI_DAILY_LIMIT` setting is no longer used.
+
+Auto tries Nemotron, GPT-OSS 20B, GLM 5.3, then Kimi K3 on retryable errors. Students can explicitly select a model for text. Photo requests always use Kimi vision; GPT-OSS 20B and GLM 5.3 are text-only. Model IDs are `openai/gpt-oss-20b`, `z-ai/glm-5.3`, and `moonshotai/kimi-k3`. Kimi uses low reasoning effort and an 8,192-token budget. NVIDIA/provider account credits and rate limits remain provider-controlled; these settings raise only Study Sprint's own daily allowance.

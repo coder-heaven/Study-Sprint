@@ -11,11 +11,15 @@ import kotlinx.coroutines.flow.asStateFlow
 internal data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(), val photos: List<ChatPhoto> = emptyList(),
     val ready: Boolean = true, val busy: Boolean = false, val photoBusy: Boolean = false,
-    val error: String? = null, val canRetry: Boolean = false,
+    val error: String? = null, val canRetry: Boolean = false, val selectedModel: String = "auto",
     val pdfFile: String? = null, val practiceReady: Boolean = false, val pdfRemaining: Int = 2
 )
-internal class StudyChatViewModel(application: Application, private val transport: StudyChatTransport) : AndroidViewModel(application) {
-    constructor(application: Application) : this(application, StudyChatClient())
+internal class StudyChatViewModel(application: Application, private val transport: StudyChatTransport, private val persistent: Boolean = false, private val store: ChatSessionStore = ChatSessionStore(application)) : AndroidViewModel(application) {
+    constructor(application: Application) : this(application, StudyChatClient(profile = {
+        val prefs = application.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE)
+        (prefs.getString("exam", "CET")?.takeIf { it in listOf("CET", "JEE", "NEET") } ?: "CET") to
+            (prefs.getString("grade", "11")?.takeIf { it in listOf("11", "12") } ?: "11")
+    }), true)
     private val mutable = MutableStateFlow(ChatUiState(pdfRemaining = ChatMcqPdf.remaining(application), pdfFile = ChatMcqPdf.latest(application),
         practiceReady = application.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE).getBoolean("chat_pdf_practice", false)))
     val state = mutable.asStateFlow()
@@ -26,7 +30,18 @@ internal class StudyChatViewModel(application: Application, private val transpor
     private var generation = 0
     private var makePdf = false
     private var loadPractice = false
-    init { viewModelScope.launch(Dispatchers.IO) { runCatching { ChatKeyVault(application).remove() } } }
+    private var pendingModel = "auto"
+    private var cachedReply: ChatReply? = null
+    private fun save() { if (persistent) runCatching { store.save(mutable.value, pending, pendingModel, makePdf, loadPractice, cachedReply) } }
+    fun selectModel(model: String) { if (!mutable.value.busy && model in StudyChatClient.models) { mutable.value = mutable.value.copy(selectedModel = model); save() } }
+    init {
+        if (persistent) store.load()?.let { saved ->
+            mutable.value = mutable.value.copy(messages = saved.messages, photos = saved.photos, selectedModel = saved.model,
+                canRetry = saved.pending != null, error = if (saved.pending != null) "Your unfinished request was saved. Tap Retry to continue." else null)
+            history = StudyChatClient.bounded(saved.messages)
+            pending = saved.pending; pendingModel = saved.pendingModel; makePdf = saved.pdf; loadPractice = saved.practice; cachedReply = saved.reply
+        }
+        viewModelScope.launch(Dispatchers.IO) { runCatching { ChatKeyVault(application).remove() } } }
     fun importPhotos(uris: List<Uri>) {
         if (mutable.value.busy || mutable.value.photoBusy || uris.isEmpty()) return
         val room = StudyChatClient.MAX_PHOTOS - mutable.value.photos.size
@@ -36,15 +51,17 @@ internal class StudyChatViewModel(application: Application, private val transpor
             val selected = withContext(Dispatchers.IO) { uris.take(room).map { runCatching { ChatPhotos.load(getApplication(), it) } } }
             mutable.value = mutable.value.copy(photoBusy = false, photos = mutable.value.photos + selected.mapNotNull { it.getOrNull() },
                 error = if (selected.any { it.isFailure }) "Some photos could not be opened. Use clear images smaller than 12 MB." else if (uris.size > room) "Only 4 photos can be attached at a time." else null)
+            save()
         }
     }
     internal fun attach(photos: List<ChatPhoto>) {
         if (!mutable.value.busy && !mutable.value.photoBusy) {
             val combined = mutable.value.photos + photos
             mutable.value = mutable.value.copy(photos = combined.take(4), error = if (combined.size > 4) "Only 4 photos can be attached at a time." else null)
+            save()
         }
     }
-    fun removePhoto(id: String) { if (!mutable.value.busy) mutable.value = mutable.value.copy(photos = mutable.value.photos.filterNot { it.id == id }, error = null) }
+    fun removePhoto(id: String) { if (!mutable.value.busy) { mutable.value = mutable.value.copy(photos = mutable.value.photos.filterNot { it.id == id }, error = null); save() } }
     fun generatePdf(addToPractice: Boolean): Boolean {
         if (mutable.value.busy || mutable.value.photoBusy) return false
         val remaining = ChatMcqPdf.remaining(getApplication())
@@ -65,8 +82,9 @@ internal class StudyChatViewModel(application: Application, private val transpor
         if (prompt.length > StudyChatClient.MAX_PROMPT) { mutable.value = mutable.value.copy(error = "Keep your question within 4,000 characters."); return false }
         val user = ChatMessage("user", prompt, mutable.value.photos.size)
         pending = (if (makePdf) listOf(user) else StudyChatClient.bounded(history + user)) to mutable.value.photos
+        cachedReply = null; pendingModel = mutable.value.selectedModel
         mutable.value = mutable.value.copy(messages = (mutable.value.messages + user).takeLast(80), photos = emptyList())
-        runRequest(); return true
+        save(); runRequest(); return true
     }
     fun retry() { if (!mutable.value.busy && !mutable.value.photoBusy && pending != null) runRequest() }
     private fun runRequest() {
@@ -74,12 +92,18 @@ internal class StudyChatViewModel(application: Application, private val transpor
         mutable.value = mutable.value.copy(busy = true, error = null, canRetry = false)
         request = viewModelScope.launch {
             try {
-                val reply = transport.reply(chosen.first, chosen.second)
+                val reply = cachedReply ?: transport.replyWithModel(chosen.first, chosen.second, pendingModel)
+                if (token != generation) return@launch
+                cachedReply = reply; save()
                 if (token == generation) {
                     var file: String? = null; var practice = false
                     if (makePdf) {
                         val created = withContext(Dispatchers.IO) {
-                            val questions = ChatMcqPdf.questions(reply.answer)
+                            val questions = try { ChatMcqPdf.questions(reply.answer) } catch (error: IllegalArgumentException) {
+                                // Invalid AI output must be regenerated, rather than retrying the same invalid cached text.
+                                withContext(Dispatchers.Main) { if (token == generation) { cachedReply = null; save() } }
+                                throw error
+                            }
                             val pdf = ChatMcqPdf.create(getApplication(), questions)
                             val saved = if (loadPractice) runCatching { ChatMcqPdf.addToPractice(getApplication(), questions, pdf) }.isSuccess else false
                             pdf to saved
@@ -88,19 +112,20 @@ internal class StudyChatViewModel(application: Application, private val transpor
                     }
                     if (token != generation) return@launch
                     val assistant = ChatMessage("assistant", reply.answer, model = reply.model)
-                    history = StudyChatClient.bounded(chosen.first + assistant); pending = null
+                    history = StudyChatClient.bounded(chosen.first + assistant); pending = null; cachedReply = null
                     mutable.value = mutable.value.copy(messages = (mutable.value.messages + assistant).takeLast(80), busy = false,
                         pdfFile = file ?: mutable.value.pdfFile, practiceReady = if (file != null) practice else mutable.value.practiceReady,
                         pdfRemaining = ChatMcqPdf.remaining(getApplication()),
                         error = if (file != null && loadPractice && !practice) "PDF saved, but practice import failed. You can import the PDF from Practice." else null)
+                    save()
                 }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { if (token == generation) mutable.value = mutable.value.copy(busy = false, canRetry = true,
-                error = if (error is ChatProblem || error is IllegalArgumentException) error.message else "Study buddy could not respond. Please retry.") }
+                error = if (error is ChatProblem || error is IllegalArgumentException) error.message else "Study buddy could not respond. Please retry."); save() }
         }
     }
     private fun stopRequest() { generation++; request?.cancel(); request = null; mutable.value = mutable.value.copy(busy = false) }
-    fun stop() { stopRequest(); mutable.value = mutable.value.copy(error = "Stopped waiting. You can retry when ready.", canRetry = pending != null) }
-    fun clear() { stopRequest(); photoRequest?.cancel(); photoRequest = null; history = emptyList(); pending = null
-        mutable.value = ChatUiState(pdfRemaining = ChatMcqPdf.remaining(getApplication())) }
+    fun stop() { stopRequest(); mutable.value = mutable.value.copy(error = "Stopped waiting. You can retry when ready.", canRetry = pending != null); save() }
+    fun clear() { stopRequest(); photoRequest?.cancel(); photoRequest = null; history = emptyList(); pending = null; cachedReply = null
+        mutable.value = ChatUiState(pdfRemaining = ChatMcqPdf.remaining(getApplication())); save() }
 }

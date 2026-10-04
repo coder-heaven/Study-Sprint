@@ -21,8 +21,11 @@ class ChatMcqPdfDeviceTest {
         val prefs = context.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)
         prefs.edit().putString("owned_mcqs_chapter", "Existing").putString("owned_mcqs_json", "[]").commit()
         try {
-            val text = (1..10).joinToString("\n\n") { "$it. Which formula gives photon energy?\nA. h*f\nB. h/f\nC. f/h\nD. h+f\nAnswer: A" }
+            val text = (1..10).joinToString("\n\n") { "$it. Which formula gives photon energy (10⁻³ J, λ, x²)?\nA. h×f\nB. h/f\nC. f/h\nD. h+f\nAnswer: A" }
             val q = ChatMcqPdf.questions(text)
+            assertTrue(q.first().question.contains("10^(-3) J"))
+            assertTrue(q.first().question.contains("lambda"))
+            assertEquals("h*f", q.first().options.first())
             val first = ChatMcqPdf.create(context, q)
             assertEquals(1, ChatMcqPdf.remaining(context))
             assertEquals("Existing", prefs.getString("owned_mcqs_chapter", ""))

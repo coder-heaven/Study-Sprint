@@ -15,7 +15,20 @@ import java.util.UUID
 
 internal object ChatMcqPdf {
     const val PROMPT = "Read only the study material in these photos and create exactly 10 original MCQs for exam practice. Use only concepts visible in these photos. If unreadable, ask for clearer photos instead. Mix concept, critical thinking and competency questions. Use English and plain ASCII math (for example x^2, sqrt(x), pi); no LaTeX or markdown. Give four options and the correct answer for every question. Output nothing else. Exactly this layout repeated through 10: 1. Question text\nA. First option\nB. Second option\nC. Third option\nD. Fourth option\nAnswer: B"
-    fun questions(text: String): List<PdfImportedMcq> {
+    fun normalize(text: String): String {
+        var clean = text.replace("```text", "").replace("```", "").replace("**", "").replace("\u00a0", " ")
+        val powers = mapOf('⁰' to '0', '¹' to '1', '²' to '2', '³' to '3', '⁴' to '4', '⁵' to '5', '⁶' to '6', '⁷' to '7', '⁸' to '8', '⁹' to '9', '⁻' to '-', '⁺' to '+')
+        clean = Regex("[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+").replace(clean) { match ->
+            val exponent = match.value.map { powers.getValue(it) }.joinToString("")
+            if (exponent.length == 1) "^$exponent" else "^($exponent)"
+        }
+        val symbols = mapOf('×' to "*", '÷' to "/", '−' to "-", '–' to "-", '—' to "-", '’' to "'", '‘' to "'", '“' to "\"", '”' to "\"",
+            'π' to "pi", 'λ' to "lambda", 'ν' to "nu", 'μ' to "mu", 'θ' to "theta", 'Δ' to "Delta", 'Ω' to "ohm", '√' to "sqrt", '°' to " degrees", '≤' to "<=", '≥' to ">=", '≈' to "~", '²' to "^2", '³' to "^3", '⁻' to "-", '₀' to "0", '₁' to "1", '₂' to "2", '₃' to "3", '₄' to "4", '₅' to "5", '₆' to "6", '₇' to "7", '₈' to "8", '₉' to "9", '⁰' to "0", '¹' to "^1", '⁴' to "4", '⁵' to "5", '⁶' to "6", '⁷' to "7", '⁸' to "8", '⁹' to "9")
+        clean = clean.map { symbols[it] ?: it.toString() }.joinToString("")
+        return clean.trim()
+    }
+    fun questions(raw: String): List<PdfImportedMcq> {
+        val text = normalize(raw)
         val starts = Regex("(?m)^\\s*(\\d{1,2})[.)]\\s+").findAll(text).map { it.groupValues[1].toInt() }.toList()
         require(starts == (1..10).toList()) { "The AI did not return exactly 10 numbered MCQs. Retry with clearer photos." }
         val parsed = PdfQuestionImporter.parse(text)

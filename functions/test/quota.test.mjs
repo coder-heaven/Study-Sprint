@@ -17,7 +17,7 @@ test('Kimi request reserves backup allowance without ReferenceError', async () =
   assert.equal(db.writes.length, 1); assert.match(db.writes[0].ref.path, /_kimi$/);
 });
 test('exhausted quota and cooldown reject before writing', async () => {
-  for (const rows of [[{count:100}], [{count:0},{count:1,lastAttempt:Date.now()}]]) {
+  for (const rows of [[{count:1000}], [{count:0},{count:1,lastAttempt:Date.now()}]]) {
     const db = database(rows);
     await assert.rejects(reserve('test-user', false, db), e => e.code === 'resource-exhausted');
     assert.equal(db.writes.length, 0);

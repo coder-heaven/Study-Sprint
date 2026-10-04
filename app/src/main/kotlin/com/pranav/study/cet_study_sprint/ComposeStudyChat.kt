@@ -56,16 +56,18 @@ internal fun StudyChatScreen(model: StudyChatViewModel, go: (String) -> Unit, re
         { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { go("privacy") }, model::generatePdf,
         { export.launch("Study-Sprint-Photo-MCQs.pdf") },
         { state.pdfFile?.let { name -> runCatching { ChapterFiles.openPdf(context, name) }.onFailure { Toast.makeText(context, "No PDF viewer is available. Use Save PDF.", Toast.LENGTH_SHORT).show() } } },
-        { refresh(); go("my_quiz") })
+        { refresh(); go("my_quiz") }, model::selectModel)
 }
 @Composable
 internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, retry: () -> Unit, stop: () -> Unit,
     clear: () -> Unit, removePhoto: (String) -> Unit, choosePhotos: () -> Unit, privacy: () -> Unit,
-    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}) {
-    var autoPractice by remember { mutableStateOf(false) }
-    var draft by remember { mutableStateOf("") }
+    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}, selectModel: (String) -> Unit = {}) {
+    var autoPractice by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val keyboard = LocalSoftwareKeyboardController.current
     fun submit() { if (send(draft)) { draft = ""; keyboard?.hide() } }
+    val preferences = LocalContext.current.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE)
+    val exam = preferences.getString("exam", "CET") ?: "CET"
     val list = rememberLazyListState()
     LaunchedEffect(state.messages.size, state.error) {
         val count = state.messages.size + (if (state.messages.isEmpty()) 1 else 0) + (if (state.error != null) 1 else 0) + (if (state.pdfFile != null) 1 else 0)
@@ -77,7 +79,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
             Image(painterResource(R.drawable.study_buddy_3d), null, Modifier.size(40.dp))
             Column(Modifier.weight(1f)) {
                 Text("Your study buddy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Nemotron · Kimi K3 backup", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("$exam study help · occasional exam tips", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -98,7 +100,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                 Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
                     color = if (user) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (user) "You" else if (message.model == StudyChatClient.FALLBACK_MODEL) "Study buddy · Kimi K3" else "Study buddy · Nemotron", style = MaterialTheme.typography.labelMedium,
+                        Text(if (user) "You" else "Study buddy · ${StudyChatClient.modelName(message.model)}", style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         if (message.photoCount > 0) Text("${message.photoCount} photo${if (message.photoCount == 1) "" else "s"} attached", style = MaterialTheme.typography.labelSmall)
                         if (user) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
@@ -132,6 +134,14 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
         if (state.messages.isNotEmpty()) TextButton(onClick = { keyboard?.hide(); draft = ""; clear() }, modifier = Modifier.align(Alignment.End)) { Text("New chat") }
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                var modelMenu by remember { mutableStateOf(false) }
+                Box {
+                    TextButton(onClick = { modelMenu = true }, enabled = !state.busy) { Text("Model: ${StudyChatClient.modelName(state.selectedModel)}") }
+                    DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
+                        StudyChatClient.models.forEach { (id, name) -> DropdownMenuItem(text = { Text(name) }, onClick = { selectModel(id); modelMenu = false }) }
+                    }
+                }
+                Text(StudyChatClient.introduction(state.selectedModel, exam), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (state.photos.isNotEmpty()) LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("chat_photos")) {
                     items(state.photos, key = { it.id }) { photo ->
                         val bitmap = remember(photo.id) { BitmapFactory.decodeByteArray(photo.thumbnail, 0, photo.thumbnail.size)?.asImageBitmap() }
@@ -165,7 +175,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                     Button(onClick = { submit() }, enabled = !state.busy && !state.photoBusy && (draft.isNotBlank() || state.photos.isNotEmpty()),
                         modifier = Modifier.heightIn(min = 56.dp).testTag("chat_send"), contentPadding = PaddingValues(12.dp)) { Text("Send") }
                 }
-                Text("AI can be wrong. Check answers. Chat is kept only in this session.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("AI can be wrong. Check answers. Chat is saved on this device until you tap New chat.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

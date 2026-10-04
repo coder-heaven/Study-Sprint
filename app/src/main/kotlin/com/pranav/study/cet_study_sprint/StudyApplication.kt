@@ -6,6 +6,7 @@ import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 
 class StudyApplication : Application() {
+    internal val studyChat by lazy { StudyChatViewModel(this) }
     override fun onCreate() {
         super.onCreate()
         FirebaseApp.initializeApp(this)?.let {

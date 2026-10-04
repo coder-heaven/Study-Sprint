@@ -110,6 +110,27 @@ class StudyChatUiTest {
         assertEquals(2, calls.get())
         vm.clear()
     }
+    @Test fun applicationOwnsTheSessionAcrossActivityRecreation() {
+        val application = compose.activity.application as StudyApplication
+        val session = application.studyChat
+        compose.runOnIdle { session.selectModel(StudyChatClient.GLM_MODEL) }
+        compose.activityRule.scenario.recreate()
+        compose.activityRule.scenario.onActivity { recreated ->
+            assertSame(session, (recreated.application as StudyApplication).studyChat)
+            assertEquals(StudyChatClient.GLM_MODEL, session.state.value.selectedModel)
+        }
+        compose.runOnIdle { session.clear() }
+    }
+    @Test fun selectingNvidiaModelUpdatesComposer() {
+        val vm = model(StudyChatTransport { _, _ -> ChatReply("OK", StudyChatClient.GPT_MODEL) })
+        show(vm)
+        compose.onNodeWithText("Model: Auto").performClick()
+        compose.onNodeWithText("GPT-OSS 20B").performClick()
+        assertEquals(StudyChatClient.GPT_MODEL, vm.state.value.selectedModel)
+        compose.onNodeWithText("Model: GPT-OSS 20B").assertIsDisplayed()
+        capture("chat-model-selector")
+        vm.clear()
+    }
     @Test fun darkLoginUses3dArtworkAndGuestFlowStillWorks() {
         prefs.edit().clear().putString("theme_mode", "dark").commit()
         var guest = false

@@ -240,7 +240,8 @@ internal fun StudyRoot(prefs: SharedPreferences, revision: Int, alertRoute: Stri
     val primary = StudyNavigation.tabs.map { it.route }
     val selectedTab = StudyNavigation.tabFor(route)
     val focusModel: FocusViewModel = viewModel()
-    val chatModel: StudyChatViewModel = viewModel()
+    val application = LocalContext.current.applicationContext as StudyApplication
+    val chatModel = remember(application) { application.studyChat }
     val focusState by focusModel.state.collectAsStateWithLifecycle()
     var quickTask by remember { mutableStateOf(false) }
     var chapterSubject by remember { mutableStateOf<String?>(null) }
