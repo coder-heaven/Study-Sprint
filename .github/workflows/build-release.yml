@@ -12,6 +12,7 @@ on:
       - 'app/**'
       - 'firebase/**'
       - 'functions/**'
+      - 'render.yaml'
       - '.github/workflows/build-release.yml'
   push:
     branches: [main, feat/live-leaderboards]
@@ -19,6 +20,7 @@ on:
       - 'app/**'
       - 'firebase/**'
       - 'functions/**'
+      - 'render.yaml'
       - 'firebase.json'
       - '.github/workflows/build-release.yml'
 
@@ -54,6 +56,7 @@ jobs:
           printf '%s' "$GOOGLE_SERVICES_BASE64" | base64 --decode > app/google-services.json
       - name: Build release
         env:
+          STUDY_CHAT_URL: ${{ vars.STUDY_CHAT_URL }}
           RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/study-sprint-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -88,6 +91,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          [ -n "${{ vars.STUDY_CHAT_URL }}" ] || { echo "Configure STUDY_CHAT_URL before publishing shared chat"; exit 1; }
           version=$(awk -F '"' '/versionName =/ {print $2}' app/build.gradle.kts)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           tag="v$version"
