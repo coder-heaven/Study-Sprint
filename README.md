@@ -2,13 +2,13 @@
 
 Native Android study companion for CET, JEE and NEET students, built with Kotlin and Jetpack Compose.
 
-## v4.8.0 — FocusIQ UI with 3D artwork
+## v4.9.0 — Study buddy and floating navigation
 
 Charcoal surfaces, emerald accents, Poppins typography and original artwork from the supplied [FocusIQ Figma reference](https://www.figma.com/design/WvokxNRgdRmYLZmKF5mNvl/). Coordinated transparent 3D timer, notebook, shield and trophy artwork brings focus, tasks, protection and progress into one visual system. The original Study Sprint logo remains in the navigation and brand screens. Home shows real focus progress and study tasks. The focus timer exposes distraction blocking and protection status directly.
 
 App blocking checks the foreground window's package every second, including after service reconnection and while an app stays open past its limit. Protected focus covers limited apps and focus-only selections without waiting for usage queries. Blocking history failures cannot stop enforcement. If Android silently refuses the block screen, the service verifies the denied app is still foreground before returning to Home.
 
-[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v4.8.0.md)
+[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v4.9.0.md)
 
 Install the signed update over the existing app to retain local data. Do not uninstall or clear storage. After updating, reconnect **Study Sprint app limits** in Android Accessibility if necessary; **Usage Access** is required for daily limits. The app shows these settings in App Limits and on the focus screen.
 
@@ -37,8 +37,8 @@ The release workflow runs unit tests, release lint, Android instrumented UI/navi
 
 Publish from the main-only release workflow after all checks pass. Android 8.0 or later is required. Original Figma vector sources and the Poppins OFL license are bundled alongside the native rendering assets.
 
-## Study buddy (v4.8.0)
+## Study buddy (v4.9.0)
 
-Open Study buddy from Home, the drawer or Search. Tap Connect / API key and enter your own OpenRouter key. The app uses `nvidia/nemotron-3-ultra-550b-a55b:free` over HTTPS. Keys are encrypted with Android Keystore, excluded from backups and never bundled into release builds. Remove the saved key in the same dialog. There is no shared public key or backend. Only explicit chat messages and up to 20 recent turns are sent; chats remain in memory for the current session. Free-model availability and limits are controlled by OpenRouter.
+Open the floating avatar at the bottom right. Text questions use Nemotron via OpenRouter, with Kimi K3 via NVIDIA as the backup. Up to four selected photos use Kimi vision directly. Provider keys are server secrets, never APK contents or committed files. See [shared chat deployment](docs/SHARED_CHAT_SETUP.md). The backend must be activated before shared chat works.
 
-Branding and the generated login artwork are documented in [LOGIN_ARTWORK_v4.8.0.md](docs/LOGIN_ARTWORK_v4.8.0.md).
+The floating pill navigation raises Focus in the center. A bug icon beside Settings opens a report draft; the decorative bell has been removed. Branding and login artwork are documented in [LOGIN_ARTWORK_v4.8.0.md](docs/LOGIN_ARTWORK_v4.8.0.md).
