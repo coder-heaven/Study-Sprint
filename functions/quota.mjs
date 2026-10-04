@@ -6,8 +6,7 @@ function limit(name, fallback) {
   if (!Number.isSafeInteger(n) || n < 1) throw new ChatError('failed-precondition', 'Chat quota configuration needs attention.');
   return n;
 }
-export async function reserve(uid, kimi = false) {
-  const db = getFirestore();
+export async function reserve(uid, kimi = false, db = getFirestore()) {
   const day = new Date().toISOString().slice(0, 10);
   const global = db.doc(`_chatQuota/${day}_${kimi ? 'kimi' : 'all'}`);
   const user = db.doc(`_chatQuota/${day}_${createHash('sha256').update(uid).digest('hex')}`);
