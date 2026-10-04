@@ -16,6 +16,11 @@ android {
         targetSdk = 35
         versionCode = 30
         versionName = "4.9.0"
+        val chatUrl = providers.environmentVariable("STUDY_CHAT_URL").orElse("").get()
+        require(chatUrl.isEmpty() || chatUrl.matches(Regex("https://[a-zA-Z0-9.-]+/studyBuddy"))) {
+            "STUDY_CHAT_URL must be an HTTPS /studyBuddy endpoint"
+        }
+        buildConfigField("String", "STUDY_CHAT_URL", "\"$chatUrl\"")
     }
 
     compileOptions {
@@ -24,7 +29,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = JavaVersion.VERSION_17.toString() }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     val releaseKeystore = System.getenv("RELEASE_KEYSTORE_PATH")
     if (releaseKeystore != null) {
         signingConfigs {
