@@ -2,7 +2,6 @@ package com.pranav.study.cet_study_sprint
 
 import android.content.Context
 import android.text.Spanned
-import android.text.style.StyleSpan
 import android.widget.TextView
 import android.view.View
 import android.view.ViewGroup
@@ -37,7 +36,7 @@ class ChatMarkdownUiTest {
             val view = textViews(compose.activity.window.decorView).first { it.text.contains("Photon energy") }
             assertFalse(view.text.contains("###")); assertFalse(view.text.contains("**"))
             val spanned = view.text as Spanned
-            assertTrue(spanned.getSpans(0, spanned.length, StyleSpan::class.java).isNotEmpty())
+            assertTrue(spanned.getSpans(0, spanned.length, Any::class.java).any { it.javaClass.simpleName == "StrongEmphasisSpan" })
         }
         // Allow asynchronous equation drawables to complete before capturing the actual device view.
         compose.waitUntil(10000) { !compose.mainClock.hasPendingWork }
