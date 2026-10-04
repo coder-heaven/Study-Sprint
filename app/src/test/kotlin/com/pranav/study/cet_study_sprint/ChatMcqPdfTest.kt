@@ -1,0 +1,19 @@
+package com.pranav.study.cet_study_sprint
+
+import org.junit.Assert.*
+import org.junit.Test
+
+class ChatMcqPdfTest {
+    private fun sample(count: Int = 10) = (1..count).joinToString("\n\n") { "$it. What is photon energy?\nA. h*f\nB. h/f\nC. f/h\nD. h+f\nAnswer: A" }
+    @Test fun generatedTextRoundTripsWithoutLosingAnswers() {
+        val q = ChatMcqPdf.questions(sample())
+        assertEquals(10, q.size)
+        assertEquals(q, ChatMcqPdf.questions(ChatMcqPdf.canonical(q)))
+        assertTrue(q.all { it.answer == 0 })
+    }
+    @Test fun incompleteOrExtraQuestionsCannotCreateAPdf() {
+        for (text in listOf(sample(9), sample(11), sample().replace("Answer: A", ""), sample().replace("C. f/h\n", ""))) {
+            try { ChatMcqPdf.questions(text); fail("Invalid set accepted") } catch (_: IllegalArgumentException) { }
+        }
+    }
+}
