@@ -17,8 +17,8 @@ export async function reserve(uid, kimi = false) {
     const now = Date.now();
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index].data() ?? {};
-      const limit = kimi ? limit('KIMI_DAILY_LIMIT', 10) : index === 0 ? limit('CHAT_DAILY_LIMIT', 100) : limit('CHAT_USER_DAILY_LIMIT', 20);
-      if ((row.count ?? 0) >= limit) throw new ChatError('resource-exhausted', 'The study chat daily allowance is reached. Please try tomorrow.');
+      const dailyLimit = kimi ? limit('KIMI_DAILY_LIMIT', 10) : index === 0 ? limit('CHAT_DAILY_LIMIT', 100) : limit('CHAT_USER_DAILY_LIMIT', 20);
+      if ((row.count ?? 0) >= dailyLimit) throw new ChatError('resource-exhausted', 'The study chat daily allowance is reached. Please try tomorrow.');
       if (!kimi && index === 1 && now - (row.lastAttempt ?? 0) < 5000) throw new ChatError('resource-exhausted', 'Wait a few seconds before sending another question.');
     }
     for (let index = 0; index < rows.length; index++) transaction.set(refs[index], { count: (rows[index].data()?.count ?? 0) + 1, lastAttempt: now, expiresAt: new Date(now + 7 * 86400000) });
