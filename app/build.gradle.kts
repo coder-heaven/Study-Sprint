@@ -14,8 +14,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 26
         targetSdk = 35
-        versionCode = 31
-        versionName = "4.9.1"
+        versionCode = 32
+        versionName = "4.9.2"
         val chatUrl = providers.environmentVariable("STUDY_CHAT_URL").orElse("").get()
         require(chatUrl.isEmpty() || chatUrl.matches(Regex("https://[a-zA-Z0-9.-]+/studyBuddy"))) {
             "STUDY_CHAT_URL must be an HTTPS /studyBuddy endpoint"
