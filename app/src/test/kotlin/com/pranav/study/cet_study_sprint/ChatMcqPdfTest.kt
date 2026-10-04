@@ -12,7 +12,7 @@ class ChatMcqPdfTest {
         assertTrue(q.all { it.answer == 0 })
     }
     @Test fun incompleteOrExtraQuestionsCannotCreateAPdf() {
-        for (text in listOf(sample(9), sample(11), sample().replace("Answer: A", ""), sample().replace("C. f/h\n", ""))) {
+        for (text in listOf(sample(9), sample(11), sample().replace("Answer: A", ""), sample().replace("C. f/h\n", ""), sample().replace("Answer: A", "E. fifth option\nAnswer: A"))) {
             try { ChatMcqPdf.questions(text); fail("Invalid set accepted") } catch (_: IllegalArgumentException) { }
         }
     }
