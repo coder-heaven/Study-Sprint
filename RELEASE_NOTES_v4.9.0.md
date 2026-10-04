@@ -7,3 +7,5 @@
 - Updated privacy details for selected photos, providers and request allowances.
 
 Shared chat requires the Render backend, Firebase Authentication and App Check to be activated and verified before release.
+
+- Generate up to two text-based PDFs per device per local day from 1–4 study photos, each with 10 answered MCQs. Optional automatic practice import preserves existing sets. Save/open the PDF and start the imported quiz. Re-exporting an existing PDF does not consume another generation.
