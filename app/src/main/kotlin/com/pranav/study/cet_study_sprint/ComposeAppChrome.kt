@@ -63,7 +63,7 @@ internal fun StudyPillNavigation(selectedTab: String?, go: (String) -> Unit) {
 internal fun StudyBuddyShortcut(open: () -> Unit) {
     FloatingActionButton(onClick = open, shape = CircleShape, containerColor = MaterialTheme.colorScheme.primary,
         modifier = Modifier.size(56.dp).testTag("chat_fab").semantics { contentDescription = "Open Study buddy" }) {
-        Image(painterResource(R.drawable.study_buddy_avatar), null, Modifier.size(48.dp))
+        Image(painterResource(R.drawable.study_buddy_3d), null, Modifier.size(48.dp))
     }
 }
 internal object BugReports {

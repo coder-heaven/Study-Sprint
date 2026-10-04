@@ -74,7 +74,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
     Column(Modifier.fillMaxSize().imePadding().testTag("study_chat")) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Image(painterResource(R.drawable.study_buddy_avatar), null, Modifier.size(40.dp))
+            Image(painterResource(R.drawable.study_buddy_3d), null, Modifier.size(40.dp))
             Column(Modifier.weight(1f)) {
                 Text("Your study buddy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("Nemotron · Kimi K3 backup", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -101,7 +101,8 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                         Text(if (user) "You" else if (message.model == StudyChatClient.FALLBACK_MODEL) "Study buddy · Kimi K3" else "Study buddy · Nemotron", style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         if (message.photoCount > 0) Text("${message.photoCount} photo${if (message.photoCount == 1) "" else "s"} attached", style = MaterialTheme.typography.labelSmall)
-                        SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
+                        if (user) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
+                        else ChatMarkdown(message.content, Modifier.fillMaxWidth())
                     }
                 }
             }
