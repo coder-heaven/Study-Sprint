@@ -114,8 +114,6 @@ class StudyChatUiTest {
         val application = compose.activity.application as StudyApplication
         val session = application.studyChat
         compose.runOnIdle { session.selectModel(StudyChatClient.GLM_MODEL) }
-        compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
-        compose.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
         compose.activityRule.scenario.recreate()
         compose.activityRule.scenario.onActivity { recreated ->
             assertSame(session, (recreated.application as StudyApplication).studyChat)
