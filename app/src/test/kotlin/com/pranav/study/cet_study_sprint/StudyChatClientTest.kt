@@ -39,6 +39,17 @@ class StudyChatClientTest {
             assertEquals("POST", request.method)
         } finally { server.shutdown() }
     }
+    @Test fun selectedModelAndExamReachAuthenticatedBackend() = runBlocking {
+        val server = MockWebServer()
+        try {
+            server.enqueue(MockResponse().setBody("""{"result":{"answer":"Use NCERT terms.","model":"z-ai/glm-5.3"}}"""))
+            val client = StudyChatClient(profile = { "NEET" to "12" }, endpoint = { server.url("/chat").toString() }, session = { ChatSession("firebase-token", "app-token") })
+            assertEquals(StudyChatClient.GLM_MODEL, client.replyWithModel(listOf(ChatMessage("user", "Explain mitosis")), emptyList(), StudyChatClient.GLM_MODEL).model)
+            val data = JSONObject(server.takeRequest(2, TimeUnit.SECONDS)!!.body.readUtf8()).getJSONObject("data")
+            assertEquals("NEET", data.getString("exam")); assertEquals("12", data.getString("grade"))
+            assertEquals(StudyChatClient.GLM_MODEL, data.getString("model"))
+        } finally { server.shutdown() }
+    }
     @Test fun rateLimitMessageDoesNotExposeProviderBodyOrCredential() = runBlocking {
         val server = MockWebServer()
         try {
