@@ -8,3 +8,8 @@ export function googleKey(environment = process.env) {
   }
   return undefined;
 }
+
+export function googleBackupKey(environment = process.env) {
+  const key = environment.GEMINI_API_KEY_2?.trim();
+  return configured(key) ? key : undefined;
+}

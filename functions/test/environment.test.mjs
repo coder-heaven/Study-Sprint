@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { googleKey } from '../environment.mjs';
+import { googleKey, googleBackupKey } from '../environment.mjs';
 
 const first = 'test_google_key_1234567890';
 const second = 'test_google_key_0987654321';
@@ -16,4 +16,9 @@ test('Google environment accepts either documented name and surrounding whitespa
   assert.equal(googleKey({ GEMINI_API_KEY: `Bearer ${authorizationKey}` }), undefined);
   assert.equal(googleKey({ GEMINI_API_KEY: 'AQ.' + 'a'.repeat(36) + '\nHeader: injected' }), undefined);
   assert.equal(googleKey({}), undefined);
+});
+test('secondary Google key stays private and accepts new auth keys', () => {
+  assert.equal(googleBackupKey({ GEMINI_API_KEY_2: ` ${authorizationKey} ` }), authorizationKey);
+  assert.equal(googleBackupKey({ GEMINI_API_KEY_2: `Bearer ${authorizationKey}` }), undefined);
+  assert.equal(googleBackupKey({}), undefined);
 });

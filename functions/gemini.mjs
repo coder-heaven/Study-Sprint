@@ -13,7 +13,7 @@ async function invoke(body, key, fetcher) {
     if (!response.ok) {
       await response.body?.cancel().catch(() => {});
       if (response.status === 429) throw new ChatError('resource-exhausted', 'Online study search allowance is reached. Try again later.', true);
-      if ([400,401,403,404].includes(response.status)) throw new ChatError('failed-precondition', 'Google study search needs configuration by the app owner.');
+      if ([400,401,403,404].includes(response.status)) throw new ChatError('failed-precondition', 'Google study search needs configuration by the app owner.', response.status !== 400);
       throw new ChatError('unavailable', 'Google study service could not respond. Retry later.', true);
     }
     const reader = response.body.getReader(); const chunks = []; let bytes = 0;

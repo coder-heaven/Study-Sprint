@@ -92,15 +92,26 @@ async function query(input, model, key, fetcher, remainingMs) {
   } catch { throw new ChatError('unavailable', 'No readable final answer was returned. Please retry.', true); }
   finally { reader.releaseLock(); }
 }
+async function withGoogleKey(keys, operation) {
+  const primary = configured(keys?.gemini) ? keys.gemini : undefined;
+  const backup = configured(keys?.geminiBackup) && keys.geminiBackup !== primary ? keys.geminiBackup : undefined;
+  try { return await operation(primary ?? backup); }
+  catch (error) {
+    // Only switch keys for Google auth/permission or quota failures, not bad requests or provider outages.
+    if (!primary || !backup || !(error instanceof ChatError) || !error.retryable ||
+        !['resource-exhausted', 'failed-precondition'].includes(error.code)) throw error;
+    return operation(backup);
+  }
+}
 export async function runChat(input, keys, reserveNvidia, fetcher = fetch) {
   const deadline = Date.now() + 260000;
   if (input.mode === 'web_mcq' || (!input.photos.length && /\b(mcq|quiz|practice questions|previous.year questions)\b/i.test(input.messages.at(-1).content))) {
-    const web = await searchMcqs(input, keys?.gemini, fetcher);
+    const web = await withGoogleKey(keys, key => searchMcqs(input, key, fetcher));
     // Search output is already validated and cited. A second tutor call can only alter it or fail.
     return {answer:web.text, model:GEMINI, fallback:false, sources:web.sources, suggestions:web.suggestions, quiz:true};
   }
-  if (input.photos.length && configured(keys?.gemini)) {
-    try { return await photoReply(input, keys.gemini, fetcher); } catch(error) { if (!(error instanceof ChatError) || !error.retryable) throw error; }
+  if (input.photos.length && (configured(keys?.gemini) || configured(keys?.geminiBackup))) {
+    try { return await withGoogleKey(keys, key => photoReply(input, key, fetcher)); } catch(error) { if (!(error instanceof ChatError) || !error.retryable) throw error; }
   }
   const nvidia = /^nvapi-[A-Za-z0-9_-]{20,247}$/.test(keys?.nvidia ?? '');
   const router = /^sk-or-v1-[A-Za-z0-9_-]{20,247}$/.test(keys?.openrouter ?? '');

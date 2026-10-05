@@ -49,12 +49,52 @@ test('photo PDF prefers Gemini with four-option schema and returns canonical ten
 });
 
 
+test('photo PDF also retries the second Google key without exposing either key', async () => {
+ const second='AQ.'+'d'.repeat(36);
+ const photo='data:image/jpeg;base64,'+Buffer.from([255,216,255,224,0,255,217]).toString('base64');
+ const used=[];
+ const result=await runChat(validate({messages:[{role:'user',content:'Create photo questions'}],photos:[photo],mode:'photo_pdf'}),
+  {...keys,geminiBackup:second},async()=>{},async(_url,o)=>{
+   used.push(o.headers['x-goog-api-key']);
+   return used.length===1 ? new Response('private provider response',{status:429}) :
+    new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(Array(10).fill({question:'Photon energy is?',options:['h*f','h/f','f/h','h+f'],answer:'A'}))}]}}]}));
+  });
+ assert.deepEqual(used,[keys.gemini,second]);assert.equal(parseMcqs(result.answer,10).length,10);
+});
 test('online MCQs need only Google and do not spend NVIDIA fallback quota', async () => {
  let calls=0;let reserves=0;
  const result=await runChat(validate({messages:[{role:'user',content:'Mole concept'}],mode:'web_mcq'}),{gemini:keys.gemini},async()=>reserves++,async(url)=>{
   assert.match(url,/generativelanguage/);assert.equal(++calls,1);return grounded();
  });
  assert.equal(result.answer,quiz);assert.equal(result.quiz,true);assert.equal(reserves,0);
+});
+test('online MCQs switch to a second Google key after quota or key permission errors', async () => {
+ const second='AQ.'+'d'.repeat(36);
+ for (const status of [429,401,403]) {
+  const used=[];
+  const result=await runChat(validate({messages:[{role:'user',content:'Photon energy'}],mode:'web_mcq'}),
+   {...keys,geminiBackup:second},async()=>{},async(_url,options)=>{
+    used.push(options.headers['x-goog-api-key']);
+    return used.length===1 ? new Response('private provider response',{status}) : grounded();
+   });
+  assert.deepEqual(used,[keys.gemini,second]);assert.equal(result.answer,quiz);
+ }
+});
+test('Google backup handles absent primary and never retries bad requests or duplicate keys', async () => {
+ const input=validate({messages:[{role:'user',content:'Photon energy'}],mode:'web_mcq'});
+ const second='AQ.'+'d'.repeat(36);
+ let used=[];
+ assert.equal((await runChat(input,{geminiBackup:second},async()=>{},async(_url,o)=>{
+  used.push(o.headers['x-goog-api-key']);return grounded();
+ })).answer,quiz);
+ assert.deepEqual(used,[second]);
+ for (const [status,backup] of [[400,second],[429,keys.gemini],[503,second]]) {
+  used=[];
+  await assert.rejects(runChat(input,{gemini:keys.gemini,geminiBackup:backup},async()=>{},async(_url,o)=>{
+   used.push(o.headers['x-goog-api-key']);return new Response('private provider response',{status});
+  }),error=>!error.message.includes(keys.gemini));
+  assert.deepEqual(used,[keys.gemini]);
+ }
 });
 test('Google quota and setup failures are distinct and never expose provider text', async () => {
  for(const [status,code] of [[429,'resource-exhausted'],[400,'failed-precondition'],[403,'failed-precondition'],[503,'unavailable']]) {
