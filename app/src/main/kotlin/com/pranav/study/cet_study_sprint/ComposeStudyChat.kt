@@ -39,7 +39,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 internal fun StudyChatScreen(model: StudyChatViewModel, go: (String) -> Unit, refresh: () -> Unit = {}) {
     val state by model.state.collectAsStateWithLifecycle()
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(4), model::importPhotos)
+    val photoSlots = (StudyChatClient.MAX_PHOTOS - state.photos.size).coerceAtLeast(0)
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(photoSlots.coerceAtLeast(2)), model::importPhotos)
+    val singlePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) model.importPhotos(listOf(uri))
+    }
+    LaunchedEffect(model) { model.selectModel("auto") }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
@@ -53,15 +58,16 @@ internal fun StudyChatScreen(model: StudyChatViewModel, go: (String) -> Unit, re
         }
     }
     StudyChatContent(state, { model.send(it) }, model::retry, model::stop, model::clear, model::removePhoto,
-        { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { go("privacy") }, model::generatePdf,
+        { if (photoSlots == 1) singlePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+          else if (photoSlots > 1) picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { go("privacy") }, model::generatePdf,
         { export.launch("Study-Sprint-Photo-MCQs.pdf") },
         { state.pdfFile?.let { name -> runCatching { ChapterFiles.openPdf(context, name) }.onFailure { Toast.makeText(context, "No PDF viewer is available. Use Save PDF.", Toast.LENGTH_SHORT).show() } } },
-        { refresh(); go("my_quiz") }, model::selectModel, { model.send(it, true) }, model::resend, { message -> if (model.startQuiz(message)) { refresh(); go("my_quiz") } })
+        { refresh(); go("my_quiz") }, { model.send(it, true) }, model::resend, { message -> if (model.startQuiz(message)) { refresh(); go("my_quiz") } })
 }
 @Composable
 internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, retry: () -> Unit, stop: () -> Unit,
     clear: () -> Unit, removePhoto: (String) -> Unit, choosePhotos: () -> Unit, privacy: () -> Unit,
-    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}, selectModel: (String) -> Unit = {}, sendMcq: (String) -> Boolean = send, resend: () -> Unit = {}, startQuiz: (ChatMessage) -> Unit = {}) {
+    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}, sendMcq: (String) -> Boolean = send, resend: () -> Unit = {}, startQuiz: (ChatMessage) -> Unit = {}) {
     var mcqMode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var autoPractice by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
@@ -88,7 +94,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                 StudyCard {
                     Text("Let's learn together", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("Ask a concept question, work through a problem, or practise for CET, JEE and NEET.")
-                    Text("Attach up to 4 photos of your question. Photos prefer Gemini Flash when configured, with Kimi K3 backup.", style = MaterialTheme.typography.bodySmall)
+                    Text("Attach up to 4 photos of your question for explanations or a practice PDF.", style = MaterialTheme.typography.bodySmall)
                     Text("Only questions and photos you send go to Study Sprint's Render chat service and Google, OpenRouter or NVIDIA. Your notes, profile and app usage are not attached.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = privacy) { Text("Privacy details") }
                     listOf("Explain photon energy simply", "Give me one mole-concept MCQ", "Help me plan a 25-minute study session").forEach { prompt ->
@@ -101,7 +107,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                 Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
                     color = if (user) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (user) "You" else "Study buddy · ${StudyChatClient.modelName(message.model)}", style = MaterialTheme.typography.labelMedium,
+                        Text(if (user) "You" else "Study buddy", style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         if (message.photoCount > 0) Text("${message.photoCount} photo${if (message.photoCount == 1) "" else "s"} attached", style = MaterialTheme.typography.labelSmall)
                         if (user) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
@@ -144,17 +150,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
         }
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                var modelMenu by remember { mutableStateOf(false) }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  Box(Modifier.weight(1f)) {
-                    TextButton(onClick = { modelMenu = true }, enabled = !state.busy) { Text("Model: ${StudyChatClient.modelName(state.selectedModel)}") }
-                    DropdownMenu(expanded = modelMenu, onDismissRequest = { modelMenu = false }) {
-                        StudyChatClient.models.forEach { (id, name) -> DropdownMenuItem(text = { Text(name) }, onClick = { selectModel(id); modelMenu = false }) }
-                    }
-                  }
-                  FilterChip(selected = mcqMode, onClick = { mcqMode = !mcqMode }, enabled = !state.busy && state.photos.isEmpty(), label = { Text("Online MCQs") }, modifier = Modifier.testTag("chat_mcq_mode"))
-                }
-                Text(StudyChatClient.introduction(state.selectedModel, exam), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FilterChip(selected = mcqMode, onClick = { mcqMode = !mcqMode }, enabled = !state.busy && state.photos.isEmpty(), label = { Text("Online MCQs") }, modifier = Modifier.testTag("chat_mcq_mode"))
                 if (state.photos.isNotEmpty()) LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("chat_photos")) {
                     items(state.photos, key = { it.id }) { photo ->
                         val bitmap = remember(photo.id) { BitmapFactory.decodeByteArray(photo.thumbnail, 0, photo.thumbnail.size)?.asImageBitmap() }
@@ -168,9 +164,9 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = choosePhotos, enabled = !state.busy && !state.photoBusy && state.photos.size < 4, modifier = Modifier.testTag("chat_attach")) {
-                        Text(if (state.photoBusy) "Preparing photos…" else "＋ Photos · ${state.photos.size}/4")
+                        Text(if (state.photoBusy) "Preparing photos…" else "＋ Photos · ${(StudyChatClient.MAX_PHOTOS - state.photos.size).coerceAtLeast(0)} remaining")
                     }
-                    Text("Sent only when you tap Send", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Up to 4 per message · sent with Send", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (state.photos.isNotEmpty()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

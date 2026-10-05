@@ -226,7 +226,10 @@ internal fun FocusScreen(
                      else "${state.completedMinutes} min focused", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Today: ${today.focusedMinutes} min • ${today.sessions} sessions",
                     style = MaterialTheme.typography.bodySmall)
-                Text("Current streak: $streak days", style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.art_streak_flame_3d), null, Modifier.size(28.dp))
+                    Text("Current streak: $streak days", style = MaterialTheme.typography.bodySmall)
+                }
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = model::clearCompletion) { Text("Done") }

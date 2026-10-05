@@ -147,15 +147,50 @@ class StudyChatUiTest {
         }
         compose.runOnIdle { session.clear() }
     }
-    @Test fun selectingNvidiaModelUpdatesComposer() {
-        val vm = model(StudyChatTransport { _, _ -> ChatReply("OK", StudyChatClient.GPT_MODEL) })
+    @Test fun studyBuddyHidesModelSelectionAndProviderLabels() {
+        val vm = model(StudyChatTransport { _, _ -> ChatReply("Your study answer.", StudyChatClient.GPT_MODEL) })
         show(vm)
-        compose.onNodeWithText("Model: Auto").performClick()
-        compose.onNodeWithText("GPT-OSS 20B").performClick()
-        assertEquals(StudyChatClient.GPT_MODEL, vm.state.value.selectedModel)
-        compose.onNodeWithText("Model: GPT-OSS 20B").assertIsDisplayed()
-        capture("chat-model-selector")
+        compose.onNodeWithText("Model: Auto").assertDoesNotExist()
+        compose.onNodeWithText("GPT-OSS 20B", substring = true).assertDoesNotExist()
+        compose.onNodeWithTag("chat_input").performTextInput("Explain energy")
+        compose.onNodeWithTag("chat_send").performClick()
+        compose.waitUntil(5000) { vm.state.value.messages.any { it.content == "Your study answer." } }
+        compose.onNodeWithText("Study buddy", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("GPT-OSS 20B", substring = true).assertDoesNotExist()
+        capture("chat-simple-study-buddy")
         vm.clear()
+    }
+    @Test fun remainingPhotoSlotsTrackAttachmentsRemovalAndSend() {
+        val vm = model(StudyChatTransport { _, _ -> ChatReply("Photo received.", StudyChatClient.FALLBACK_MODEL) })
+        show(vm)
+        compose.onNodeWithText("＋ Photos · 4 remaining").assertExists()
+        fun photo(id: String) = ChatPhoto(id, "data:image/jpeg;base64,AQ==", byteArrayOf())
+        compose.runOnIdle { vm.attach(listOf(photo("slot1"))) }
+        compose.onNodeWithText("＋ Photos · 3 remaining").assertExists()
+        compose.runOnIdle { vm.attach(listOf(photo("slot2"))) }
+        compose.onNodeWithText("＋ Photos · 2 remaining").assertExists()
+        capture("chat-photo-slots")
+        compose.runOnIdle { vm.removePhoto("slot1") }
+        compose.onNodeWithText("＋ Photos · 3 remaining").assertExists()
+        compose.runOnIdle { vm.attach(listOf(photo("slot3"), photo("slot4"), photo("slot5"))) }
+        compose.onNodeWithText("＋ Photos · 0 remaining").assertExists()
+        compose.onNodeWithTag("chat_attach").assertIsNotEnabled()
+        compose.onNodeWithTag("chat_send").performClick()
+        compose.waitUntil(5000) { !vm.state.value.busy }
+        compose.onNodeWithText("＋ Photos · 4 remaining").assertExists()
+        vm.clear()
+    }
+    @Test fun sevenDayStreakShowsRealMilestoneAndKeepsLongerCount() {
+        val count = androidx.compose.runtime.mutableIntStateOf(2)
+        compose.setContent { StudyTheme(prefs, 0) { StudyStreakCard(count.intValue) } }
+        compose.onNodeWithText("Build your 7-day streak · 2/7 days").assertExists()
+        compose.onNodeWithContentDescription("Streak day 2: complete").assertExists()
+        compose.onNodeWithContentDescription("Streak day 3: not reached").assertExists()
+        compose.runOnIdle { count.intValue = 9 }
+        compose.onNodeWithText("9-day study streak").assertExists()
+        compose.onNodeWithText("7-day milestone reached! Keep your flame alive.").assertExists()
+        compose.onNodeWithContentDescription("Streak day 7: complete").assertExists()
+        capture("streak-seven-day-flames")
     }
     @Test fun darkLoginUses3dArtworkAndGuestFlowStillWorks() {
         prefs.edit().clear().putString("theme_mode", "dark").commit()

@@ -599,6 +599,7 @@ private fun HomeScreen(prefs: SharedPreferences, revision: Int, go: (String) -> 
                 modifier = Modifier.padding(top = 6.dp))
         }
         HomeShortcuts(go)
+        StudyStreakCard(streak, Modifier.padding(top = 16.dp).clickable { go("statistics") })
         SectionLabel("At a glance")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             HomeSnapshotCard("Tasks to do", "${tasks.size}", LeafMint, Modifier.weight(1f)) { go("plan") }
