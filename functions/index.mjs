@@ -8,6 +8,7 @@ initializeApp();
 const apiKey = defineSecret('OPENROUTER_API_KEY');
 const nvidiaKey = defineSecret('NVIDIA_API_KEY');
 const geminiKey = defineSecret('GEMINI_API_KEY');
+const mistralKey = defineSecret('MISTRAL_API_KEY');
 const daily = defineInt('CHAT_DAILY_LIMIT', { default: 1000 });
 const userDaily = defineInt('CHAT_USER_DAILY_LIMIT', { default: 100 });
 const kimiDaily = defineInt('NVIDIA_DAILY_LIMIT', { default: 100 });
@@ -30,14 +31,14 @@ async function reserve(uid, kimi = false) {
   });
 }
 export const studyBuddy = onCall({
-  region: 'us-central1', secrets: [apiKey, nvidiaKey, geminiKey], enforceAppCheck: true,
+  region: 'us-central1', secrets: [apiKey, nvidiaKey, geminiKey, mistralKey], enforceAppCheck: true,
   timeoutSeconds: 300, memory: '256MiB', maxInstances: 3, concurrency: 1
 }, async request => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Reconnect to Study Sprint and retry.');
   try {
     const input = validate(request.data);
     await reserve(request.auth.uid);
-    return await runChat(input, { openrouter: apiKey.value(), nvidia: nvidiaKey.value(), gemini: geminiKey.value() }, () => reserve(request.auth.uid, true));
+    return await runChat(input, { openrouter: apiKey.value(), nvidia: nvidiaKey.value(), gemini: geminiKey.value(), mistral: mistralKey.value() }, () => reserve(request.auth.uid, true));
   } catch (error) {
     if (error instanceof ChatError) throw new HttpsError(error.code, error.message);
     // Deliberately no raw request, photo, key, or provider exception logging.

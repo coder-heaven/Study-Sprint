@@ -142,7 +142,8 @@ internal class StudyChatViewModel(application: Application, private val transpor
                         file = created.first; practice = created.second
                     }
                     if (token != generation) return@launch
-                    val assistant = ChatMessage("assistant", reply.answer, model = reply.model, quiz = reply.quiz || makePdf, sources = reply.sources, suggestions = reply.suggestions)
+                    val assistant = ChatMessage("assistant", reply.answer, model = reply.model,
+                        quiz = reply.quiz || makePdf || chatQuizQuestions(reply.answer).isNotEmpty(), sources = reply.sources, suggestions = reply.suggestions)
                     history = StudyChatClient.bounded(chosen.first + assistant); pending = null; cachedReply = null
                     mutable.value = mutable.value.copy(messages = (mutable.value.messages + assistant).takeLast(80), busy = false,
                         pdfFile = file ?: mutable.value.pdfFile, practiceReady = if (file != null) practice else mutable.value.practiceReady,

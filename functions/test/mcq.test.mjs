@@ -1,9 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {validate,runChat,GPT,NEMOTRON,KIMI,GLM} from '../chat.mjs';
+import {validate,runChat,GPT,NEMOTRON,KIMI,GLM,MUSE,MISTRAL} from '../chat.mjs';
 import {parseMcqs} from '../mcq.mjs';
 const quiz='1. Photon energy is?\nA. h*f\nB. h/f\nC. f/h\nD. h+f\nAnswer: A';
-const keys={gemini:'AIza'+'c'.repeat(35),openrouter:'sk-or-v1-'+'a'.repeat(64),nvidia:'nvapi-'+'b'.repeat(64)};
+const keys={gemini:'AIza'+'c'.repeat(35),openrouter:'sk-or-v1-'+'a'.repeat(64),nvidia:'nvapi-'+'b'.repeat(64),mistral:'m'.repeat(32)};
 const provider=text=>new Response(JSON.stringify({choices:[{message:{content:text},finish_reason:'stop'}]}));
 const grounded=(title='MHT-CET Physics questions',text=quiz)=>new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text}]},groundingMetadata:{webSearchQueries:['MHT-CET photon energy MCQ'],groundingChunks:[{web:{uri:'https://example.com/cet',title}}],groundingSupports:[{segment:{text},groundingChunkIndices:[0]}],searchEntryPoint:{renderedContent:'<div>Search suggestions</div>'}}}]}));
 test('rejects fifth option without silently deleting or remapping it',()=>{
@@ -14,10 +14,10 @@ test('rejects fifth option without silently deleting or remapping it',()=>{
  assert.equal(parseMcqs(quiz.replace(/^([A-D])\./gm,'- **$1:**'))[0].options.length,4);
 });
 test('five-option output is not returned by any selected study model',async()=>{
- for(const model of [GPT,NEMOTRON,KIMI,GLM]) await assert.rejects(runChat(validate({messages:[{role:'user',content:'Explain energy'}],model}),keys,async()=>{},async()=>provider(quiz.replace('Answer:', 'E. extra\nAnswer:'))));
+ for(const model of [GPT,NEMOTRON,KIMI,GLM,MUSE,MISTRAL]) await assert.rejects(runChat(validate({messages:[{role:'user',content:'Explain energy'}],model}),keys,async()=>{},async()=>provider(quiz.replace('Answer:', 'E. extra\nAnswer:'))));
 });
 test('every selected model shares actual exam web retrieval before answering',async()=>{
- for(const model of [GPT,NEMOTRON,KIMI,GLM]) {
+ for(const model of [GPT,NEMOTRON,KIMI,GLM,MUSE,MISTRAL]) {
   const calls=[];const result=await runChat(validate({messages:[{role:'user',content:'Photon energy'}],model,mode:'web_mcq'}),keys,async()=>{},async(url,options)=>{
    calls.push(url);const body=JSON.parse(options.body);
    if(calls.length===1){assert.ok(body.tools[0].google_search);assert.equal(options.headers['x-goog-api-key'],keys.gemini);assert.ok(!options.body.includes(keys.gemini));return grounded();}

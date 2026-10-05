@@ -4,7 +4,9 @@ export const NEMOTRON = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 export const KIMI = 'moonshotai/kimi-k3';
 export const GPT = 'openai/gpt-oss-20b';
 export const GLM = 'z-ai/glm-5.3';
-export const MODELS = [NEMOTRON, KIMI, GPT, GLM];
+export const MUSE = 'meta/muse-glimmer-30b';
+export const MISTRAL = 'mistral-small-latest';
+export const MODELS = [NEMOTRON, KIMI, GPT, GLM, MUSE, MISTRAL];
 export class ChatError extends Error {
   constructor(code, message, retryable = false) { super(message); this.code = code; this.retryable = retryable; }
 }
@@ -57,11 +59,11 @@ export function payload(input, model) {
     messages: [{ role: 'system', content: tutorPrompt(input) }, ...turns]
   };
 }
-async function query(input, model, key, fetcher) {
+async function query(input, model, key, fetcher, remainingMs) {
   let response;
   try {
-    response = await fetcher(model !== NEMOTRON ? 'https://integrate.api.nvidia.com/v1/chat/completions' : 'https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST', redirect: 'error', signal: AbortSignal.timeout(model === KIMI ? 180000 : 45000),
+    response = await fetcher(model === MISTRAL ? 'https://api.mistral.ai/v1/chat/completions' : model !== NEMOTRON ? 'https://integrate.api.nvidia.com/v1/chat/completions' : 'https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST', redirect: 'error', signal: AbortSignal.timeout(Math.min(remainingMs, model === KIMI ? 180000 : 45000)),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'X-Title': 'Study Sprint' },
       body: JSON.stringify(payload(input, model))
     });
@@ -91,6 +93,7 @@ async function query(input, model, key, fetcher) {
   finally { reader.releaseLock(); }
 }
 export async function runChat(input, keys, reserveNvidia, fetcher = fetch) {
+  const deadline = Date.now() + 260000;
   let web;
   if (input.mode === 'web_mcq' || (!input.photos.length && /\b(mcq|quiz|practice questions|previous.year questions)\b/i.test(input.messages.at(-1).content))) {
     web = await searchMcqs(input, keys?.gemini, fetcher);
@@ -101,17 +104,19 @@ export async function runChat(input, keys, reserveNvidia, fetcher = fetch) {
   }
   const nvidia = /^nvapi-[A-Za-z0-9_-]{20,247}$/.test(keys?.nvidia ?? '');
   const router = /^sk-or-v1-[A-Za-z0-9_-]{20,247}$/.test(keys?.openrouter ?? '');
-  // Photos always require a vision model. Text-only routes never receive images.
-  const models = input.photos.length ? [KIMI] : input.model && input.model !== 'auto' ? [input.model] : [NEMOTRON, GPT, GLM, KIMI];
+  const mistral = /^[A-Za-z0-9_-]{20,256}$/.test(keys?.mistral ?? '');
+  // Photos use only verified vision routes. Mistral is an optional text backup.
+  const models = input.photos.length ? [KIMI, MUSE] : input.model && input.model !== 'auto' ? [input.model] : [NEMOTRON, GPT, GLM, MUSE, MISTRAL, KIMI];
   let reserved = false; let last;
   for (const model of models) {
-    if (model === NEMOTRON ? !router : !nvidia) {
+    if (model === NEMOTRON ? !router : model === MISTRAL ? !mistral : !nvidia) {
       last = new ChatError('failed-precondition', 'This study model is not configured yet.');
       continue;
     }
-    if (model !== NEMOTRON && !reserved) { await reserveNvidia(); reserved = true; }
+    if (Date.now() >= deadline) break;
+    if (model !== NEMOTRON && model !== MISTRAL && !reserved) { await reserveNvidia(); reserved = true; }
     try {
-      const result = await query(input, model, model === NEMOTRON ? keys.openrouter : keys.nvidia, fetcher);
+      const result = await query(input, model, model === NEMOTRON ? keys.openrouter : model === MISTRAL ? keys.mistral : keys.nvidia, fetcher, deadline - Date.now());
       if (web) {
         try { if (canonicalMcqs(parseMcqs(result.answer)) !== web.text) throw Error('changed source'); }
         catch { throw new ChatError('unavailable', 'The model changed a retrieved question. Retry or choose another model.', true); }
