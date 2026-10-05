@@ -74,7 +74,8 @@ export async function searchMcqs(input, key, fetcher = fetch) {
       if (used || context.length <= 4) sources.push({ title: title.slice(0, 160), url: url.href });
       if (questions.length >= 5) break;
     }
-    if (!questions.length && !context.length) throw new ChatError('unavailable', 'No matching exam study sources were found. Try another topic.');
+    // A search can return only chapter indexes, unrelated exams or no results at all.
+    // Give the tutor no unverified source material, but still allow original exam practice.
     if (!questions.length) return { context, sources: sources.slice(0, 4) };
     return { answer: canonicalMcqs(questions), model: SEARCH_MODEL, quiz: true, sources: sources.slice(0, 5), suggestions: '' };
   } catch (error) {

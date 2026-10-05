@@ -118,6 +118,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                                 quizScope.launch { list.animateScrollToItem(index) }
                             }
                             else ChatMarkdown(if (message.quiz) message.content.replace("\n", "  \n") else message.content, Modifier.fillMaxWidth())
+                            if (message.quiz && message.model != StudyChatClient.SEARCH_MODEL) Text("Original practice questions · AI-generated, not past-paper questions. Check answers.", style = MaterialTheme.typography.bodySmall)
                             if (message.sources.isNotBlank()) { Text(if (message.model == StudyChatClient.SEARCH_MODEL) "Question sources" else "Study context (original practice)", fontWeight = FontWeight.Bold); ChatMarkdown(message.sources, Modifier.fillMaxWidth()) }
                             if (message.suggestions.isNotBlank()) GoogleSearchSuggestions(message.suggestions)
                             if (message.quiz) {
