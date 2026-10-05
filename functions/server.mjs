@@ -13,7 +13,7 @@ try {
   process.exit(1);
 }
 const server = chatServer({
-  keys: { openrouter: process.env.OPENROUTER_API_KEY, nvidia: process.env.NVIDIA_API_KEY, tavily: process.env.TAVILY_API_KEY?.trim(), mistral: process.env.MISTRAL_API_KEY?.trim() },
+  keys: { openrouter: process.env.OPENROUTER_API_KEY, nvidia: process.env.NVIDIA_API_KEY, tavily: process.env.TAVILY_API_KEY?.trim(), tavilyBackup: process.env.TAVILY_API_KEY_2?.trim(), mistral: process.env.MISTRAL_API_KEY?.trim() },
   reserve,
   verify: async (token, appToken) => {
     const [user, app] = await Promise.all([getAuth().verifyIdToken(token), getAppCheck().verifyToken(appToken)]);

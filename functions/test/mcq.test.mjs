@@ -5,7 +5,7 @@ import { parseMcqs } from '../mcq.mjs';
 const quiz = '1. Photon energy is?\nA. h*f\nB. h/f\nC. f/h\nD. h+f\nAnswer: A';
 const keys = { tavily: 'tvly-' + 't'.repeat(32), openrouter: 'sk-or-v1-' + 'a'.repeat(64), nvidia: 'nvapi-' + 'b'.repeat(64), mistral: 'm'.repeat(32) };
 const provider = text => new Response(JSON.stringify({ choices: [{ message: { content: text }, finish_reason: 'stop' }] }));
-const search = (title = 'MHT-CET Physics questions', raw = quiz, url = 'https://example.com/cet') =>
+const search = (title = 'MHT-CET Physics questions', raw = quiz, url = 'https://questions.examside.com/past-years/jee/mht-cet') =>
   new Response(JSON.stringify({ results: [{ title, url, raw_content: raw, content: raw }] }));
 const photo = 'data:image/jpeg;base64,' + Buffer.from([255,216,255,224,0,255,217]).toString('base64');
 const ten = Array.from({ length: 10 }, (_, i) => quiz.replace('1.', `${i + 1}.`)).join('\n\n');
@@ -27,6 +27,7 @@ test('online MCQ uses Tavily only, with bounded search and no secret in body', a
       assert.equal(options.headers.Authorization, `Bearer ${keys.tavily}`);
       const body = JSON.parse(options.body);
       assert.equal(body.search_depth, 'basic'); assert.equal(body.include_answer, false);
+      assert.equal(body.include_domains_mode, 'restrict'); assert.deepEqual(body.include_domains, ['examside.com','selfstudys.com','prepizo.com']);
       assert.ok(body.max_results <= 5); assert.ok(!options.body.includes(keys.tavily));
       return search();
     });
@@ -37,16 +38,27 @@ test('online MCQ uses Tavily only, with bounded search and no secret in body', a
 test('NEET and JEE source titles must match the selected exam', async () => {
   for (const [exam, title] of [['NEET', 'NEET UG physics questions'], ['JEE', 'JEE Main physics questions']]) {
     const result = await runChat(validate({ messages: [{ role: 'user', content: 'Photon energy' }], exam, mode: 'web_mcq' }), keys, async () => {}, async (_url, options) => {
-      assert.ok(JSON.parse(options.body).query.includes(exam === 'NEET' ? 'NEET UG' : 'JEE Main'));
-      return search(title);
+      const body=JSON.parse(options.body);
+      assert.ok(body.query.includes(exam === 'NEET' ? 'NEET UG' : 'JEE Main'));
+      assert.ok(body.include_domains.includes('examgoal.com'));
+      return search(title, quiz, 'https://www.examgoal.com/questions/physics');
     });
     assert.equal(result.answer, quiz);
+  }
+});
+test('approved SelfStudys and Prepizo subdomains can supply complete CET questions', async () => {
+  for (const url of ['https://www.selfstudys.com/books/mhtcet-previous-year-paper', 'https://practice.prepizo.com/mht-cet/mcq']) {
+    const result=await runChat(validate({messages:[{role:'user',content:'Photon energy'}],mode:'web_mcq'}),keys,async()=>{},async()=>search('MHT-CET Physics questions',quiz,url));
+    assert.equal(result.answer,quiz); assert.equal(result.sources[0].url,url);
   }
 });
 test('partial, wrong-exam, fifth-option and insecure sources fail closed', async () => {
   const bad = [search('NEET Physics questions'), search('generic physics'), search('MHT-CET Physics', quiz.replace('Answer:', 'E. extra\nAnswer:')),
     search('MHT-CET Physics', quiz.replace('Answer: A', '')), search('MHT-CET Physics', quiz, 'http://example.com/cet'),
-    search('MHT-CET Physics', quiz, 'https://user:pass@example.com/cet')];
+    search('MHT-CET Physics', quiz, 'https://user:pass@questions.examside.com/cet'),
+    search('MHT-CET Physics', quiz, 'https://examside.com.evil.example/cet'),
+    search('MHT-CET Physics', quiz, 'https://unlisted.example/cet'),
+    search('MHT-CET Physics', quiz, 'https://www.examgoal.com/cet')];
   for (const response of bad) {
     await assert.rejects(runChat(validate({ messages: [{ role: 'user', content: 'energy' }], mode: 'web_mcq' }), keys, async () => {}, async () => response), e => e.code === 'unavailable');
   }
@@ -56,6 +68,35 @@ test('missing Tavily key does not call search or fabricate questions', async () 
   await assert.rejects(runChat(validate({ messages: [{ role: 'user', content: 'energy' }], mode: 'web_mcq' }), {}, async () => {}, async () => { calls++; return search(); }),
     e => e.code === 'failed-precondition' && e.message.includes('TAVILY_API_KEY'));
   assert.equal(calls, 0);
+});
+test('second Tavily key is used only for quota or auth errors, with no key in errors', async () => {
+  const second='tvly-'+'s'.repeat(32);
+  const input=validate({messages:[{role:'user',content:'Photon energy'}],mode:'web_mcq'});
+  for (const status of [429,432,433,401,403]) {
+    const used=[];
+    const result=await runChat(input,{...keys,tavilyBackup:second},async()=>{},async(_url,options)=>{
+      used.push(options.headers.Authorization);
+      return used.length===1 ? new Response('private provider response',{status}) : search();
+    });
+    assert.equal(result.answer,quiz); assert.deepEqual(used,[`Bearer ${keys.tavily}`,`Bearer ${second}`]);
+  }
+  let used=[];
+  assert.equal((await runChat(input,{tavilyBackup:second},async()=>{},async(_url,options)=>{
+    used.push(options.headers.Authorization);return search();
+  })).answer,quiz);
+  assert.deepEqual(used,[`Bearer ${second}`]);
+  for (const [status,backup] of [[503,second],[429,keys.tavily]]) {
+    used=[];
+    await assert.rejects(runChat(input,{...keys,tavilyBackup:backup},async()=>{},async(_url,options)=>{
+      used.push(options.headers.Authorization);return new Response(keys.tavily,{status});
+    }),e=>!e.message.includes(keys.tavily));
+    assert.deepEqual(used,[`Bearer ${keys.tavily}`]);
+  }
+  used=[];
+  await assert.rejects(runChat(input,{...keys,tavilyBackup:second},async()=>{},async(_url,options)=>{
+    used.push(options.headers.Authorization);return search('NEET questions');
+  }),e=>e.code==='unavailable');
+  assert.deepEqual(used,[`Bearer ${keys.tavily}`]);
 });
 test('photo PDF uses NVIDIA vision and rejects an incomplete ten-question reply', async () => {
   let calls = 0; let reserves = 0;

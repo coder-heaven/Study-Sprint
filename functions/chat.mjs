@@ -1,5 +1,5 @@
 import { parseMcqs, canonicalMcqs, hasOptions } from './mcq.mjs';
-import { searchMcqs } from './tavily.mjs';
+import { searchMcqs, configured as tavilyConfigured } from './tavily.mjs';
 export const NEMOTRON = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 export const KIMI = 'moonshotai/kimi-k3';
 export const GPT = 'openai/gpt-oss-20b';
@@ -97,8 +97,15 @@ async function query(input, model, key, fetcher, remainingMs) {
 export async function runChat(input, keys, reserveNvidia, fetcher = fetch) {
   const deadline = Date.now() + 260000;
   if (input.mode === 'web_mcq' || (!input.photos.length && /\b(mcq|quiz|practice questions|previous.year questions)\b/i.test(input.messages.at(-1).content))) {
-    // Only complete MCQs with answers present in exam-specific search results are returned.
-    return searchMcqs(input, keys?.tavily, fetcher);
+    // Only key/quota failures use the second key; missing source questions are never fabricated.
+    const primary = tavilyConfigured(keys?.tavily) ? keys.tavily : undefined;
+    const backup = tavilyConfigured(keys?.tavilyBackup) && keys.tavilyBackup !== primary ? keys.tavilyBackup : undefined;
+    try { return await searchMcqs(input, primary ?? backup, fetcher); }
+    catch (error) {
+      if (!primary || !backup || !(error instanceof ChatError) || !error.retryable ||
+          !['resource-exhausted', 'failed-precondition'].includes(error.code)) throw error;
+      return searchMcqs(input, backup, fetcher);
+    }
   }
   const nvidia = /^nvapi-[A-Za-z0-9_-]{20,247}$/.test(keys?.nvidia ?? '');
   const router = /^sk-or-v1-[A-Za-z0-9_-]{20,247}$/.test(keys?.openrouter ?? '');

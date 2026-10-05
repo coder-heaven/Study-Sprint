@@ -3,11 +3,13 @@ import { canonicalMcqs, parseMcqs } from './mcq.mjs';
 
 export const SEARCH_MODEL = 'tavily/search';
 export const configured = key => typeof key === 'string' && /^tvly-[A-Za-z0-9_-]{16,256}$/.test(key);
+const sharedSources = ['examside.com', 'selfstudys.com', 'prepizo.com'];
 const exams = {
-  CET: { name: 'MHT-CET', marker: /MHT[\s-]*CET|Maharashtra.*CET/i, excluded: /\bNEET\b|\bJEE\b|\bGATE\b|\bUPSC\b|\bSAT\b/i },
-  JEE: { name: 'JEE Main', marker: /\bJEE\b|Joint Entrance/i, excluded: /\bNEET\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i },
-  NEET: { name: 'NEET UG', marker: /\bNEET\b/i, excluded: /\bJEE\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i }
+  CET: { name: 'MHT-CET', marker: /MHT[\s-]*CET|Maharashtra.*CET/i, excluded: /\bNEET\b|\bJEE\b|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: sharedSources },
+  JEE: { name: 'JEE Main', marker: /\bJEE\b|Joint Entrance/i, excluded: /\bNEET\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: [...sharedSources, 'examgoal.com'] },
+  NEET: { name: 'NEET UG', marker: /\bNEET\b/i, excluded: /\bJEE\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: [...sharedSources, 'examgoal.com'] }
 };
+const allowedHost = (host, domains) => domains.some(domain => host === domain || host.endsWith(`.${domain}`));
 // Only accept complete source question blocks. Search snippets alone cannot prove an answer.
 function sourcedQuestions(content) {
   const text = content.replace(/\r/g, '\n').replace(/<[^>]*>/g, '\n');
@@ -28,12 +30,12 @@ export async function searchMcqs(input, key, fetcher = fetch) {
     response = await fetcher('https://api.tavily.com/search', {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ query: `${exam.name} ${input.messages.at(-1).content.slice(0, 300)} MCQ four options correct answer`, search_depth: 'basic', max_results: 5, include_answer: false, include_raw_content: 'text', include_images: false, safe_search: true })
+      body: JSON.stringify({ query: `${exam.name} ${input.messages.at(-1).content.slice(0, 300)} MCQ four options correct answer`, search_depth: 'basic', max_results: 5, include_domains: exam.domains, include_domains_mode: 'restrict', include_answer: false, include_raw_content: 'text', include_images: false, safe_search: true })
     });
     if (!response.ok) {
       await response.body?.cancel().catch(() => {});
-      if ([429,432,433].includes(response.status)) throw new ChatError('resource-exhausted', 'Online search allowance is reached. Try again later.');
-      if ([401,403].includes(response.status)) throw new ChatError('failed-precondition', 'Tavily search key needs attention from the app owner.');
+      if ([429,432,433].includes(response.status)) throw new ChatError('resource-exhausted', 'Online search allowance is reached. Try again later.', true);
+      if ([401,403].includes(response.status)) throw new ChatError('failed-precondition', 'Tavily search key needs attention from the app owner.', true);
       throw new ChatError('unavailable', 'Online search could not respond. Retry later.', true);
     }
     const reader = response.body.getReader(); const chunks = []; let bytes = 0;
@@ -51,7 +53,7 @@ export async function searchMcqs(input, key, fetcher = fetch) {
       const title = result?.title;
       if (typeof title !== 'string' || !exam.marker.test(title) || exam.excluded.test(title)) continue;
       let url;
-      try { url = new URL(result.url); if (url.protocol !== 'https:' || url.username || url.password) continue; } catch { continue; }
+      try { url = new URL(result.url); if (url.protocol !== 'https:' || url.username || url.password || !allowedHost(url.hostname, exam.domains)) continue; } catch { continue; }
       const content = typeof result.raw_content === 'string' ? result.raw_content : result.content;
       if (typeof content !== 'string') continue;
       let used = false;
