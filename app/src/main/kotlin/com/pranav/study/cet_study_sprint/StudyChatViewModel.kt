@@ -40,11 +40,11 @@ internal class StudyChatViewModel(application: Application, private val transpor
     fun selectModel(model: String) { if (!mutable.value.busy && model in StudyChatClient.models) { mutable.value = mutable.value.copy(selectedModel = model); save() } }
     init {
         if (persistent) store.load()?.let { saved ->
-            mutable.value = mutable.value.copy(messages = saved.messages, photos = saved.photos, selectedModel = saved.model,
+            mutable.value = mutable.value.copy(messages = saved.messages, photos = saved.photos, selectedModel = "auto",
                 canRetry = saved.pending != null, error = if (saved.pending != null) "Your unfinished request was saved. Tap Retry to continue." else null)
             history = StudyChatClient.bounded(saved.messages)
-            pending = saved.pending; pendingModel = saved.pendingModel; makePdf = saved.pdf; loadPractice = saved.practice; cachedReply = saved.reply; pendingMode = saved.mode
-            lastRequest = saved.last; lastMode = saved.lastMode; lastModel = saved.lastModel
+            pending = saved.pending; pendingModel = "auto"; makePdf = saved.pdf; loadPractice = saved.practice; cachedReply = saved.reply; pendingMode = saved.mode
+            lastRequest = saved.last; lastMode = saved.lastMode; lastModel = "auto"
             mutable.value = mutable.value.copy(canResend = lastRequest != null)
         }
         viewModelScope.launch(Dispatchers.IO) { runCatching { ChatKeyVault(application).remove() } } }

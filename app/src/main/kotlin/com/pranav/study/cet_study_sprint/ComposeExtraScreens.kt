@@ -495,13 +495,12 @@ internal fun StatisticsScreen(
                 ProgressMetricCard("${totals.tasks}", "Tasks done", androidx.compose.ui.graphics.Color(0xFFDDF4EB), Modifier.weight(1f))
                 ProgressMetricCard("${totals.questions}", "Questions", androidx.compose.ui.graphics.Color(0xFFFFECCA), Modifier.weight(1f))
             }
+            StudyStreakCard(streak, Modifier.padding(top = 16.dp))
             SectionLabel("Daily focus")
             Surface(shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
                 Column(Modifier.fillMaxWidth().padding(18.dp)) {
-                    Text("$streak-day study streak", style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold)
                     Text("Last 7 days · selected period", style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(16.dp))
                     WeeklyStudyChart(totals.dailyMinutes)
