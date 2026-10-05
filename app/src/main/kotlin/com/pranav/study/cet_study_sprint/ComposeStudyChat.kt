@@ -76,6 +76,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
     val preferences = LocalContext.current.getSharedPreferences("study_sprint", android.content.Context.MODE_PRIVATE)
     val exam = preferences.getString("exam", "CET") ?: "CET"
     val list = rememberLazyListState()
+    val quizScope = rememberCoroutineScope()
     LaunchedEffect(state.messages.size, state.error) {
         val count = state.messages.size + (if (state.messages.isEmpty()) 1 else 0) + (if (state.error != null) 1 else 0) + (if (state.pdfFile != null) 1 else 0)
         if (count > 0) list.animateScrollToItem(count - 1)
@@ -113,7 +114,9 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                         if (user) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
                         else {
                             val quizQuestions = remember(message.content) { chatQuizQuestions(message.content) }
-                            if (quizQuestions.isNotEmpty()) ChatInteractiveQuiz(message.content, quizQuestions, exam)
+                            if (quizQuestions.isNotEmpty()) ChatInteractiveQuiz(message.content, quizQuestions, exam) {
+                                quizScope.launch { list.animateScrollToItem(index) }
+                            }
                             else ChatMarkdown(if (message.quiz) message.content.replace("\n", "  \n") else message.content, Modifier.fillMaxWidth())
                             if (message.sources.isNotBlank()) { Text("Question sources", fontWeight = FontWeight.Bold); ChatMarkdown(message.sources, Modifier.fillMaxWidth()) }
                             if (message.suggestions.isNotBlank()) GoogleSearchSuggestions(message.suggestions)

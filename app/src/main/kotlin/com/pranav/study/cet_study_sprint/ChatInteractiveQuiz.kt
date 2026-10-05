@@ -22,7 +22,7 @@ internal fun chatQuizQuestions(text: String): List<PdfImportedMcq> = runCatching
 }.getOrDefault(emptyList())
 
 @Composable
-internal fun ChatInteractiveQuiz(text: String, questions: List<PdfImportedMcq>, exam: String) {
+internal fun ChatInteractiveQuiz(text: String, questions: List<PdfImportedMcq>, exam: String, onNavigate: () -> Unit = {}) {
     var textView by rememberSaveable(text) { mutableStateOf(false) }
     var page by rememberSaveable(text) { mutableIntStateOf(0) }
     var selected by rememberSaveable(text) { mutableIntStateOf(-1) }
@@ -55,7 +55,7 @@ internal fun ChatInteractiveQuiz(text: String, questions: List<PdfImportedMcq>, 
                 Text("Quiz complete", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text("$correct / ${questions.size} correct", modifier = Modifier.testTag("chat_quiz_result"))
                 Text("$score / ${questions.size * scheme.correct} marks · $exam", color = MaterialTheme.colorScheme.primary)
-                OutlinedButton(onClick = { page = 0; selected = -1; answers = IntArray(questions.size) { -1 } },
+                OutlinedButton(onClick = { page = 0; selected = -1; answers = IntArray(questions.size) { -1 }; onNavigate() },
                     modifier = Modifier.testTag("chat_quiz_restart")) { Text("Try again") }
             } else {
                 val question = questions[page]
@@ -87,7 +87,7 @@ internal fun ChatInteractiveQuiz(text: String, questions: List<PdfImportedMcq>, 
                 }
                 Button(onClick = {
                     if (!answered && selected >= 0) answers = answers.copyOf().also { it[page] = selected }
-                    else if (answered) { page++; selected = -1 }
+                    else if (answered) { page++; selected = -1; onNavigate() }
                 }, enabled = answered || selected >= 0, modifier = Modifier.fillMaxWidth().testTag("chat_quiz_next")) {
                     Text(if (!answered) "Check answer" else if (page == questions.lastIndex) "Finish quiz" else "Next question")
                 }
