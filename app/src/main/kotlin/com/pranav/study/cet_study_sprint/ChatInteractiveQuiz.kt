@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -70,13 +71,16 @@ internal fun ChatInteractiveQuiz(text: String, questions: List<PdfImportedMcq>, 
                         selected == n -> MaterialTheme.colorScheme.secondaryContainer
                         else -> MaterialTheme.colorScheme.surfaceVariant
                     }
-                    Surface(Modifier.fillMaxWidth().testTag("chat_quiz_option_${'A' + n}")
-                        .selectable(selected = selected == n, enabled = !answered, role = Role.RadioButton, onClick = { selected = n })
-                        .semantics { contentDescription = "Option ${'A' + n}" },
-                        shape = RoundedCornerShape(18.dp), color = color) {
-                        Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("${'A' + n}.", fontWeight = FontWeight.Bold)
-                            ChatMarkdown(option, Modifier.weight(1f), selectable = false)
+                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = color) {
+                        Box {
+                            Row(Modifier.padding(14.dp).clearAndSetSemantics {}, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("${'A' + n}.", fontWeight = FontWeight.Bold)
+                                ChatMarkdown(option, Modifier.weight(1f), selectable = false)
+                            }
+                            // Keep the whole answer tappable, including the embedded math TextView.
+                            Box(Modifier.matchParentSize().testTag("chat_quiz_option_${'A' + n}")
+                                .selectable(selected = selected == n, enabled = !answered, role = Role.RadioButton, onClick = { selected = n })
+                                .semantics { contentDescription = "Option ${'A' + n}. $option" })
                         }
                     }
                 }
