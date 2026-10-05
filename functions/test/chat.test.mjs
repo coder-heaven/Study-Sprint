@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ChatError, validate, payload, runChat, NEMOTRON, KIMI, GPT, GLM } from '../chat.mjs';
+import { ChatError, validate, payload, runChat, NEMOTRON, KIMI, GPT, GLM, MUSE, MISTRAL } from '../chat.mjs';
 const key = { openrouter: 'sk-or-v1-' + 'a'.repeat(64), nvidia: 'nvapi-' + 'b'.repeat(64) };
 const photo = 'data:image/jpeg;base64,' + Buffer.from([255,216,255,224,0,255,217]).toString('base64');
 const input = () => validate({ messages: [{ role: 'user', content: 'What is frequency?' }] });
@@ -73,7 +73,7 @@ test('missing NVIDIA secret prevents backup request without disclosure', async (
 });
 
 test('all NVIDIA text models use selected routing without receiving photos', async () => {
- for (const model of [GPT, GLM, KIMI]) {
+ for (const model of [GPT, GLM, MUSE, KIMI]) {
   const result = await runChat(validate({messages: input().messages, model}), key, async()=>{}, async(url, options)=>{
    assert.equal(JSON.parse(options.body).model, model); assert.match(url,/integrate.api.nvidia/); return ok();
   }); assert.equal(result.model, model);
@@ -87,15 +87,42 @@ test('vision stays on Kimi with a bounded low reasoning budget', async () => {
 test('automatic fallback exhausts candidates and reserves NVIDIA quota once', async()=>{
  const models=[];let reservations=0;
  const result=await runChat(input(),key,async()=>reservations++,async(url,options)=>{const m=JSON.parse(options.body).model;models.push(m);return m===KIMI?ok():new Response('',{status:503});});
- assert.deepEqual(models,[NEMOTRON,GPT,GLM,KIMI]);assert.equal(reservations,1);assert.equal(result.model,KIMI);
+ assert.deepEqual(models,[NEMOTRON,GPT,GLM,MUSE,KIMI]);assert.equal(reservations,1);assert.equal(result.model,KIMI);
 });
 
 test('exam-specific system guidance is applied to every model and tips respect strict output', () => {
-  for (const exam of ['CET', 'JEE', 'NEET']) for (const model of [NEMOTRON, KIMI, GPT, GLM]) {
+  for (const exam of ['CET', 'JEE', 'NEET']) for (const model of [NEMOTRON, KIMI, GPT, GLM, MUSE, MISTRAL]) {
     const input = validate({ messages: [{ role: 'user', content: 'Help me revise' }], exam, grade: '12' });
     const prompt = payload(input, model).messages[0].content;
     assert.ok(prompt.includes(`${exam}, Class 12`));
     assert.ok(prompt.includes('Exam tip')); assert.ok(prompt.includes('strict formats'));
   }
   assert.throws(() => validate({ messages: [{ role: 'user', content: 'Hi' }], exam: 'injected prompt' }), ChatError);
+});
+
+
+test('Mistral backup uses its separate private key and no NVIDIA quota', async () => {
+ const secret = 'm'.repeat(32); let reserved = 0;
+ const result = await runChat(input(), {mistral:secret}, async()=>reserved++, async(url,options)=>{
+  assert.equal(url,'https://api.mistral.ai/v1/chat/completions');
+  assert.equal(options.headers.Authorization,`Bearer ${secret}`);
+  const body=JSON.parse(options.body); assert.equal(body.model,MISTRAL);
+  assert(!options.body.includes(secret)); assert.equal(body.reasoning_effort,undefined);
+  return ok();
+ });
+ assert.equal(result.model,MISTRAL); assert.equal(reserved,0);
+});
+test('Muse vision recovers a failed Kimi photo request without sending photos to text models', async () => {
+ const models=[]; let reserved=0;
+ const data=validate({messages:input().messages,photos:[photo]});
+ const result=await runChat(data,key,async()=>reserved++,async(url,options)=>{
+  const body=JSON.parse(options.body); models.push(body.model);
+  assert.equal(body.messages.at(-1).content[1].image_url.url,photo);
+  return body.model===KIMI?new Response('',{status:503}):ok('Visible page contents.');
+ });
+ assert.deepEqual(models,[KIMI,MUSE]);assert.equal(result.model,MUSE);assert.equal(reserved,1);
+});
+test('Mistral provider errors remain private', async () => {
+ const secret='m'.repeat(32);
+ await assert.rejects(runChat(validate({messages:input().messages,model:MISTRAL}),{mistral:secret},async()=>{},async()=>new Response(secret,{status:401})),e=>!e.message.includes(secret));
 });
