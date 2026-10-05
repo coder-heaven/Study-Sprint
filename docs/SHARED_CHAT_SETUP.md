@@ -43,3 +43,12 @@ Gemini 2.5 Flash reads photos when configured, using a ten-question JSON schema 
 Online MCQ mode retrieves 1–5 single-correct questions for the selected MHT-CET, JEE Main or NEET UG exam. It requires actual Google search queries, supporting citations and exam-specific source titles. Missing, mixed-exam or malformed results fail closed. The selected tutor may format the retrieved questions but cannot change their stems, choices or answers. Source links and Google's search suggestions accompany the result. Start MCQ test is optional and does not spend the photo-PDF allowance. Regular explanations do not require web search; direct MCQ requests also use retrieval.
 
 Live verification after supplying the private key: send one topic for each exam in online MCQ mode; check sources and all four options; start one optional test; generate one PDF from a clear photo; resend after reopening the app. Automated tests use mock provider responses and do not verify a live Google account's access or credits.
+
+
+### Additional automatic backups (v4.9.6)
+
+NVIDIA Muse Glimmer 30B uses `meta/muse-glimmer-30b` with the existing `NVIDIA_API_KEY`. Text auto routing tries Nemotron, GPT-OSS 20B, GLM 5.3, Muse, optional Mistral Small, then Kimi. Photo fallback tries Kimi then Muse after Gemini's retryable failure. All NVIDIA routes share the existing quota.
+
+To enable the optional Mistral text backup, create a key in Mistral Studio and set `MISTRAL_API_KEY` privately in Render Environment, then Save, rebuild and deploy. Paste the key alone, without `Bearer` or quotes. Never send it in chat or commit it to GitHub. The server uses `mistral-small-latest` through `https://api.mistral.ai/v1/chat/completions`; no provider key enters the APK. An absent key skips this backup. Provider credits, plan and rate limits apply; no purchase is enabled. The app continues to show only Study buddy.
+
+The routing loop has one shared 260-second deadline, including Google preparation, so adding backups does not make retries grow without a bound. Authentication/permission/credit errors retain the existing fail-closed behavior.
