@@ -62,12 +62,12 @@ internal fun StudyChatScreen(model: StudyChatViewModel, go: (String) -> Unit, re
           else if (photoSlots > 1) picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, { go("privacy") }, model::generatePdf,
         { export.launch("Study-Sprint-Photo-MCQs.pdf") },
         { state.pdfFile?.let { name -> runCatching { ChapterFiles.openPdf(context, name) }.onFailure { Toast.makeText(context, "No PDF viewer is available. Use Save PDF.", Toast.LENGTH_SHORT).show() } } },
-        { refresh(); go("my_quiz") }, { model.send(it, true) }, model::resend, { message -> if (model.startQuiz(message)) { refresh(); go("my_quiz") } })
+        { refresh(); go("my_quiz") }, { model.send(it, true) }, model::resend, { message -> if (model.startQuiz(message)) { refresh(); go("my_quiz") } }, model::selectDifficulty)
 }
 @Composable
 internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, retry: () -> Unit, stop: () -> Unit,
     clear: () -> Unit, removePhoto: (String) -> Unit, choosePhotos: () -> Unit, privacy: () -> Unit,
-    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}, sendMcq: (String) -> Boolean = send, resend: () -> Unit = {}, startQuiz: (ChatMessage) -> Unit = {}) {
+    generatePdf: (Boolean) -> Boolean = { false }, savePdf: () -> Unit = {}, openPdf: () -> Unit = {}, startPractice: () -> Unit = {}, sendMcq: (String) -> Boolean = send, resend: () -> Unit = {}, startQuiz: (ChatMessage) -> Unit = {}, selectDifficulty: (String) -> Unit = {}) {
     var mcqMode by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var autoPractice by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
@@ -112,11 +112,13 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                         if (message.photoCount > 0) Text("${message.photoCount} photo${if (message.photoCount == 1) "" else "s"} attached", style = MaterialTheme.typography.labelSmall)
                         if (user) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
                         else {
-                            if (message.quiz) SelectionContainer { Text(message.content, style = MaterialTheme.typography.bodyMedium) }
-                            else ChatMarkdown(message.content, Modifier.fillMaxWidth())
+                            ChatMarkdown(message.content, Modifier.fillMaxWidth())
                             if (message.sources.isNotBlank()) { Text("Question sources", fontWeight = FontWeight.Bold); ChatMarkdown(message.sources, Modifier.fillMaxWidth()) }
                             if (message.suggestions.isNotBlank()) GoogleSearchSuggestions(message.suggestions)
-                            if (message.quiz) OutlinedButton(onClick = { startQuiz(message) }, enabled = !state.busy, modifier = Modifier.testTag("chat_start_web_quiz")) { Text("Start MCQ test") }
+                            if (message.quiz) {
+                                OutlinedButton(onClick = { startQuiz(message) }, enabled = !state.busy, modifier = Modifier.testTag("chat_start_web_quiz")) { Text("Start MCQ test") }
+                                Text("Saves these questions to Practice. Saved tests work offline.", style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                     }
                 }
@@ -151,6 +153,15 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = mcqMode, onClick = { mcqMode = !mcqMode }, enabled = !state.busy && state.photos.isEmpty(), label = { Text("Online MCQs") }, modifier = Modifier.testTag("chat_mcq_mode"))
+                if (mcqMode || state.photos.isNotEmpty()) {
+                    Text("MCQ difficulty", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Easy", "Medium", "Hard").forEach { level ->
+                            FilterChip(selected = state.mcqDifficulty == level, onClick = { selectDifficulty(level) },
+                                enabled = !state.busy && !state.photoBusy, label = { Text(level) }, modifier = Modifier.testTag("chat_difficulty_${level.lowercase()}"))
+                        }
+                    }
+                }
                 if (state.photos.isNotEmpty()) LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("chat_photos")) {
                     items(state.photos, key = { it.id }) { photo ->
                         val bitmap = remember(photo.id) { BitmapFactory.decodeByteArray(photo.thumbnail, 0, photo.thumbnail.size)?.asImageBitmap() }
