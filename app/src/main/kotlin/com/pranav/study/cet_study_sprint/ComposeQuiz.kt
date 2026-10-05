@@ -175,8 +175,7 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
                     AppHeading(title, "Question ${page + 1} of ${questions.size} · ${question.subject} · ${scheme.label()}")
                     Spacer(Modifier.height(16.dp))
                     StudyCard {
-                        Text(question.prompt, fontSize = 19.sp, fontWeight = FontWeight.SemiBold,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                        ChatMarkdown(question.prompt, Modifier.fillMaxWidth(), selectable = false)
                         Spacer(Modifier.height(18.dp))
                         question.options.forEachIndexed { answerIndex, option ->
                             val selectedOption = selected == answerIndex
@@ -200,8 +199,7 @@ internal fun QuizScreen(title: String, questions: List<PracticeQuestion>, onBack
                                         Text(('A' + answerIndex).toString(), modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold,
                                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer)
                                     }
-                                    Text(option, fontSize = 16.sp, modifier = Modifier.weight(1f),
-                                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                                    ChatMarkdown(option, Modifier.weight(1f), selectable = false)
                                 }
                             }
                         }

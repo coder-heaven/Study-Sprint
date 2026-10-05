@@ -27,8 +27,9 @@ async function invoke(body, key, fetcher) {
   }
 }
 export async function photoReply(input, key, fetcher) {
-  const parts = [{ text: input.mode === 'photo_pdf' ? 'Read only visible study material. Create exactly ten original single-correct MCQs for the selected exam. Each has four distinct options and one answer A-D. Return JSON according to the response schema. Use English with plain ASCII math. Never invent unreadable image details; if the photos are unreadable, say so instead of creating questions.' : input.messages.at(-1).content }, ...input.photos.map(url => ({ inlineData: { mimeType: 'image/jpeg', data: url.split(',')[1] } }))];
+  const parts = [{ text: input.mode === 'photo_pdf' ? 'Read only visible study material. Create exactly ten original single-correct MCQs for the selected exam. Each has four distinct options and one answer A-D. Return JSON according to the response schema. Use English. You may use Markdown emphasis and LaTeX math inside question and option strings, with properly escaped backslashes in JSON. Keep the four options and answer schema exact. Never invent unreadable image details; if the photos are unreadable, say so instead of creating questions.' : input.messages.at(-1).content }, ...input.photos.map(url => ({ inlineData: { mimeType: 'image/jpeg', data: url.split(',')[1] } }))];
   const config = { maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } };
+  if (input.mode === 'photo_pdf') parts[0].text += ` Student's requested difficulty and generation instructions: ${input.messages.at(-1).content}`;
   if (input.mode === 'photo_pdf') Object.assign(config, { responseMimeType: 'application/json', responseSchema: {
     type:'ARRAY', minItems:10, maxItems:10, items: {type:'OBJECT', required:['question','options','answer'], properties:{question:{type:'STRING'},options:{type:'ARRAY',minItems:4,maxItems:4,items:{type:'STRING'}},answer:{type:'STRING',enum:['A','B','C','D']}}}
   } });

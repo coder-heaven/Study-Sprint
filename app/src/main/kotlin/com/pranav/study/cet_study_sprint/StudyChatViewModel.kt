@@ -12,7 +12,8 @@ internal data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(), val photos: List<ChatPhoto> = emptyList(),
     val ready: Boolean = true, val busy: Boolean = false, val photoBusy: Boolean = false,
     val error: String? = null, val canRetry: Boolean = false, val selectedModel: String = "auto",
-    val canResend: Boolean = false, val pdfFile: String? = null, val practiceReady: Boolean = false, val pdfRemaining: Int = 2
+    val canResend: Boolean = false, val pdfFile: String? = null, val practiceReady: Boolean = false, val pdfRemaining: Int = 2,
+    val mcqDifficulty: String = "Medium"
 )
 internal class StudyChatViewModel(application: Application, private val transport: StudyChatTransport, private val persistent: Boolean = false, private val store: ChatSessionStore = ChatSessionStore(application)) : AndroidViewModel(application) {
     constructor(application: Application) : this(application, StudyChatClient(profile = {
@@ -68,6 +69,14 @@ internal class StudyChatViewModel(application: Application, private val transpor
         }
     }
     fun removePhoto(id: String) { if (!mutable.value.busy) { mutable.value = mutable.value.copy(photos = mutable.value.photos.filterNot { it.id == id }, error = null); save() } }
+    fun selectDifficulty(difficulty: String) {
+        if (!mutable.value.busy && difficulty in listOf("Easy", "Medium", "Hard")) mutable.value = mutable.value.copy(mcqDifficulty = difficulty)
+    }
+    private fun difficultyPrompt() = "\nDifficulty: ${mutable.value.mcqDifficulty}. " + when (mutable.value.mcqDifficulty) {
+        "Easy" -> "Choose basic concept and direct formula questions."
+        "Hard" -> "Choose challenging multi-step and application questions within the selected exam."
+        else -> "Choose standard exam-level questions with a moderate number of steps."
+    }
     fun generatePdf(addToPractice: Boolean): Boolean {
         if (mutable.value.busy || mutable.value.photoBusy) return false
         val remaining = ChatMcqPdf.remaining(getApplication())
@@ -75,12 +84,13 @@ internal class StudyChatViewModel(application: Application, private val transpor
         if (remaining == 0) { mutable.value = mutable.value.copy(error = "You have generated 2 PDFs today. Try after midnight."); return false }
         if (mutable.value.photos.isEmpty()) { mutable.value = mutable.value.copy(error = "Attach 1–4 study photos to generate a PDF."); return false }
         makePdf = true; loadPractice = addToPractice; pendingMode = "photo_pdf"
-        return sendPrompt(ChatMcqPdf.PROMPT)
+        return sendPrompt(ChatMcqPdf.PROMPT + difficultyPrompt())
     }
     fun send(raw: String, mcqTest: Boolean = false): Boolean {
         if (mutable.value.busy || mutable.value.photoBusy) return false
         makePdf = false; loadPractice = false; pendingMode = if (mcqTest) "web_mcq" else "chat"
-        return sendPrompt(raw)
+        val asksForMcqs = mcqTest || Regex("\\b(mcq|quiz|practice questions|previous.year questions)\\b", RegexOption.IGNORE_CASE).containsMatchIn(raw)
+        return sendPrompt(if (asksForMcqs) raw + difficultyPrompt() else raw)
     }
     private fun sendPrompt(raw: String): Boolean {
         val prompt = raw.trim().ifBlank { if (mutable.value.photos.isNotEmpty()) "Help me understand the question in these photos." else "" }
@@ -132,7 +142,7 @@ internal class StudyChatViewModel(application: Application, private val transpor
                         file = created.first; practice = created.second
                     }
                     if (token != generation) return@launch
-                    val assistant = ChatMessage("assistant", reply.answer, model = reply.model, quiz = reply.quiz, sources = reply.sources, suggestions = reply.suggestions)
+                    val assistant = ChatMessage("assistant", reply.answer, model = reply.model, quiz = reply.quiz || makePdf, sources = reply.sources, suggestions = reply.suggestions)
                     history = StudyChatClient.bounded(chosen.first + assistant); pending = null; cachedReply = null
                     mutable.value = mutable.value.copy(messages = (mutable.value.messages + assistant).takeLast(80), busy = false,
                         pdfFile = file ?: mutable.value.pdfFile, practiceReady = if (file != null) practice else mutable.value.practiceReady,

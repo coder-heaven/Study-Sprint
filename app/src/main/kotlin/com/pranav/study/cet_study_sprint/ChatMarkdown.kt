@@ -36,7 +36,7 @@ internal fun normalizeChatMath(text: String): String {
 }
 
 @Composable
-internal fun ChatMarkdown(text: String, modifier: Modifier = Modifier) {
+internal fun ChatMarkdown(text: String, modifier: Modifier = Modifier, selectable: Boolean = true) {
     val context = LocalContext.current
     val foreground = MaterialTheme.colorScheme.onSurface.toArgb()
     val border = MaterialTheme.colorScheme.outlineVariant.toArgb()
@@ -58,7 +58,7 @@ internal fun ChatMarkdown(text: String, modifier: Modifier = Modifier) {
     AndroidView(modifier = modifier.semantics { this.text = AnnotatedString(accessible) }, factory = { TextView(it).apply {
         textSize = 16f
         typeface = ResourcesCompat.getFont(it, R.font.poppins_regular)
-        setTextIsSelectable(true)
+        setTextIsSelectable(selectable)
         setLineSpacing(4f, 1.15f)
         // No HTML, WebView, image/network loader or automatic link navigation.
     } }, update = { view ->

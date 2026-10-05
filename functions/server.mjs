@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
 import { reserve } from './quota.mjs';
 import { chatServer } from './http.mjs';
+import { googleKey } from './environment.mjs';
 try {
   const credentials = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON ?? '');
   if (!process.env.FIREBASE_APP_ID) throw new Error('missing');
@@ -13,7 +14,7 @@ try {
   process.exit(1);
 }
 const server = chatServer({
-  keys: { openrouter: process.env.OPENROUTER_API_KEY, nvidia: process.env.NVIDIA_API_KEY, gemini: process.env.GEMINI_API_KEY },
+  keys: { openrouter: process.env.OPENROUTER_API_KEY, nvidia: process.env.NVIDIA_API_KEY, gemini: googleKey() },
   reserve,
   verify: async (token, appToken) => {
     const [user, app] = await Promise.all([getAuth().verifyIdToken(token), getAppCheck().verifyToken(appToken)]);
