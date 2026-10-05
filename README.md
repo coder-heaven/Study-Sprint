@@ -8,7 +8,7 @@ Charcoal surfaces, emerald accents, Poppins typography and original artwork from
 
 App blocking checks the foreground window's package every second, including after service reconnection and while an app stays open past its limit. Protected focus covers limited apps and focus-only selections without waiting for usage queries. Blocking history failures cannot stop enforcement. If Android silently refuses the block screen, the service verifies the denied app is still foreground before returning to Home.
 
-[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v4.9.8.md)
+[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v4.9.9.md)
 
 Install the signed update over the existing app to retain local data. Do not uninstall or clear storage. After updating, reconnect **Study Sprint app limits** in Android Accessibility if necessary; **Usage Access** is required for daily limits. The app shows these settings in App Limits and on the focus screen.
 
@@ -39,6 +39,6 @@ Publish from the main-only release workflow after all checks pass. Android 8.0 o
 
 ## Study buddy (v4.9.0)
 
-Open the floating avatar at the bottom right. Text questions use Nemotron via OpenRouter, with Kimi K3 via NVIDIA as the backup. Up to four selected photos use Kimi vision directly. Render hosts the backend with Firebase identity/App Check verification and persistent quotas. Provider keys are server secrets, never APK contents or committed files. See [shared chat deployment](docs/SHARED_CHAT_SETUP.md). The backend must be activated before shared chat works.
+Open the floating avatar at the bottom right. Text questions use Nemotron via OpenRouter, with Kimi K3 via NVIDIA as the backup. Up to four selected photos use Kimi vision directly. Render hosts the backend with Firebase identity/App Check verification and persistent quotas. Provider keys are server secrets, never APK contents or committed files. See [shared chat deployment](docs/SHARED_CHAT_SETUP.md). The backend must be activated before shared chat works. Online MCQs use Tavily Search with a private `TAVILY_API_KEY` on Render; photos use NVIDIA vision. No Gemini keys are used by the current backend.
 
 The floating pill navigation raises Focus in the center. A bug icon beside Settings opens a report draft; the decorative bell has been removed. Branding and login artwork are documented in [LOGIN_ARTWORK_v4.8.0.md](docs/LOGIN_ARTWORK_v4.8.0.md).

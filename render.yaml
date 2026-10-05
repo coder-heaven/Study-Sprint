@@ -15,9 +15,7 @@ services:
         sync: false
       - key: NVIDIA_API_KEY
         sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GEMINI_API_KEY_2
+      - key: TAVILY_API_KEY
         sync: false
       - key: MISTRAL_API_KEY
         sync: false

@@ -43,19 +43,19 @@ internal class StudyChatClient(
         const val MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
         const val FALLBACK_MODEL = "moonshotai/kimi-k3"
         const val GPT_MODEL = "openai/gpt-oss-20b"
-        const val GEMINI_MODEL = "gemini-2.5-flash"
+        const val SEARCH_MODEL = "tavily/search"
         const val MUSE_MODEL = "meta/muse-glimmer-30b"
         const val MISTRAL_MODEL = "mistral-small-latest"
-        private val responseModels get() = models.keys + setOf(GEMINI_MODEL, MUSE_MODEL, MISTRAL_MODEL)
+        private val responseModels get() = models.keys + setOf(SEARCH_MODEL, MUSE_MODEL, MISTRAL_MODEL)
         const val GLM_MODEL = "z-ai/glm-5.3"
         val models = linkedMapOf("auto" to "Auto", MODEL to "Nemotron", FALLBACK_MODEL to "Kimi K3", GPT_MODEL to "GPT-OSS 20B", GLM_MODEL to "GLM 5.3")
-        fun modelName(model: String?) = if (model == GEMINI_MODEL) "Gemini Flash" else models[model] ?: "AI"
+        fun modelName(model: String?) = if (model == SEARCH_MODEL) "Exam sources" else models[model] ?: "AI"
         fun introduction(model: String, exam: String) = when (model) {
             MODEL -> "Nemotron helps explain $exam concepts and work through study questions."
             FALLBACK_MODEL -> "Kimi K3 can read your study photos and help with $exam questions and photo MCQs."
             GPT_MODEL -> "GPT-OSS 20B helps with text-based $exam questions, worked solutions and revision."
             GLM_MODEL -> "GLM 5.3 helps break down text-based $exam concepts and practise question-solving."
-            else -> "Auto chooses an available study model for $exam. Photos prefer Gemini Flash when configured, with Kimi K3 backup."
+            else -> "Auto chooses an available study model for $exam. Photos use Kimi K3 or Muse vision; online MCQs use sourced Tavily search."
         }
         const val MAX_PROMPT = 4000
         const val MAX_CONTEXT_MESSAGES = 20
@@ -90,14 +90,15 @@ internal class StudyChatClient(
                 val message = json.optJSONObject("error")?.optString("message")
                 val searchErrors = setOf("No complete four-option MCQs were found. Try another topic.",
                     "No verified sources for this exam were found. Try another topic.",
-                    "Google study service could not respond. Retry later.",
-                    "Google study service could not return a complete answer. Retry later.",
-                    "Online study search allowance is reached. Try again later.",
-                    "Google study search needs configuration by the app owner.")
+                    "Online search could not respond. Retry later.",
+                    "Online search could not return a complete answer. Retry later.",
+                    "Online search allowance is reached. Try again later.",
+                    "Tavily search key needs attention from the app owner.",
+                    "No complete four-option MCQs with answers were found in exam sources. Try another topic.")
                 if (message in searchErrors) throw ChatProblem(requireNotNull(message))
                 throw ChatProblem(when (status) {
                     "RESOURCE_EXHAUSTED" -> "The study chat allowance is reached. Please try later."
-                    "FAILED_PRECONDITION" -> if (json.optJSONObject("error")?.optString("message") == "Online MCQ search needs GEMINI_API_KEY in Render.") "Online MCQ search needs Google setup by the app owner. Normal study chat is still available." else "Shared study chat needs setup or attention from the app owner."
+                    "FAILED_PRECONDITION" -> if (json.optJSONObject("error")?.optString("message") == "Online MCQ search needs TAVILY_API_KEY in Render.") "Online MCQ search needs a Tavily key in Render. Normal study chat is still available." else "Shared study chat needs setup or attention from the app owner."
                     "INVALID_ARGUMENT" -> "This question or photo could not be accepted. Use up to 4 photos and a shorter question."
                     else -> "Study buddy could not respond. Please retry later."
                 })

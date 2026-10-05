@@ -87,12 +87,18 @@ class StudyChatClientTest {
         assertFalse(StudyChatClient.validKey("not-an-openrouter-key"))
     }
     @Test fun newAutomaticBackupResponsesAreAcceptedWithoutExposingASelector() {
-        for (model in listOf(StudyChatClient.MUSE_MODEL, StudyChatClient.MISTRAL_MODEL)) {
+        for (model in listOf(StudyChatClient.MUSE_MODEL, StudyChatClient.MISTRAL_MODEL, StudyChatClient.SEARCH_MODEL)) {
             val reply = StudyChatClient.answer(JSONObject().put("result", JSONObject().put("answer", "Use E = hf.").put("model", model)).toString())
             assertEquals("Use E = hf.", reply.answer)
             assertEquals(model, reply.model)
             assertFalse(StudyChatClient.models.containsKey(model))
         }
+    }
+    @Test fun missingTavilyKeyIsActionable() {
+        try {
+            StudyChatClient.answer("""{"error":{"status":"FAILED_PRECONDITION","message":"Online MCQ search needs TAVILY_API_KEY in Render."}}""")
+            fail("Expected setup error")
+        } catch (error: ChatProblem) { assertTrue(error.message!!.contains("Tavily key in Render")) }
     }
     @Test fun onlineSearchErrorsExplainRecoveryWithoutEchoingArbitraryServerText() {
         val message = "No verified sources for this exam were found. Try another topic."
