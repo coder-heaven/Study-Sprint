@@ -10,6 +10,20 @@ const exams = {
   NEET: { name: 'NEET UG', marker: /\bNEET\b/i, excluded: /\bJEE\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: [...sharedSources, 'examgoal.com'], examside: '/past-years/medical/neet' }
 };
 const allowedHost = (host, domains) => domains.some(domain => host === domain || host.endsWith(`.${domain}`));
+export function studyTopic(prompt) {
+  const first = prompt.split(/\bDifficulty\s*:/i)[0].trim();
+  return first.replace(/^(?:(?:please\s+)?(?:give|create|generate|make|find|show)\s+me\s+)?(?:\d+|some|a few)?\s*(?:original\s+)?(?:mcqs?|questions?)?\s*(?:based\s+on|about|on|for)?\s*/i, '')
+    .replace(/\s+for\s+practice\s*$/i, '').trim().slice(0, 160) || 'selected exam study concepts';
+}
+export function topicMatches(topic, title, url, snippet) {
+  if (/\b(?:some\s+)?basic\s+concepts?\s+of\s+chemistry\b/i.test(topic)) {
+    return /\b(?:basic concepts of chemistry|some basic concepts of chemistry|mole concept|moles|molar mass|stoichiometry|avogadro|empirical formula)\b/i.test(`${title} ${url}`) &&
+      !/\b(?:redox|oxidation|reduction|mba|management)\b/i.test(`${title} ${url}`);
+  }
+  const tokens = topic.toLowerCase().match(/[a-z]{4,}/g)?.filter(token => !['some','about','practice','questions','question','concept','concepts','chemistry','physics','mathematics','medium','standard','steps'].includes(token)) ?? [];
+  if (!tokens.length) return true;
+  return tokens.some(token => `${title} ${url} ${snippet}`.toLowerCase().includes(token));
+}
 // Only accept complete source question blocks. Search snippets alone cannot prove an answer.
 function sourcedQuestions(content) {
   const text = content.replace(/\r/g, '\n').replace(/<[^>]*>/g, '\n');
@@ -25,12 +39,13 @@ export async function searchMcqs(input, key, fetcher = fetch) {
   if (!configured(key)) throw new ChatError('failed-precondition', 'Online MCQ search needs TAVILY_API_KEY in Render.');
   const exam = exams[input.exam];
   if (!exam) throw new ChatError('invalid-argument', 'Choose MHT-CET, JEE Main or NEET UG in your profile.');
+  const topic = studyTopic(input.messages.at(-1).content);
   let response;
   try {
     response = await fetcher('https://api.tavily.com/search', {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ query: `${exam.name} ${input.messages.at(-1).content.slice(0, 300)} MCQ four options correct answer`, search_depth: 'basic', max_results: 5, include_domains: exam.domains, include_domains_mode: 'restrict', include_answer: false, include_raw_content: 'text', include_images: false, safe_search: true })
+      body: JSON.stringify({ query: `${exam.name} ${topic} MCQ four options correct answer`, search_depth: 'basic', max_results: 5, include_domains: exam.domains, include_domains_mode: 'restrict', include_answer: false, include_raw_content: 'text', include_images: false, safe_search: true })
     });
     if (!response.ok) {
       await response.body?.cancel().catch(() => {});
@@ -61,7 +76,7 @@ export async function searchMcqs(input, key, fetcher = fetch) {
             !(url.pathname === exam.examside || url.pathname.startsWith(`${exam.examside}/`))) continue;
       } catch { continue; }
       const content = typeof result.raw_content === 'string' ? result.raw_content : result.content;
-      if (typeof content !== 'string') continue;
+      if (typeof content !== 'string' || !topicMatches(topic, title, url.pathname, result.content ?? '')) continue;
       // Use only bounded search snippets as untrusted study context, not full page navigation or instructions.
       context.push(`${title.slice(0, 160)}: ${String(result.content ?? '').slice(0, 1200)}`);
       let used = false;

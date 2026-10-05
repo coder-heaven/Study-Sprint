@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validate, runChat, GPT, NEMOTRON, KIMI, GLM, MUSE, MISTRAL } from '../chat.mjs';
 import { parseMcqs } from '../mcq.mjs';
+import { studyTopic } from '../tavily.mjs';
 const quiz = '1. Photon energy is?\nA. h*f\nB. h/f\nC. f/h\nD. h+f\nAnswer: A';
 const five = Array.from({length:5},(_,i)=>quiz.replace('1. Photon', `${i+1}. Photon ${i+1}`)).join('\n\n');
 const keys = { tavily: 'tvly-' + 't'.repeat(32), openrouter: 'sk-or-v1-' + 'a'.repeat(64), nvidia: 'nvapi-' + 'b'.repeat(64), mistral: 'm'.repeat(32) };
@@ -93,22 +94,48 @@ test('exam-specific chapter snippets become original practice, never fake past-p
     assert.ok(result.sources[0].title.startsWith('Study context:'));
   }
 });
-test('exact five-MCQ chemistry practice prompt works even when Tavily finds no matching study source', async () => {
+test('exact five-MCQ chemistry practice skips Tavily and confines original questions to chosen exam and chapter', async () => {
   const prompt='Give me 5 mcq based on some basic concepts of chemistry for practice\nDifficulty: Medium. Choose standard exam-level questions with a moderate number of steps.';
+  assert.equal(studyTopic(prompt),'some basic concepts of chemistry');
   for (const exam of ['CET','JEE','NEET']) {
-    for (const response of [new Response(JSON.stringify({results:[]})), search('Another exam questions',quiz)]) {
-      let calls=0;
-      const result=await runChat(validate({messages:[{role:'user',content:prompt}],exam,mode:'web_mcq'}),keys,async()=>{},async(_url,options)=>{
-        if (++calls===1) { assert.ok(JSON.parse(options.body).query.includes({CET:'MHT-CET',JEE:'JEE Main',NEET:'NEET UG'}[exam])); return response; }
-        const tutor=JSON.parse(options.body).messages.at(-1).content;
-        assert.match(tutor,/exactly 5 ORIGINAL/);assert.match(tutor,/Difficulty: Medium/);
-        assert.ok(tutor.includes({CET:'MHT-CET',JEE:'JEE Main',NEET:'NEET UG'}[exam]));
-        assert.ok(!tutor.includes('Another exam questions'));
-        return provider(five);
-      });
-      assert.equal(calls,2);assert.equal(result.answer,five);assert.deepEqual(result.sources,[]);
-    }
+    const calls=[];
+    const result=await runChat(validate({messages:[{role:'user',content:prompt}],exam,mode:'web_mcq'}),keys,async()=>{},async(url,options)=>{
+      calls.push({url,body:JSON.parse(options.body)});
+      return provider(five);
+    });
+    assert.equal(calls.length,1); assert.ok(!calls[0].url.includes('tavily'));
+    const tutor=calls[0].body.messages.at(-1).content;
+    assert.match(tutor,/exactly 5 ORIGINAL/); assert.match(tutor,/Difficulty: Medium/);
+    assert.match(tutor,/ONLY about this topic: some basic concepts of chemistry/);
+    assert.match(tutor,/LaTeX equations/);
+    assert.ok(tutor.includes({CET:'MHT-CET',JEE:'JEE Main',NEET:'NEET UG'}[exam]));
+    assert.equal(result.answer,five); assert.deepEqual(result.sources,[]);
   }
+});
+test('wrong chapter search hits never appear as copied MCQs or study context', async () => {
+  const calls=[];
+  const input=validate({messages:[{role:'user',content:'Give me 5 MCQs on some basic concepts of chemistry'}],mode:'web_mcq'});
+  const result=await runChat(input,keys,async()=>{},async(url,options)=>{
+    calls.push({url,body:JSON.parse(options.body)});
+    return calls.length===1 ? search('MHT-CET Redox Reactions',five.replaceAll('Photon','Redox'), 'https://questions.examside.com/past-years/jee/mht-cet/chemistry/redox-reactions') : provider(five);
+  });
+  assert.equal(calls.length,2);assert.match(calls[0].body.query,/some basic concepts of chemistry/);
+  assert.ok(!calls[0].body.query.includes('Difficulty:'));
+  assert.ok(!calls[1].body.messages.at(-1).content.includes('Redox Reactions'));
+  assert.deepEqual(result.sources,[]);assert.equal(result.answer,five);
+});
+test('LaTeX equation and chemistry notation survive original practice validation', async () => {
+  const prompt='Give me 1 MCQ on some basic concepts of chemistry for practice';
+  const math='1. Calculate $n = \\frac{m}{M}$ for 18 g of water.\nA. $0.5\\,\\mathrm{mol}$\nB. $1\\,\\mathrm{mol}$\nC. $2\\,\\mathrm{mol}$\nD. $18\\,\\mathrm{mol}$\nAnswer: B';
+  const result=await runChat(validate({messages:[{role:'user',content:prompt}],mode:'web_mcq'}),keys,async()=>{},async()=>provider(math));
+  assert.equal(result.answer,math);assert.equal(result.quiz,true);
+});
+test('redox or MBA tutor output is rejected for basic-chemistry practice', async () => {
+  const input=validate({messages:[{role:'user',content:'Give me 5 MCQs on some basic concepts of chemistry for practice'}],mode:'web_mcq'});
+  const responses=[five.replaceAll('Photon','Redox'),five.replaceAll('Photon','MBA'),five];
+  let calls=0;
+  const result=await runChat(input,keys,async()=>{},async()=>provider(responses[calls++]));
+  assert.equal(calls,3);assert.equal(result.answer,five);
 });
 test('partial, fifth-option and missing-answer sources are not copied, generated practice must be complete', async () => {
   for (const raw of [quiz.replace('Answer: A',''), quiz.replace('Answer:', 'E. extra\nAnswer:'), 'Physics Motion 2026 12 questions']) {
