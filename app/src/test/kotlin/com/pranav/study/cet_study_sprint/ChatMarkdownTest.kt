@@ -15,7 +15,7 @@ class ChatMarkdownTest {
         val questions = chatQuizQuestions(quiz)
         assertEquals(1, questions.size)
         assertTrue(questions[0].question.contains("\\frac{m}{M}"))
-        assertEquals("\\(1\\) mol", questions[0].options[1])
+        assertEquals("\$\$1\$\$ mol", questions[0].options[1])
         assertTrue(normalizeChatMath(questions[0].question).contains("\$\$n = \\frac{m}{M}\$\$"))
     }
 }
