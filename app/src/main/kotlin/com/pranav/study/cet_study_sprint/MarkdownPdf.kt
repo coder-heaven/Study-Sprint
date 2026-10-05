@@ -115,7 +115,7 @@ internal object MarkdownPdf {
             }
         }
         private fun math(source: String, size: Float) {
-            val ascii = source.map { if (it.code in 32..126) it else '?' }.joinToString("")
+            val ascii = source.replace('\n', ' ').map { if (it.code in 32..126) it else '?' }.joinToString("")
             val drawable = if (source.length <= 2048) runCatching {
                 JLatexMathDrawable.builder(source).textSize(size * 3f).padding(3).build()
             }.getOrNull() else null
@@ -126,7 +126,7 @@ internal object MarkdownPdf {
             drawable.setBounds(0, 0, bitmap.width, bitmap.height)
             drawable.draw(Canvas(bitmap))
             val scale = minOf(1f / 3f, width / bitmap.width, 140f / bitmap.height)
-            add(Piece(ascii, PDType1Font.HELVETICA, 1f, bitmap.width * scale, bitmap.height * scale + 4f, bitmap))
+            add(Piece("\$\$$ascii\$\$", PDType1Font.HELVETICA, 1f, bitmap.width * scale, bitmap.height * scale + 4f, bitmap))
         }
         fun markdown(source: String) {
             val formulas = mutableListOf<String>()
