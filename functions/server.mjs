@@ -14,7 +14,7 @@ try {
   process.exit(1);
 }
 const server = chatServer({
-  keys: { openrouter: process.env.OPENROUTER_API_KEY, nvidia: process.env.NVIDIA_API_KEY, gemini: googleKey() },
+  keys: { openrouter: process.env.OPENROUTER_API_KEY, nvidia: process.env.NVIDIA_API_KEY, gemini: googleKey(), mistral: process.env.MISTRAL_API_KEY?.trim() },
   reserve,
   verify: async (token, appToken) => {
     const [user, app] = await Promise.all([getAuth().verifyIdToken(token), getAppCheck().verifyToken(appToken)]);
