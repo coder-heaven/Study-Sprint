@@ -20,7 +20,7 @@ internal class ChatSessionStore(application: Application, file: File = File(appl
     } }
     private fun readMessages(values: JSONArray?) = (maxOf(0, (values?.length() ?: 0) - 80) until (values?.length() ?: 0)).map { index ->
         val v = values!!.getJSONObject(index)
-        ChatMessage(v.getString("role"), v.getString("content").take(16000), v.optInt("photos"), v.optString("model").takeIf { it in StudyChatClient.models || it == StudyChatClient.GEMINI_MODEL }, v.optBoolean("quiz"), v.optString("sources").take(8000), v.optString("suggestions").take(32768))
+        ChatMessage(v.getString("role"), v.getString("content").take(16000), v.optInt("photos"), v.optString("model").takeIf { it in StudyChatClient.models || it == StudyChatClient.SEARCH_MODEL || it == "gemini-2.5-flash" }, v.optBoolean("quiz"), v.optString("sources").take(8000), v.optString("suggestions").take(32768))
     }
     private fun readPhotos(values: JSONArray?) = (0 until (values?.length() ?: 0)).take(4).map { index ->
         val v = values!!.getJSONObject(index); val url = v.getString("url")
