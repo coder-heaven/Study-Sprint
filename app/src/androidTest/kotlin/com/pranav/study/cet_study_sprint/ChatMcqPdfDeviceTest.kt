@@ -11,6 +11,42 @@ import java.io.File
 import java.util.UUID
 
 class ChatMcqPdfDeviceTest {
+    @Test fun formattedPdfRendersEquationsAndStillImportsTenAnswers() = runBlocking {
+        val base = InstrumentationRegistry.getInstrumentation().targetContext
+        val id = UUID.randomUUID().toString()
+        val context = object : ContextWrapper(base) {
+            override fun getSharedPreferences(name: String, mode: Int) = base.getSharedPreferences("rich_pdf_$id", mode)
+            override fun getFilesDir() = File(base.cacheDir, "rich_pdf_$id").apply { mkdirs() }
+        }
+        try {
+            val questions = (1..10).map {
+                PdfImportedMcq("Which **photon energy** formula is correct? \\(E=\\frac{hc}{\\lambda}\\)",
+                    listOf("\\(h\\nu\\)", "*h / frequency*", "`frequency / h`", "h + frequency"), 0)
+            }
+            val name = ChatMcqPdf.create(context, questions)
+            val file = File(context.filesDir, "chapter_pdfs/$name")
+            val result = PdfQuestionImporter.read(context, Uri.fromFile(file))
+            assertEquals(10, result.questions.size)
+            assertEquals(0, result.missingAnswers)
+            assertTrue(result.questions.first().question.contains("photon energy"))
+            assertFalse(result.questions.first().question.contains("**"))
+            assertTrue(result.questions.first().question.contains("\\frac"))
+            android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+                android.graphics.pdf.PdfRenderer(descriptor).use { renderer ->
+                    renderer.openPage(0).use { page ->
+                        val bitmap = android.graphics.Bitmap.createBitmap(page.width * 2, page.height * 2, android.graphics.Bitmap.Config.ARGB_8888)
+                        bitmap.eraseColor(android.graphics.Color.WHITE)
+                        page.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        saveUiProof(base, bitmap, "rich-mcq-pdf")
+                        bitmap.recycle()
+                    }
+                }
+            }
+            assertEquals(1, ChatMcqPdf.remaining(context))
+            ChatMcqPdf.addToPractice(context, questions, name)
+            assertEquals(10, savedQuestions(context.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)).size)
+        } finally { context.getSharedPreferences("study_sprint", Context.MODE_PRIVATE).edit().clear().commit(); context.filesDir.deleteRecursively() }
+    }
     @Test fun pdfIsExtractableQuotaPersistsAndOptionalPracticeImportKeepsOtherSets() = runBlocking {
         val base = InstrumentationRegistry.getInstrumentation().targetContext
         val id = UUID.randomUUID().toString()

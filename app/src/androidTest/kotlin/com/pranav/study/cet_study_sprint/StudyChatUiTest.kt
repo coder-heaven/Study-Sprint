@@ -119,13 +119,18 @@ class StudyChatUiTest {
         val transport = object : StudyChatTransport {
             override suspend fun reply(messages: List<ChatMessage>, photos: List<ChatPhoto>) = ChatReply(text, StudyChatClient.GPT_MODEL, quiz = true)
             override suspend fun replyWithOptions(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String, mode: String): ChatReply {
-                assertEquals("web_mcq", mode); calls.incrementAndGet(); return reply(messages, photos)
+                assertEquals("web_mcq", mode)
+                assertTrue(messages.last().content.contains("Difficulty: Hard"))
+                calls.incrementAndGet(); return reply(messages, photos)
             }
         }
         val vm = model(transport); show(vm)
         val prefs = compose.activity.getSharedPreferences("study_sprint", Context.MODE_PRIVATE)
         val before = prefs.getString("owned_mcq_sets", "{}")
         compose.onNodeWithTag("chat_mcq_mode").performClick()
+        compose.onNodeWithTag("chat_difficulty_easy").assertIsDisplayed()
+        compose.onNodeWithTag("chat_difficulty_medium").assertIsSelected()
+        compose.onNodeWithTag("chat_difficulty_hard").performClick().assertIsSelected()
         compose.onNodeWithTag("chat_input").performTextInput("Photon energy")
         compose.onNodeWithTag("chat_send").performClick()
         compose.waitUntil(5000) { vm.state.value.messages.any { it.quiz } }
