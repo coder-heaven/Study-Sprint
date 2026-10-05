@@ -130,7 +130,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
             }
             if (state.pdfFile != null) item {
                 StudyCard {
-                    Text("Your photo MCQ PDF is ready", fontWeight = FontWeight.Bold)
+                    Text("Saved photo MCQ PDF", fontWeight = FontWeight.Bold)
                     Text("10 questions · ${state.pdfRemaining}/2 PDFs left today. Verify AI answers.", style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = savePdf, modifier = Modifier.testTag("chat_save_pdf")) { Text("Save PDF") }

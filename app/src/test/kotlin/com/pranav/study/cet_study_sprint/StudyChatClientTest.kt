@@ -86,4 +86,21 @@ class StudyChatClientTest {
         assertFalse(StudyChatClient.validKey("sk-or-v1-" + "é".repeat(64)))
         assertFalse(StudyChatClient.validKey("not-an-openrouter-key"))
     }
+    @Test fun newAutomaticBackupResponsesAreAcceptedWithoutExposingASelector() {
+        for (model in listOf(StudyChatClient.MUSE_MODEL, StudyChatClient.MISTRAL_MODEL)) {
+            val reply = StudyChatClient.answer(JSONObject().put("result", JSONObject().put("answer", "Use E = hf.").put("model", model)).toString())
+            assertEquals("Use E = hf.", reply.answer)
+            assertEquals(model, reply.model)
+            assertFalse(StudyChatClient.models.containsKey(model))
+        }
+    }
+    @Test fun onlineSearchErrorsExplainRecoveryWithoutEchoingArbitraryServerText() {
+        val message = "No verified sources for this exam were found. Try another topic."
+        for ((text, expected) in listOf(message to message, "private upstream credential $key" to "Study buddy could not respond. Please retry later.")) {
+            try {
+                StudyChatClient.answer(JSONObject().put("error", JSONObject().put("status", "UNAVAILABLE").put("message", text)).toString())
+                fail("Expected search error")
+            } catch (error: ChatProblem) { assertEquals(expected, error.message); assertFalse(error.message!!.contains(key)) }
+        }
+    }
 }
