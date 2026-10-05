@@ -44,6 +44,9 @@ internal class StudyChatClient(
         const val FALLBACK_MODEL = "moonshotai/kimi-k3"
         const val GPT_MODEL = "openai/gpt-oss-20b"
         const val GEMINI_MODEL = "gemini-2.5-flash"
+        const val MUSE_MODEL = "meta/muse-glimmer-30b"
+        const val MISTRAL_MODEL = "mistral-small-latest"
+        private val responseModels get() = models.keys + setOf(GEMINI_MODEL, MUSE_MODEL, MISTRAL_MODEL)
         const val GLM_MODEL = "z-ai/glm-5.3"
         val models = linkedMapOf("auto" to "Auto", MODEL to "Nemotron", FALLBACK_MODEL to "Kimi K3", GPT_MODEL to "GPT-OSS 20B", GLM_MODEL to "GLM 5.3")
         fun modelName(model: String?) = if (model == GEMINI_MODEL) "Gemini Flash" else models[model] ?: "AI"
@@ -84,6 +87,14 @@ internal class StudyChatClient(
             val json = JSONObject(body)
             if (json.has("error")) {
                 val status = json.optJSONObject("error")?.optString("status")
+                val message = json.optJSONObject("error")?.optString("message")
+                val searchErrors = setOf("No complete four-option MCQs were found. Try another topic.",
+                    "No verified sources for this exam were found. Try another topic.",
+                    "Google study service could not respond. Retry later.",
+                    "Google study service could not return a complete answer. Retry later.",
+                    "Online study search allowance is reached. Try again later.",
+                    "Google study search needs configuration by the app owner.")
+                if (message in searchErrors) throw ChatProblem(requireNotNull(message))
                 throw ChatProblem(when (status) {
                     "RESOURCE_EXHAUSTED" -> "The study chat allowance is reached. Please try later."
                     "FAILED_PRECONDITION" -> if (json.optJSONObject("error")?.optString("message") == "Online MCQ search needs GEMINI_API_KEY in Render.") "Online MCQ search needs Google setup by the app owner. Normal study chat is still available." else "Shared study chat needs setup or attention from the app owner."
@@ -94,7 +105,7 @@ internal class StudyChatClient(
             val result = (json.optJSONObject("result") ?: json.optJSONObject("data")) ?: throw ChatProblem("The chat service returned no result.")
             val text = result?.opt("answer") as? String
             val model = result?.optString("model")
-            if (text.isNullOrBlank() || (model !in models.keys && model != GEMINI_MODEL)) throw ChatProblem("No readable answer was returned. Please retry.")
+            if (text.isNullOrBlank() || model !in responseModels) throw ChatProblem("No readable answer was returned. Please retry.")
             val sources = result.optJSONArray("sources")
             val links = (0 until (sources?.length() ?: 0)).take(8).mapNotNull { i ->
                 val source = sources!!.optJSONObject(i) ?: return@mapNotNull null
