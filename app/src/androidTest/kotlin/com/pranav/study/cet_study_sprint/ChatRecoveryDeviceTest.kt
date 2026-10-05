@@ -18,14 +18,14 @@ class ChatRecoveryDeviceTest {
         while (!condition() && System.currentTimeMillis() < deadline) Thread.sleep(20)
         assertTrue("Saved request did not finish", condition())
     }
-    @Test fun pendingRequestRestoresPhotosAndModelThenRetryDoesNotDuplicateQuestion() {
+    @Test fun pendingRequestRestoresPhotosAndMigratesModelThenRetryDoesNotDuplicateQuestion() {
         val file = File(app.noBackupFilesDir, "chat_test_${UUID.randomUUID()}.json")
         val store = ChatSessionStore(app, file)
         val calls = AtomicInteger()
         val transport = object : StudyChatTransport {
             override suspend fun reply(messages: List<ChatMessage>, photos: List<ChatPhoto>): ChatReply = error("Model selection lost")
             override suspend fun replyWithModel(messages: List<ChatMessage>, photos: List<ChatPhoto>, model: String): ChatReply {
-                assertEquals(StudyChatClient.GPT_MODEL, model)
+                assertEquals(if (calls.get() == 0) StudyChatClient.GPT_MODEL else "auto", model)
                 assertEquals("Explain this", messages.last().content)
                 assertEquals("data:image/jpeg;base64,abcd", photos.single().dataUrl)
                 assertArrayEquals(byteArrayOf(1, 2, 3), photos.single().thumbnail)
@@ -46,7 +46,7 @@ class ChatRecoveryDeviceTest {
             main { first.stop(); restored = StudyChatViewModel(app, transport, true, store) }
             assertEquals(1, restored.state.value.messages.size)
             assertTrue(restored.state.value.canRetry)
-            assertEquals(StudyChatClient.GPT_MODEL, restored.state.value.selectedModel)
+            assertEquals("auto", restored.state.value.selectedModel)
             assertEquals(1, calls.get()) // Restoring never silently resends photos or spends an allowance.
             main { restored.retry() }
             waitUntil { restored.state.value.messages.size == 2 && !restored.state.value.busy }
