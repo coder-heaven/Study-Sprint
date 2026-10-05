@@ -153,7 +153,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
         Surface(color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = mcqMode, onClick = { mcqMode = !mcqMode }, enabled = !state.busy && state.photos.isEmpty(), label = { Text("Online MCQs") }, modifier = Modifier.testTag("chat_mcq_mode"))
-                if (mcqMode || state.photos.isNotEmpty()) {
+                if (mcqMode || state.photos.isNotEmpty() || Regex("\\b(mcq|quiz|practice questions|previous.year questions)\\b", RegexOption.IGNORE_CASE).containsMatchIn(draft)) {
                     Text("MCQ difficulty", style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("Easy", "Medium", "Hard").forEach { level ->

@@ -89,7 +89,8 @@ internal class StudyChatViewModel(application: Application, private val transpor
     fun send(raw: String, mcqTest: Boolean = false): Boolean {
         if (mutable.value.busy || mutable.value.photoBusy) return false
         makePdf = false; loadPractice = false; pendingMode = if (mcqTest) "web_mcq" else "chat"
-        return sendPrompt(if (mcqTest) raw + difficultyPrompt() else raw)
+        val asksForMcqs = mcqTest || Regex("\\b(mcq|quiz|practice questions|previous.year questions)\\b", RegexOption.IGNORE_CASE).containsMatchIn(raw)
+        return sendPrompt(if (asksForMcqs) raw + difficultyPrompt() else raw)
     }
     private fun sendPrompt(raw: String): Boolean {
         val prompt = raw.trim().ifBlank { if (mutable.value.photos.isNotEmpty()) "Help me understand the question in these photos." else "" }
