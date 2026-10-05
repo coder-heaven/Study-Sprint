@@ -52,15 +52,45 @@ test('approved SelfStudys and Prepizo subdomains can supply complete CET questio
     assert.equal(result.answer,quiz); assert.equal(result.sources[0].url,url);
   }
 });
-test('partial, wrong-exam, fifth-option and insecure sources fail closed', async () => {
-  const bad = [search('NEET Physics questions'), search('generic physics'), search('MHT-CET Physics', quiz.replace('Answer:', 'E. extra\nAnswer:')),
-    search('MHT-CET Physics', quiz.replace('Answer: A', '')), search('MHT-CET Physics', quiz, 'http://example.com/cet'),
+test('wrong-exam and insecure sources fail closed', async () => {
+  const bad = [search('NEET Physics questions'), search('generic physics'), search('MHT-CET Physics', quiz, 'http://example.com/cet'),
     search('MHT-CET Physics', quiz, 'https://user:pass@questions.examside.com/cet'),
     search('MHT-CET Physics', quiz, 'https://examside.com.evil.example/cet'),
     search('MHT-CET Physics', quiz, 'https://unlisted.example/cet'),
-    search('MHT-CET Physics', quiz, 'https://www.examgoal.com/cet')];
+    search('MHT-CET Physics', quiz, 'https://www.examgoal.com/cet'),
+    search('MHT-CET Physics', quiz, 'https://questions.examside.com/past-years/jee/jee-main/physics'),
+    search('MHT-CET Physics', quiz, 'https://questions.examside.com/past-years/jee/mht-cet-biology/physics')];
   for (const response of bad) {
     await assert.rejects(runChat(validate({ messages: [{ role: 'user', content: 'energy' }], mode: 'web_mcq' }), keys, async () => {}, async () => response), e => e.code === 'unavailable');
+  }
+});
+test('exam-specific chapter snippets become original practice, never fake past-paper citations', async () => {
+  for (const [exam,title,url] of [
+    ['CET','MHT CET chapter questions','https://questions.examside.com/past-years/jee/mht-cet/physics/motion'],
+    ['JEE','JEE Main chapter questions','https://questions.examside.com/past-years/jee/jee-main/physics/motion'],
+    ['NEET','NEET UG chapter questions','https://questions.examside.com/past-years/medical/neet/physics/motion']
+  ]) {
+    const calls=[];let reserves=0;
+    const result=await runChat(validate({messages:[{role:'user',content:'Motion'}],exam,mode:'web_mcq'}),keys,async()=>reserves++,async(endpoint,options)=>{
+      calls.push(endpoint);
+      if (calls.length===1) return search(title,'Physics / Motion / 2026 12 questions 1.5% weightage',url);
+      const body=JSON.parse(options.body);
+      assert.equal(body.model,GPT);assert.match(body.messages.at(-1).content, /ORIGINAL/);
+      assert.ok(body.messages.at(-1).content.includes({CET:'MHT-CET',JEE:'JEE Main',NEET:'NEET UG'}[exam]));
+      return provider(quiz);
+    });
+    assert.equal(calls.length,2);assert.equal(reserves,1);assert.equal(result.quiz,true);
+    assert.equal(result.answer,quiz);assert.equal(result.model,GPT);
+    assert.ok(result.sources[0].title.startsWith('Study context:'));
+  }
+});
+test('partial, fifth-option and missing-answer sources are not copied, generated practice must be complete', async () => {
+  for (const raw of [quiz.replace('Answer: A',''), quiz.replace('Answer:', 'E. extra\nAnswer:'), 'Physics Motion 2026 12 questions']) {
+    let calls=0;
+    await assert.rejects(runChat(validate({messages:[{role:'user',content:'Motion'}],mode:'web_mcq'}),keys,async()=>{},async(_url)=>{
+      calls++;return calls===1 ? search('MHT-CET Motion',raw) : provider('1. Incomplete question');
+    }),e=>e.code==='unavailable');
+    assert.equal(calls,4); // one Tavily search and three bounded tutor attempts
   }
 });
 test('missing Tavily key does not call search or fabricate questions', async () => {

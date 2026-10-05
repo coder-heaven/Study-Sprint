@@ -50,6 +50,22 @@ class StudyChatClientTest {
             assertEquals(StudyChatClient.GLM_MODEL, data.getString("model"))
         } finally { server.shutdown() }
     }
+    @Test fun changingProfileExamChangesTheNextOnlineMcqRequest() = runBlocking {
+        val server = MockWebServer()
+        try {
+            var selectedExam = "CET"
+            val client = StudyChatClient(profile = { selectedExam to "12" }, endpoint = { server.url("/chat").toString() },
+                session = { ChatSession("firebase-token", "app-token") })
+            for (exam in listOf("CET", "JEE", "NEET")) {
+                selectedExam = exam
+                server.enqueue(MockResponse().setBody("""{"result":{"answer":"1. Question?\\nA. One\\nB. Two\\nC. Three\\nD. Four\\nAnswer: A","model":"tavily/search","quiz":true}}"""))
+                client.replyWithOptions(listOf(ChatMessage("user", "Motion")), emptyList(), "auto", "web_mcq")
+                val data = JSONObject(server.takeRequest(2, TimeUnit.SECONDS)!!.body.readUtf8()).getJSONObject("data")
+                assertEquals(exam, data.getString("exam"))
+                assertEquals("web_mcq", data.getString("mode"))
+            }
+        } finally { server.shutdown() }
+    }
     @Test fun rateLimitMessageDoesNotExposeProviderBodyOrCredential() = runBlocking {
         val server = MockWebServer()
         try {

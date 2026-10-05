@@ -94,11 +94,17 @@ internal class StudyChatClient(
                     "Online search could not return a complete answer. Retry later.",
                     "Online search allowance is reached. Try again later.",
                     "Tavily search key needs attention from the app owner.",
-                    "No complete four-option MCQs with answers were found in exam sources. Try another topic.")
+                    "No complete four-option MCQs with answers were found in exam sources. Try another topic.",
+                    "No matching exam study sources were found. Try another topic.",
+                    "Could not prepare complete original practice questions. Please retry.")
                 if (message in searchErrors) throw ChatProblem(requireNotNull(message))
                 throw ChatProblem(when (status) {
                     "RESOURCE_EXHAUSTED" -> "The study chat allowance is reached. Please try later."
-                    "FAILED_PRECONDITION" -> if (json.optJSONObject("error")?.optString("message") == "Online MCQ search needs TAVILY_API_KEY in Render.") "Online MCQ search needs a Tavily key in Render. Normal study chat is still available." else "Shared study chat needs setup or attention from the app owner."
+                    "FAILED_PRECONDITION" -> when (json.optJSONObject("error")?.optString("message")) {
+                        "Online MCQ search needs TAVILY_API_KEY in Render." -> "Online MCQ search needs a Tavily key in Render. Normal study chat is still available."
+                        "Online practice needs an NVIDIA or OpenRouter tutor key on the server." -> "Original online practice needs a tutor key on the server. Normal study chat is still available."
+                        else -> "Shared study chat needs setup or attention from the app owner."
+                    }
                     "INVALID_ARGUMENT" -> "This question or photo could not be accepted. Use up to 4 photos and a shorter question."
                     else -> "Study buddy could not respond. Please retry later."
                 })

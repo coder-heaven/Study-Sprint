@@ -118,7 +118,7 @@ internal fun StudyChatContent(state: ChatUiState, send: (String) -> Boolean, ret
                                 quizScope.launch { list.animateScrollToItem(index) }
                             }
                             else ChatMarkdown(if (message.quiz) message.content.replace("\n", "  \n") else message.content, Modifier.fillMaxWidth())
-                            if (message.sources.isNotBlank()) { Text("Question sources", fontWeight = FontWeight.Bold); ChatMarkdown(message.sources, Modifier.fillMaxWidth()) }
+                            if (message.sources.isNotBlank()) { Text(if (message.model == StudyChatClient.SEARCH_MODEL) "Question sources" else "Study context (original practice)", fontWeight = FontWeight.Bold); ChatMarkdown(message.sources, Modifier.fillMaxWidth()) }
                             if (message.suggestions.isNotBlank()) GoogleSearchSuggestions(message.suggestions)
                             if (message.quiz) {
                                 OutlinedButton(onClick = { startQuiz(message) }, enabled = !state.busy, modifier = Modifier.testTag("chat_start_web_quiz")) { Text("Start MCQ test") }

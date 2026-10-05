@@ -5,9 +5,9 @@ export const SEARCH_MODEL = 'tavily/search';
 export const configured = key => typeof key === 'string' && /^tvly-[A-Za-z0-9_-]{16,256}$/.test(key);
 const sharedSources = ['examside.com', 'selfstudys.com', 'prepizo.com'];
 const exams = {
-  CET: { name: 'MHT-CET', marker: /MHT[\s-]*CET|Maharashtra.*CET/i, excluded: /\bNEET\b|\bJEE\b|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: sharedSources },
-  JEE: { name: 'JEE Main', marker: /\bJEE\b|Joint Entrance/i, excluded: /\bNEET\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: [...sharedSources, 'examgoal.com'] },
-  NEET: { name: 'NEET UG', marker: /\bNEET\b/i, excluded: /\bJEE\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: [...sharedSources, 'examgoal.com'] }
+  CET: { name: 'MHT-CET', marker: /MHT[\s-]*CET|Maharashtra.*CET/i, excluded: /\bNEET\b|\bJEE\b|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: sharedSources, examside: '/past-years/jee/mht-cet' },
+  JEE: { name: 'JEE Main', marker: /\bJEE\b|Joint Entrance/i, excluded: /\bNEET\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: [...sharedSources, 'examgoal.com'], examside: '/past-years/jee/jee-main' },
+  NEET: { name: 'NEET UG', marker: /\bNEET\b/i, excluded: /\bJEE\b|MHT[\s-]*CET|\bGATE\b|\bUPSC\b|\bSAT\b/i, domains: [...sharedSources, 'examgoal.com'], examside: '/past-years/medical/neet' }
 };
 const allowedHost = (host, domains) => domains.some(domain => host === domain || host.endsWith(`.${domain}`));
 // Only accept complete source question blocks. Search snippets alone cannot prove an answer.
@@ -48,14 +48,22 @@ export async function searchMcqs(input, key, fetcher = fetch) {
       }
     } finally { reader.releaseLock(); }
     const data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    const questions = []; const sources = []; const seen = new Set();
+    const questions = []; const sources = []; const context = []; const seen = new Set();
     for (const result of Array.isArray(data.results) ? data.results.slice(0, 5) : []) {
       const title = result?.title;
       if (typeof title !== 'string' || !exam.marker.test(title) || exam.excluded.test(title)) continue;
       let url;
-      try { url = new URL(result.url); if (url.protocol !== 'https:' || url.username || url.password || !allowedHost(url.hostname, exam.domains)) continue; } catch { continue; }
+      try {
+        url = new URL(result.url);
+        if (url.protocol !== 'https:' || url.username || url.password || !allowedHost(url.hostname, exam.domains)) continue;
+        // ExamSIDE groups MHT-CET under /jee; require the actual exam segment, not its parent group.
+        if (allowedHost(url.hostname, ['examside.com']) &&
+            !(url.pathname === exam.examside || url.pathname.startsWith(`${exam.examside}/`))) continue;
+      } catch { continue; }
       const content = typeof result.raw_content === 'string' ? result.raw_content : result.content;
       if (typeof content !== 'string') continue;
+      // Use only bounded search snippets as untrusted study context, not full page navigation or instructions.
+      context.push(`${title.slice(0, 160)}: ${String(result.content ?? '').slice(0, 1200)}`);
       let used = false;
       for (const question of sourcedQuestions(content.slice(0, 40000))) {
         const id = question.question.toLowerCase();
@@ -63,11 +71,12 @@ export async function searchMcqs(input, key, fetcher = fetch) {
         seen.add(id); questions.push(question); used = true;
         if (questions.length >= 5) break;
       }
-      if (used) sources.push({ title: title.slice(0, 160), url: url.href });
+      if (used || context.length <= 4) sources.push({ title: title.slice(0, 160), url: url.href });
       if (questions.length >= 5) break;
     }
-    if (!questions.length) throw new ChatError('unavailable', 'No complete four-option MCQs with answers were found in exam sources. Try another topic.');
-    return { answer: canonicalMcqs(questions), model: SEARCH_MODEL, quiz: true, sources, suggestions: '' };
+    if (!questions.length && !context.length) throw new ChatError('unavailable', 'No matching exam study sources were found. Try another topic.');
+    if (!questions.length) return { context, sources: sources.slice(0, 4) };
+    return { answer: canonicalMcqs(questions), model: SEARCH_MODEL, quiz: true, sources: sources.slice(0, 5), suggestions: '' };
   } catch (error) {
     if (error instanceof ChatError) throw error;
     throw new ChatError('unavailable', 'Online search could not return a complete answer. Retry later.', true);
