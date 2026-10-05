@@ -36,7 +36,7 @@ Auto tries Nemotron, GPT-OSS 20B, GLM 5.3, then Kimi K3 on retryable errors. Stu
 
 ## Google image understanding and exam web MCQs (v4.9.3)
 
-Add `GEMINI_API_KEY` (or the supported alias `GOOGLE_API_KEY`) in the Render service's Environment page and choose Save, rebuild and deploy. Use a key from Google AI Studio. Never paste it into chat, source code, APK settings, or a tracked `.env` file. Existing NVIDIA/OpenRouter secrets stay unchanged. Google quotas and search pricing still apply; no paid subscription is enabled by this change.
+Add `GEMINI_API_KEY` (or the supported alias `GOOGLE_API_KEY`) in the Render service's Environment page and choose Save, rebuild and deploy. Use a key from Google AI Studio; both older `AIza` keys and newer `AQ.` authorization keys are supported. Versions through v4.9.7 mistakenly rejected `AQ.` keys before contacting Google, so update the Render backend to include this fix. Never paste it into chat, source code, APK settings, or a tracked `.env` file. Existing NVIDIA/OpenRouter secrets stay unchanged. Google quotas and search pricing still apply; no paid subscription is enabled by this change.
 
 Gemini 2.5 Flash reads photos when configured, using a ten-question JSON schema with exactly four options for photo PDFs. Retryable Google failures fall back to Kimi; authorization errors ask the owner to fix setup. PDF bytes are still generated locally.
 

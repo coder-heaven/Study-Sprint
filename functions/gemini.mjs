@@ -1,7 +1,8 @@
 import { ChatError, tutorPrompt } from './chat.mjs';
 import { canonicalMcqs, parseMcqs } from './mcq.mjs';
 export const GEMINI = 'gemini-2.5-flash';
-export const configured = key => typeof key === 'string' && /^[A-Za-z0-9_-]{20,256}$/.test(key);
+// AI Studio issues both legacy standard keys and newer AQ. authorization keys.
+export const configured = key => typeof key === 'string' && /^(?:[A-Za-z0-9_-]{20,256}|AQ\.[A-Za-z0-9_-]{20,256})$/.test(key);
 async function invoke(body, key, fetcher) {
   let response;
   try {
