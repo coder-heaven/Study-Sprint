@@ -30,7 +30,7 @@ class ChatMarkdownUiTest {
             StudyCard(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 ChatMarkdown("### Photon energy\n\nLight travels in **energy packets** called **photons**.\n\n" +
                     "\$\$E = h\\nu = \\frac{hc}{\\lambda}\$\$\n\n" +
-                    "Symbol|Meaning\n|:---|:---|\n\$E\$|Photon energy\n\$h\$|Planck constant\n\n" +
+                    "```markdown\nSymbol|Meaning\n|:--|:--|\n\$E\$|Photon energy\n\$h\$|Planck constant\n```\n\n" +
                     "1. Higher frequency means more energy.\n2. Longer wavelength means less energy.")
             }
         } }
@@ -41,7 +41,8 @@ class ChatMarkdownUiTest {
             val spanned = view.text as Spanned
             assertTrue(spanned.getSpans(0, spanned.length, Any::class.java).any { it.javaClass.simpleName == "StrongEmphasisSpan" })
             assertTrue(spanned.getSpans(0, spanned.length, TableRowSpan::class.java).size >= 3)
-            assertFalse(view.text.contains("|:---|:---|"))
+            assertFalse(view.text.contains("|:--|:--|"))
+            assertFalse(view.text.contains("Symbol|Meaning"))
             assertTrue(view.text.contains("Photon energy"))
         }
         // Assert equations actually rendered, not just their placeholder text.
