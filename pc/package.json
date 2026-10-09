@@ -1,0 +1,12 @@
+{
+  "name": "study-sprint-pc",
+  "version": "5.0.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/serve.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1411">
+  <meta name="description" content="Study Sprint PC — plan, practise and focus for CET, JEE and NEET.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2310b981'/%3E%3Cpath d='M17 17h30v8H25v7h18v8H25v7h22v8H17z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <title>Study Sprint PC</title>
+</head>
+<body>
+  <div id="update-banner" class="update-banner hidden" role="status">
+    <span>A newer Study Sprint PC version is ready.</span>
+    <button id="reload-update" class="button button-primary">Reload</button>
+  </div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">S</span><span>Study Sprint</span><small>PC</small></div>
+      <div class="profile-mini"><div id="profile-avatar" class="avatar">S</div><div><strong id="profile-name-mini">Student</strong><span id="profile-exam-mini">CET · Class 11</span></div></div>
+      <nav id="navigation" aria-label="Main navigation">
+        <button class="nav-item active" data-view="home"><span>⌂</span>Today</button>
+        <button class="nav-item" data-view="study"><span>▤</span>Study plan</button>
+        <button class="nav-item" data-view="practice"><span>✓</span>Practice</button>
+        <button class="nav-item" data-view="focus"><span>◷</span>Focus timer</button>
+        <button class="nav-item" data-view="notes"><span>✎</span>Notes</button>
+        <button class="nav-item" data-view="settings"><span>⚙</span>Settings</button>
+      </nav>
+      <div class="sidebar-footer"><span>PC v<span id="version-label">5.0.2</span></span><button id="install-button" class="text-button hidden">Install app</button></div>
+    </aside>
+    <main class="main-content">
+      <header class="topbar"><div><p class="eyebrow">YOUR STUDY SPACE</p><h1 id="page-title">Today</h1></div><button id="top-profile" class="profile-button"><span id="top-profile-name">Student</span><span class="avatar small" id="top-avatar">S</span></button></header>
+      <div id="app-error" class="notice error hidden" role="alert"></div>
+      <section id="view-home" class="view active-view"></section>
+      <section id="view-study" class="view"></section>
+      <section id="view-practice" class="view"></section>
+      <section id="view-focus" class="view"></section>
+      <section id="view-notes" class="view"></section>
+      <section id="view-settings" class="view"></section>
+    </main>
+  </div>
+  <dialog id="profile-dialog"><form method="dialog" id="profile-form"><div class="dialog-heading"><div><p class="eyebrow">YOUR PROFILE</p><h2>Study preferences</h2></div><button value="cancel" class="icon-button" aria-label="Close">×</button></div><label>Name<input id="profile-name-input" maxlength="60" autocomplete="name"></label><label>Exam<select id="profile-exam-input"><option value="CET">MHT-CET</option><option value="JEE">JEE Main</option><option value="NEET">NEET UG</option></select></label><label>Class<select id="profile-grade-input"><option value="11">Class 11</option><option value="12">Class 12</option></select></label><div class="dialog-actions"><button value="cancel" class="button button-quiet">Cancel</button><button id="save-profile" value="default" class="button button-primary">Save profile</button></div></form></dialog>
+  <template id="empty-template"><div class="empty-state"><div class="empty-icon">✦</div><h3>Nothing here yet</h3><p>Start with a small study action and build your streak.</p></div></template>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

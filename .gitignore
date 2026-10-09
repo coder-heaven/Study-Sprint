@@ -38,3 +38,6 @@ functions/node_modules/
 functions/.runtimeconfig.json
 functions/service-account*.json
 **/credentials*.json
+
+pc/node_modules/
+pc/dist/

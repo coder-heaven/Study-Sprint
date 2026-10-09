@@ -1,0 +1,53 @@
+name: Deploy Study Sprint PC
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pc/**'
+      - 'app/build.gradle.kts'
+      - 'app/src/main/kotlin/com/pranav/study/cet_study_sprint/SyllabusData.kt'
+      - 'app/src/main/kotlin/com/pranav/study/cet_study_sprint/QuizScoring.kt'
+      - '.github/workflows/deploy-pc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: pc/package-lock.json
+      - name: Install PC dependencies
+        run: npm ci --prefix pc --ignore-scripts --no-audit --no-fund
+      - name: Test PC core and generated data
+        run: npm test --prefix pc
+      - name: Build PC PWA
+        run: npm run build --prefix pc
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pc/dist
+
+  deploy:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

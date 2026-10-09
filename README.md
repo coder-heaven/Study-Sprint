@@ -8,9 +8,13 @@ Charcoal surfaces, emerald accents, Poppins typography and original artwork from
 
 App blocking checks the foreground window's package every second, including after service reconnection and while an app stays open past its limit. Protected focus covers limited apps and focus-only selections without waiting for usage queries. Blocking history failures cannot stop enforcement. If Android silently refuses the block screen, the service verifies the denied app is still foreground before returning to Home.
 
-[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v5.0.2.md)
+[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v5.0.2.md) · [Open Study Sprint PC](https://coder-heaven.github.io/Study-Sprint/)
 
 Install v5.0.2 once over the existing app to enable in-app updates. After that, tap **Update now** when prompted: Study Sprint downloads and verifies the official APK, then opens Android’s installer. No browser download or file manager is needed. Android may ask you to allow updates from Study Sprint once, and always requires installation confirmation; silent automatic installation is not available to a normal GitHub-distributed app. Downloads show progress and can be cancelled/retried; full release notes scroll without the old 500-character cutoff. Do not uninstall or clear storage. After updating, reconnect **Study Sprint app limits** in Android Accessibility if necessary; **Usage Access** is required for daily limits. The app shows these settings in App Limits and on the focus screen.
+
+## Study Sprint PC
+
+Study Sprint PC is an installable browser app for Windows, macOS and Linux: [open it here](https://coder-heaven.github.io/Study-Sprint/). It includes local profiles for MHT-CET, JEE Main and NEET UG, Class 11/12 syllabus progress, tasks, notes, focus timer, original practice MCQs, backups and offline loading. Install it from your browser’s address-bar install option; future PC releases are delivered by the service worker and show a **Reload** update banner. PC data stays in that browser unless you export a backup. Android-only Accessibility blocking, protected Firebase chat and leaderboard sign-in are deliberately not exposed until a separate secure desktop identity flow is available. See [PC development and deployment](pc/README.md).
 
 ## Study tools
 
