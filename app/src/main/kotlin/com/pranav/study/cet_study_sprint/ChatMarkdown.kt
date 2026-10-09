@@ -20,6 +20,50 @@ import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.tables.TableTheme
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 
+/** Normalize compact or model-generated GFM tables before Markwon parses them. */
+internal fun normalizeChatTables(text: String): String {
+    fun hasPipe(line: String) = line.count { it == '|' } >= 1
+    fun cells(line: String): List<String> {
+        val value = line.trim().removePrefix("|").removeSuffix("|")
+        return value.split('|').map { it.trim() }
+    }
+    fun separator(line: String): Boolean = cells(line).isNotEmpty() &&
+        cells(line).all { it.matches(Regex(":?-{3,}:?")) }
+    fun row(line: String, count: Int): String {
+        val values = cells(line).toMutableList()
+        while (values.size < count) values += ""
+        return "| ${values.take(count).joinToString(" | ")} |"
+    }
+    fun divider(line: String, count: Int): String {
+        val values = cells(line).toMutableList()
+        while (values.size < count) values += "---"
+        return "| ${values.take(count).map { value ->
+            val left = value.startsWith(":"); val right = value.endsWith(":")
+            when { left && right -> ":---:"; left -> ":---"; right -> "---:"; else -> "---" }
+        }.joinToString(" | ")} |"
+    }
+    val lines = text.replace("\r\n", "\n").split('\n').toMutableList()
+    var index = 1
+    while (index < lines.size - 1) {
+        if (!hasPipe(lines[index - 1]) || !separator(lines[index]) || !hasPipe(lines[index + 1])) {
+            index++
+            continue
+        }
+        val count = cells(lines[index]).size
+        var end = index + 1
+        while (end + 1 < lines.size && hasPipe(lines[end + 1])) end++
+        val table = buildList {
+            add(row(lines[index - 1], count))
+            add(divider(lines[index], count))
+            for (rowIndex in index + 1..end) add(row(lines[rowIndex], count))
+        }
+        lines.subList(index - 1, end + 1).clear()
+        lines.addAll(index - 1, table)
+        index += table.size
+    }
+    return lines.joinToString("\n")
+}
+
 /** Normalize common model math delimiters to Markwon's double-dollar syntax. */
 internal fun normalizeChatMath(text: String): String {
     val code = Regex("```[\\s\\S]*?```|`[^`\\n]*`")
@@ -53,7 +97,7 @@ internal fun ChatMarkdown(text: String, modifier: Modifier = Modifier, selectabl
                 .tableBorderWidth(1).tableCellPadding(12).tableHeaderRowBackgroundColor(header).build()))
             .build()
     }
-    val source = remember(text) { normalizeChatMath(text) }
+    val source = remember(text) { normalizeChatTables(normalizeChatMath(text)) }
     val accessible = remember(markdown, source) { markdown.toMarkdown(source).toString() }
     AndroidView(modifier = modifier.semantics { this.text = AnnotatedString(accessible) }, factory = { TextView(it).apply {
         textSize = 16f

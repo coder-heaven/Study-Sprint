@@ -1,5 +1,5 @@
 // Generated from Android version, SyllabusData.kt and QuizScoring.kt. Run npm run sync.
-export const PC_VERSION = "5.0.2";
+export const PC_VERSION = "5.0.3";
 export const SYLLABUS = {
   "cetEleven": {
     "Physics": [
