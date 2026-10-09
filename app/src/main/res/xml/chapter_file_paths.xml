@@ -1,3 +1,4 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <files-path name="chapter_pdfs" path="chapter_pdfs/" />
+    <cache-path name="app_updates" path="updates/" />
 </paths>

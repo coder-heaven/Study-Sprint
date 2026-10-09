@@ -30,6 +30,10 @@ Study buddy uses an app-owner managed Firebase service with OpenRouter/NVIDIA tu
 
 Google, Firebase, GitHub and any external AI or sharing app have their own terms and policies. Study Sprint does not control their availability. Network outages, device settings and updates can affect features. Keep your own copies of important study material; this release does not provide full cloud backup of study history.
 
+## App updates
+
+When you choose Update now, the app downloads its official signed update in-app, verifies the checksum, package identity and signing certificate, and opens Android’s installer. An install-source permission may be needed once. Android confirmation cannot be bypassed; this GitHub-distributed app does not provide silent Play Store-style installation. Keep the app open while downloading. If the process is stopped, retry the update; a fully downloaded verified candidate can be reused. Installing over the existing app normally keeps local study data; do not uninstall or clear storage to update.
+
 ## Changes and contact
 
 Terms and feature behavior may change in later app releases. Updated public-sharing notices require renewed permission before further uploads. For questions, use https://github.com/coder-heaven/Study-Sprint/issues; do not post private information publicly. These terms do not remove rights that applicable law gives you.
