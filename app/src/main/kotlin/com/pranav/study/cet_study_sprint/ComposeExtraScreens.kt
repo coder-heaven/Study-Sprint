@@ -132,7 +132,7 @@ internal fun SettingsScreen(prefs: android.content.SharedPreferences, go: (Strin
         Text("Daily focus goal: $goal min", style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 14.dp))
         Slider(goal.toFloat(), onValueChange = { goal = (it / 15).toInt() * 15 },
-            onValueChangeFinished = { prefs.edit().putInt("daily_focus_goal", goal).apply(); refresh() },
+            onValueChangeFinished = { prefs.edit().putInt("daily_focus_goal", goal).apply(); refresh(); StudyWidgetUpdater.refresh(context) },
             valueRange = 15f..480f)
         SettingsRow("Focus preferences", "Custom timing and distraction control") { go("focus") }
         SettingsRow("Student leaderboards", "Live study effort and quiz wins") { go("leaderboard") }
@@ -426,7 +426,7 @@ internal fun AppLimitsScreen(go: (String) -> Unit) {
             Button(onClick = {
                 val deferred = StrictLimits.save(context, chosen!!.pkg, minutes, daysMask, focusBlocked)
                 saveMessage = if (deferred) "Change saved for when your focus session ends." else "Daily limit saved. Changes apply now."
-                chosen = null; revision++
+                chosen = null; revision++; StudyWidgetUpdater.refresh(context)
             }, modifier = Modifier.fillMaxWidth()) { Text("Save limit") }
         }
     }

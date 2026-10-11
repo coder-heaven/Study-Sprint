@@ -1,8 +1,11 @@
 package com.pranav.study.cet_study_sprint
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +31,17 @@ internal fun updateInstallIntent(context: Context, file: File): Intent {
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 }
 
+private fun packageInstallPermissionIntent(context: Context): Intent =
+    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+        Uri.parse("package:${context.packageName}"))
+
+private fun canInstallPackages(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+        context.packageManager.canRequestPackageInstalls()
+
+private fun installPermissionMessage(): String =
+    "Update paused. Allow Study Sprint to install this update, then return here and tap Install update again."
+
 @Composable
 internal fun UpdateInstallAction(update: AppUpdateInfo, model: AppUpdateViewModel = viewModel()) {
     val context = LocalContext.current
@@ -38,17 +52,29 @@ internal fun UpdateInstallAction(update: AppUpdateInfo, model: AppUpdateViewMode
     val installer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         // Do not claim installation based on an Activity result. The next version check
         // reads the actual installed version; cancellation leaves the APK ready to retry.
-        model.message("If installation was cancelled, tap Install update to try again.")
+        model.message(if (it.resultCode == Activity.RESULT_CANCELED) {
+            "Installation was cancelled. Your downloaded update is still ready; tap Install update to retry."
+        } else {
+            "Android closed the installer. If the update did not finish, tap Install update to retry."
+        })
     }
     fun openInstaller() {
         if (openingInstaller) return
         val file = state.file ?: return
+        if (!canInstallPackages(context)) {
+            model.message(installPermissionMessage())
+            return
+        }
         openingInstaller = true
         scope.launch {
             try {
                 withContext(Dispatchers.IO) { verifyUpdateApk(context, file, update) }
                 installer.launch(updateInstallIntent(context, file))
                 model.message("Confirm Install on Android’s update screen. Your saved study data is kept.")
+            } catch (_: ActivityNotFoundException) {
+                model.message("Android could not find an installer for this APK. Keep the update downloaded and try again after checking your device’s installation settings.")
+            } catch (_: SecurityException) {
+                model.message(installPermissionMessage())
             } catch (_: Exception) {
                 model.message("Android could not open this verified update. Tap Install update to retry, or check your device’s installation restrictions.")
             } finally { openingInstaller = false }
@@ -56,21 +82,24 @@ internal fun UpdateInstallAction(update: AppUpdateInfo, model: AppUpdateViewMode
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         waitingForPermission = false
-        if (context.packageManager.canRequestPackageInstalls()) openInstaller()
-        else model.message("Installation permission was not enabled. Tap Install update and allow Study Sprint to install this update.")
+        if (canInstallPackages(context)) openInstaller()
+        else model.message(installPermissionMessage())
     }
     LaunchedEffect(state.requestInstall, state.tag) {
         if (!state.requestInstall || state.tag != update.tag) return@LaunchedEffect
         model.consumeInstallRequest()
-        if (context.packageManager.canRequestPackageInstalls()) openInstaller()
+        if (canInstallPackages(context)) openInstaller()
         else {
             try {
                 waitingForPermission = true
                 model.message("Enable Allow from this source for Study Sprint, then return here. Android will still ask you to confirm Install.")
-                permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
-            } catch (_: Exception) {
+                permission.launch(packageInstallPermissionIntent(context))
+            } catch (_: ActivityNotFoundException) {
                 waitingForPermission = false
                 model.message("Open Android Settings → Special app access → Install unknown apps → Study Sprint, allow updates, then retry.")
+            } catch (_: Exception) {
+                waitingForPermission = false
+                model.message("Android could not open install settings. Open Settings → Special app access → Install unknown apps → Study Sprint, allow updates, then retry.")
             }
         }
     }

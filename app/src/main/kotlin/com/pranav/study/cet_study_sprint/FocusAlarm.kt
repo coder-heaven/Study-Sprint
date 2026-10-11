@@ -124,5 +124,6 @@ class FocusAlarmReceiver : BroadcastReceiver() {
         if (prefs.getBoolean("focus_alarm_delivered", false)) return
         prefs.edit().putBoolean("focus_alarm_delivered", true).commit()
         FocusAlarm.notifyFinished(context, isBreak)
+        StudyWidgetUpdater.refresh(context)
     }
 }

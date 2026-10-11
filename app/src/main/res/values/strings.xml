@@ -1,5 +1,20 @@
 <resources>
     <string name="app_name">Study Sprint</string>
     <string name="blocker_description">Enforces only the daily limits and focus blocks you choose. It observes the foreground app package and does not read or enter screen content.</string>
+    <string name="widget_icon_description">Study Sprint</string>
+    <string name="widget_app_name">Study Sprint</string>
+    <string name="widget_focus_name">Study Sprint Focus</string>
+    <string name="widget_progress_name">Study Sprint Progress</string>
+    <string name="widget_focus_description">Start or return to your Study Sprint focus timer.</string>
+    <string name="widget_progress_description">See today’s focus progress, next task and app-limit status.</string>
+    <string name="widget_focus_ready">Ready to focus</string>
+    <string name="widget_focus_timer_default">25 min</string>
+    <string name="widget_focus_task_default">Choose a task when you start</string>
+    <string name="widget_focus_start">Start focus</string>
+    <string name="widget_progress_title_default">Hi, Student</string>
+    <string name="widget_progress_focus_default">0 min focused today</string>
+    <string name="widget_progress_goal_default" formatted="false">0% of 120 min goal</string>
+    <string name="widget_progress_task_default">Add a next step in Plan</string>
+    <string name="widget_progress_limits_default">No app limits set</string>
 
 </resources>

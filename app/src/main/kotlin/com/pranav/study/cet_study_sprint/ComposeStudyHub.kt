@@ -89,12 +89,15 @@ internal fun ActiveFocusBar(state: FocusState, open: () -> Unit) {
 
 @Composable
 internal fun QuickStudyTaskDialog(prefs: SharedPreferences, onDismiss: () -> Unit, onSaved: () -> Unit) {
+    val context = LocalContext.current
     var draft by remember { mutableStateOf("") }
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Add a study task") },
         text = { OutlinedTextField(draft, { draft = it }, label = { Text("What will you study?") },
             placeholder = { Text("e.g. Revise atomic structure") }, modifier = Modifier.fillMaxWidth(), maxLines = 3) },
         confirmButton = { TextButton(enabled = draft.isNotBlank(), onClick = {
-            saveTasks(prefs, (orderedTasks(prefs) + draft.trim()).distinct()); onSaved()
+            saveTasks(prefs, (orderedTasks(prefs) + draft.trim()).distinct())
+            StudyWidgetUpdater.refresh(context)
+            onSaved()
         }) { Text("Add task") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }

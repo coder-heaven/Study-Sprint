@@ -140,7 +140,11 @@ class ComposeStudyActivity : ComponentActivity() {
             }
         }
     }
-    override fun onResume() { super.onResume(); revision++ }
+    override fun onResume() {
+        super.onResume()
+        revision++
+        StudyWidgetUpdater.refresh(this)
+    }
 }
 
 @Composable
@@ -935,7 +939,7 @@ private fun ProfileScreen(prefs: SharedPreferences, refresh: () -> Unit, go: (St
         Button(onClick = {
             prefs.edit().putString("profile_name", name.trim()).putString("exam", course)
                 .putString("grade", grade).apply()
-            refresh(); go("home")
+            refresh(); StudyWidgetUpdater.refresh(context); go("home")
         }, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Save profile") }
         Text(prefs.getString("account_email", null)?.let { "Signed in as $it. Study data remains local until Firebase sync is configured." } ?: "Using Study Sprint locally. Account sync is not configured.",
             modifier = Modifier.padding(top = 16.dp), style = MaterialTheme.typography.bodySmall)

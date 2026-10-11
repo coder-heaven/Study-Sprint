@@ -2,15 +2,15 @@
 
 Native Android study companion for CET, JEE and NEET students, built with Kotlin and Jetpack Compose.
 
-## v4.9.0 — Study buddy and floating navigation
+## v5.1.0 — Focus widgets and protected-app recovery
 
 Charcoal surfaces, emerald accents, Poppins typography and original artwork from the supplied [FocusIQ Figma reference](https://www.figma.com/design/WvokxNRgdRmYLZmKF5mNvl/). Coordinated transparent 3D timer, notebook, shield and trophy artwork brings focus, tasks, protection and progress into one visual system. The original Study Sprint logo remains in the navigation and brand screens. Home shows real focus progress and study tasks. The focus timer exposes distraction blocking and protection status directly.
 
 App blocking checks the foreground window's package every second, including after service reconnection and while an app stays open past its limit. Protected focus covers limited apps and focus-only selections without waiting for usage queries. Blocking history failures cannot stop enforcement. If Android silently refuses the block screen, the service verifies the denied app is still foreground before returning to Home.
 
-[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v5.0.3.md) · [Open Study Sprint PC](https://coder-heaven.github.io/Study-Sprint/)
+[Download the latest official APK](https://github.com/coder-heaven/Study-Sprint/releases/latest) · [Release notes](RELEASE_NOTES_v5.1.0.md) · [Open Study Sprint PC](https://coder-heaven.github.io/Study-Sprint/)
 
-Install v5.0.3 over the existing app to receive the table-rendering fix and enable in-app updates. After that, tap **Update now** when prompted: Study Sprint downloads and verifies the official APK, then opens Android’s installer. No browser download or file manager is needed. Android may ask you to allow updates from Study Sprint once, and always requires installation confirmation; silent automatic installation is not available to a normal GitHub-distributed app. Downloads show progress and can be cancelled/retried; full release notes scroll without the old 500-character cutoff. Do not uninstall or clear storage. After updating, reconnect **Study Sprint app limits** in Android Accessibility if necessary; **Usage Access** is required for daily limits. The app shows these settings in App Limits and on the focus screen.
+Install v5.1.0 over the existing app to receive the focus widgets, protected-app recovery page and installer-permission handling. After that, tap **Update now** when prompted: Study Sprint downloads and verifies the official APK, then opens Android’s installer. If **Allow from this source** remains off, the update is paused safely and the downloaded APK stays ready for another try; no app data is changed. No browser download or file manager is needed. Android always requires installation confirmation; silent automatic installation is not available to a normal GitHub-distributed app. Downloads show progress and can be cancelled/retried; full release notes scroll without the old 500-character cutoff. Do not uninstall or clear storage. After updating, reconnect **Study Sprint app limits** in Android Accessibility if necessary; **Usage Access** is required for daily limits. The app shows these settings in App Limits and on the focus screen.
 
 ## Study Sprint PC
 
@@ -20,6 +20,7 @@ Study Sprint PC is an installable browser app for Windows, macOS and Linux: [ope
 
 - Syllabus progress, imported PDF MCQs, course-specific marking and practice history.
 - Tasks, class notes, focus sessions, custom Pomodoro durations, study reminders and statistics.
+- Focus and daily-progress home-screen widgets with shortcuts back into the timer and Today screen.
 - Editable daily app limits, selected weekdays and automatic reset at local midnight.
 - YouTube's editable daily limit and two five-minute post-limit bypasses. Protected focus cannot be bypassed.
 - Optional public leaderboards using the app's profile name and photo. Public sharing needs explicit permission; Google sign-in and join requests are unnecessary for guest participation after consent.

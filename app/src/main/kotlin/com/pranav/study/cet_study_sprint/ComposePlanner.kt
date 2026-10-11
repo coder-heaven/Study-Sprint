@@ -88,7 +88,10 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(44.dp).semantics { contentDescription = "Complete $task" }
                         .toggleable(value = false, role = Role.Checkbox, onValueChange = { checked ->
-                            if (checked) { saveTasks(prefs, tasks - task); store.recordTask(); localRevision++ }
+                            if (checked) {
+                                saveTasks(prefs, tasks - task); store.recordTask(); localRevision++
+                                StudyWidgetUpdater.refresh(context)
+                            }
                         }), contentAlignment = Alignment.Center) {
                         Box(Modifier.size(20.dp).border(2.dp, MaterialTheme.colorScheme.primary, CircleShape))
                     }
@@ -113,13 +116,13 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
                         val reordered = tasks.toMutableList()
                         val item = reordered.removeAt(index)
                         reordered.add(index - 1, item)
-                        saveTasks(prefs, reordered); localRevision++
+                        saveTasks(prefs, reordered); localRevision++; StudyWidgetUpdater.refresh(context)
                     }) { Text("↑") }
                     TextButton(enabled = index < tasks.lastIndex, onClick = {
                         val reordered = tasks.toMutableList()
                         val item = reordered.removeAt(index)
                         reordered.add(index + 1, item)
-                        saveTasks(prefs, reordered); localRevision++
+                        saveTasks(prefs, reordered); localRevision++; StudyWidgetUpdater.refresh(context)
                     }) { Text("↓") }
                 }
             }
@@ -168,12 +171,12 @@ internal fun PlannerScreen(prefs: SharedPreferences, revision: Int, go: (String)
                     val updated = if (editing == null) tasks + value
                         else tasks.map { if (it == editing) value else it }
                     saveTasks(prefs, updated.distinct())
-                    localRevision++; sheet = false
+                    localRevision++; sheet = false; StudyWidgetUpdater.refresh(context)
                 }
             }, enabled = draft.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Save task") }
             if (editing != null) TextButton(onClick = {
                 saveTasks(prefs, tasks - editing!!)
-                localRevision++; sheet = false
+                localRevision++; sheet = false; StudyWidgetUpdater.refresh(context)
             }, modifier = Modifier.fillMaxWidth()) { Text("Delete task") }
         }
     }

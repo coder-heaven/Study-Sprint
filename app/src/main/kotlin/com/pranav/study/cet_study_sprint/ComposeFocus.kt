@@ -110,6 +110,7 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
             .putLong("focus_end_at", end).putBoolean("focus_alarm_delivered", false).apply()
         FocusAlarm.schedule(getApplication(), end)
         setBlocking(!isBreak, end)
+        StudyWidgetUpdater.refresh(getApplication())
     }
     fun pause() {
         val current = state.value
@@ -121,6 +122,7 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
         FocusAlarm.cancel(getApplication())
         // A pause does not turn a committed distraction block into a bypass.
         setBlocking(!current.isBreak, Long.MAX_VALUE)
+        StudyWidgetUpdater.refresh(getApplication())
     }
     fun resume() {
         if (!state.value.active || state.value.running) return
@@ -129,6 +131,7 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("focus_running", true).putLong("focus_end_at", end).apply()
         FocusAlarm.schedule(getApplication(), end)
         setBlocking(!state.value.isBreak, end)
+        StudyWidgetUpdater.refresh(getApplication())
     }
     fun finish(completedNaturally: Boolean = false) {
         val current = state.value
@@ -150,6 +153,7 @@ internal class FocusViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("focus_active", false).putBoolean("focus_running", false)
             .putBoolean("focus_is_break", false).putInt("focus_remaining", current.focusMinutes * 60).apply()
         setBlocking(false, 0)
+        StudyWidgetUpdater.refresh(getApplication())
     }
     fun clearCompletion() { FocusAlarm.dismiss(getApplication()); _state.value = state.value.copy(completedMinutes = null) }
     private fun tick() {
