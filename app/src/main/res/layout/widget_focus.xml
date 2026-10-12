@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/widget_focus_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -18,7 +19,7 @@
             android:layout_height="28dp"
             android:contentDescription="@string/widget_icon_description"
             android:src="@drawable/study_sprint_monochrome"
-            android:tint="#A7F3D0" />
+            app:tint="#A7F3D0" />
 
         <TextView
             android:layout_width="0dp"
