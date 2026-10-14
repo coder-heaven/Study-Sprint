@@ -32,7 +32,10 @@ export async function sync({ check = false } = {}) {
   const content = `// Generated from Android version, SyllabusData.kt and QuizScoring.kt. Run npm run sync.\nexport const PC_VERSION = ${JSON.stringify(version)};\nexport const SYLLABUS = ${JSON.stringify(syllabus, null, 2)};\nexport const MARKING = ${JSON.stringify(marking)};\n`;
   const target = new URL('../data.mjs', import.meta.url);
   if (check) {
-    if (await readFile(target, 'utf8') !== content) throw Error('PC data is out of sync. Run npm run sync --prefix pc.');
+    // Git may check out tracked text with CRLF on Windows. Compare the
+    // generated contract independent of the platform line ending.
+    const existing = (await readFile(target, 'utf8')).replace(/\r\n/g, '\n');
+    if (existing !== content) throw Error('PC data is out of sync. Run npm run sync --prefix pc.');
   } else await writeFile(target, content);
   return version;
 }
