@@ -240,7 +240,7 @@ async function runSmokeTest(mainWindow, consoleErrors) {
     document.querySelector("#welcome-exam").value = "CET";
     document.querySelector("#welcome-grade").value = "11";
     document.querySelector("#welcome-terms").checked = true;
-    document.querySelector("#welcome-form").requestSubmit();
+     document.querySelector("#welcome-form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     await waitForPaint();
     if (!visible(document.querySelector(".app-shell")) || visible(welcome)) throw new Error("Guest onboarding did not complete");
 
@@ -259,7 +259,8 @@ async function runSmokeTest(mainWindow, consoleErrors) {
 
     return {
        nodeDisabled,
-      pageErrors: window.studySprintDesktop?.getPageErrors?.() || []
+       pageErrors: window.studySprintDesktop && typeof window.studySprintDesktop.getPageErrors === "function"
+         ? window.studySprintDesktop.getPageErrors() : []
     };
   })()`, true);
 
