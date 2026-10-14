@@ -159,10 +159,10 @@ function createWindow() {
   mainWindow.webContents.on("will-attach-webview", event => event.preventDefault());
 
   const consoleErrors = [];
-  mainWindow.webContents.on("console-message", (_event, details) => {
+  mainWindow.webContents.on("console-message", (_event, details, legacyMessage) => {
     const level = typeof details === "object" ? details?.level : details;
     if (level === "error" || level === 3) {
-      const message = typeof details === "object" ? details.message : String(details);
+      const message = typeof details === "object" ? details.message : String(legacyMessage ?? details);
       consoleErrors.push(message);
     }
   });
