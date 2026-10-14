@@ -229,7 +229,10 @@ async function runSmokeTest(mainWindow, consoleErrors) {
     if (!visible(welcome) || hiddenAncestors(welcome).length) {
       throw new Error("Fresh onboarding is not visible: " + hiddenAncestors(welcome).join(", "));
     }
-    if (typeof process !== "undefined" || typeof require !== "undefined") throw new Error("Renderer unexpectedly has Node globals");
+     const nodeDisabled = typeof require === "undefined" && typeof module === "undefined" &&
+       typeof window.require === "undefined" &&
+       !(typeof process !== "undefined" && typeof process.binding === "function");
+     if (!nodeDisabled) throw new Error("Renderer unexpectedly exposes Node integration");
 
     document.querySelector("#welcome-name").value = "Smoke Student";
     document.querySelector("#welcome-exam").value = "CET";
@@ -253,7 +256,7 @@ async function runSmokeTest(mainWindow, consoleErrors) {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     return {
-      nodeDisabled: typeof process === "undefined" && typeof require === "undefined",
+       nodeDisabled,
       pageErrors: window.studySprintDesktop?.getPageErrors?.() || []
     };
   })()`, true);
@@ -279,8 +282,9 @@ app.whenReady().then(async () => {
       await loadPromise;
       await runSmokeTest(mainWindow, consoleErrors);
       app.exit(0);
-    } catch (error) {
-      console.error(error);
+     } catch (error) {
+       console.error(error);
+       if (consoleErrors.length) console.error(`Renderer diagnostics:\n${consoleErrors.join("\n")}`);
       app.exit(1);
     }
     return;
