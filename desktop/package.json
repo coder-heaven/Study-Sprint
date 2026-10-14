@@ -1,0 +1,22 @@
+{
+  "name": "study-sprint-desktop",
+  "version": "5.1.0",
+  "description": "Windows desktop packaging for the Study Sprint PC PWA",
+  "private": true,
+  "author": "Study Sprint",
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "build:pc": "node scripts/build-pc.mjs",
+    "start": "npm run build:pc && electron .",
+    "test:pc": "npm test --prefix ../pc",
+    "test": "node --test test/*.test.mjs",
+    "smoke:win": "node scripts/smoke-win.mjs",
+    "dist:win": "npm run build:pc && electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.7.2",
+    "electron-builder": "26.15.3",
+    "mathjax": "3.2.2"
+  }
+}

@@ -1,0 +1,110 @@
+name: Build Study Sprint Windows desktop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - 'pc/**'
+      - 'app/build.gradle.kts'
+      - 'app/src/main/kotlin/com/pranav/study/cet_study_sprint/SyllabusData.kt'
+      - 'app/src/main/kotlin/com/pranav/study/cet_study_sprint/QuizScoring.kt'
+      - '.github/workflows/build-desktop.yml'
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'pc/**'
+      - 'app/build.gradle.kts'
+      - 'app/src/main/kotlin/com/pranav/study/cet_study_sprint/SyllabusData.kt'
+      - 'app/src/main/kotlin/com/pranav/study/cet_study_sprint/QuizScoring.kt'
+      - '.github/workflows/build-desktop.yml'
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Create the non-latest desktop-v5.1.0 GitHub release from main
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.14.0'
+          cache: npm
+          cache-dependency-path: |
+            pc/package-lock.json
+            desktop/package-lock.json
+      - name: Install PC dependencies
+        run: npm ci --prefix pc --ignore-scripts --no-audit --no-fund
+      - name: Test PC core and generated data
+        run: npm test --prefix pc
+      - name: Build PC bundle
+        run: npm run build --prefix pc
+      - name: Install desktop dependencies
+        run: npm ci --prefix desktop --ignore-scripts --no-audit --no-fund
+      - name: Build and stage the PC bundle
+        run: npm run build:pc --prefix desktop
+      - name: Test desktop security and packaging
+        run: npm test --prefix desktop
+      - name: Build Windows installer and portable executable
+        run: npm run dist:win --prefix desktop -- --publish never
+      - name: Smoke test the unpacked Windows executable
+        run: node desktop/scripts/smoke-win.mjs "desktop/release/win-unpacked/Study Sprint PC.exe"
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $release = Join-Path $env:GITHUB_WORKSPACE 'desktop/release'
+          $artifacts = @(
+            (Join-Path $release 'Study-Sprint-PC-5.1.0-Setup-x64.exe'),
+            (Join-Path $release 'Study-Sprint-PC-5.1.0-Portable-x64.exe')
+          )
+          foreach ($artifact in $artifacts) {
+            if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) {
+              throw "Missing expected Windows artifact: $artifact"
+            }
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $artifact).Hash.ToLowerInvariant()
+            "$hash  $([System.IO.Path]::GetFileName($artifact))" | Set-Content -Encoding ascii -LiteralPath "$artifact.sha256"
+          }
+      - name: Upload Windows executables and checksums
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Study-Sprint-Windows-${{ github.sha }}
+          path: |
+            desktop/release/Study-Sprint-PC-5.1.0-Setup-x64.exe
+            desktop/release/Study-Sprint-PC-5.1.0-Setup-x64.exe.sha256
+            desktop/release/Study-Sprint-PC-5.1.0-Portable-x64.exe
+            desktop/release/Study-Sprint-PC-5.1.0-Portable-x64.exe.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    needs: build-windows
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: Study-Sprint-Windows-${{ github.sha }}
+          path: desktop-release
+      - name: Publish non-latest desktop release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create desktop-v5.1.0 \
+            desktop-release/*.exe \
+            desktop-release/*.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Study Sprint PC v5.1.0" \
+            --notes-file desktop/RELEASE_NOTES_v5.1.0.md \
+            --latest=false

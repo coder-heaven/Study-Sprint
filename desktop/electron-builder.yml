@@ -1,0 +1,29 @@
+appId: com.coderheaven.studysprint.pc
+productName: Study Sprint PC
+artifactName: Study-Sprint-PC-${version}-${arch}.${ext}
+asar: true
+directories:
+  output: release
+files:
+  - main.mjs
+  - preload.cjs
+  - pc-dist/**/*
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  requestedExecutionLevel: asInvoker
+nsis:
+  artifactName: Study-Sprint-PC-${version}-Setup-${arch}.${ext}
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  oneClick: false
+  perMachine: false
+portable:
+  artifactName: Study-Sprint-PC-${version}-Portable-${arch}.${ext}

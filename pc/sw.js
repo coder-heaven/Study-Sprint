@@ -1,5 +1,5 @@
-const CACHE = "study-sprint-pc-5.0.2";
-const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./core.mjs", "./data.mjs", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "study-sprint-pc-5.1.0";
+const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./core.mjs", "./data.mjs", "./manifest.webmanifest", "./icon.svg", "./math-config.js"];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });

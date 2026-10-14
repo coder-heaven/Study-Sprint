@@ -15,33 +15,71 @@
     <span>A newer Study Sprint PC version is ready.</span>
     <button id="reload-update" class="button button-primary">Reload</button>
   </div>
-  <div class="app-shell">
+    <div id="welcome-screen" class="welcome-screen hidden">
+      <div class="welcome-card">
+        <div class="brand"><span class="brand-mark">S</span><span>Study Sprint</span><small>PC</small></div>
+        <p class="eyebrow">WELCOME BACK</p>
+        <h1>Your focused study space</h1>
+        <p class="welcome-copy">Set up your local profile to plan, focus, practise and track progress on this computer. No account or cloud upload is required.</p>
+        <form id="welcome-form">
+          <label>Your name<input id="welcome-name" maxlength="60" placeholder="Student name" autocomplete="name" required></label>
+          <div class="grid two compact-grid"><label>Exam<select id="welcome-exam"><option value="CET">MHT-CET</option><option value="JEE">JEE Main</option><option value="NEET">NEET UG</option></select></label><label>Class<select id="welcome-grade"><option value="11">Class 11</option><option value="12">Class 12</option></select></label></div>
+          <label class="check-row"><input id="welcome-terms" type="checkbox" required><span>I understand this PC version stores study data locally on this computer.</span></label>
+          <button class="button button-primary" type="submit">Continue as guest</button>
+        </form>
+        <p class="welcome-note">Real Google/Firebase login is intentionally not enabled in this offline-first desktop build. Use Backup & restore to move data between computers.</p>
+      </div>
+    </div>
+  <div class="app-shell hidden">
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">S</span><span>Study Sprint</span><small>PC</small></div>
       <div class="profile-mini"><div id="profile-avatar" class="avatar">S</div><div><strong id="profile-name-mini">Student</strong><span id="profile-exam-mini">CET · Class 11</span></div></div>
       <nav id="navigation" aria-label="Main navigation">
         <button class="nav-item active" data-view="home"><span>⌂</span>Today</button>
         <button class="nav-item" data-view="study"><span>▤</span>Study plan</button>
+        <button class="nav-item" data-view="planner"><span>☷</span>Planner</button>
         <button class="nav-item" data-view="practice"><span>✓</span>Practice</button>
         <button class="nav-item" data-view="focus"><span>◷</span>Focus timer</button>
+        <button class="nav-item" data-view="progress"><span>▥</span>Progress</button>
         <button class="nav-item" data-view="notes"><span>✎</span>Notes</button>
         <button class="nav-item" data-view="settings"><span>⚙</span>Settings</button>
       </nav>
-      <div class="sidebar-footer"><span>PC v<span id="version-label">5.0.2</span></span><button id="install-button" class="text-button hidden">Install app</button></div>
+       <div class="sidebar-footer"><span>PC v<span id="version-label">5.1.0</span></span><button id="install-button" class="text-button hidden">Install app</button></div>
     </aside>
     <main class="main-content">
       <header class="topbar"><div><p class="eyebrow">YOUR STUDY SPACE</p><h1 id="page-title">Today</h1></div><button id="top-profile" class="profile-button"><span id="top-profile-name">Student</span><span class="avatar small" id="top-avatar">S</span></button></header>
       <div id="app-error" class="notice error hidden" role="alert"></div>
       <section id="view-home" class="view active-view"></section>
       <section id="view-study" class="view"></section>
-      <section id="view-practice" class="view"></section>
-      <section id="view-focus" class="view"></section>
+       <section id="view-planner" class="view"></section>
+       <section id="view-practice" class="view"></section>
+       <section id="view-focus" class="view"></section>
+       <section id="view-progress" class="view"></section>
       <section id="view-notes" class="view"></section>
       <section id="view-settings" class="view"></section>
     </main>
   </div>
-  <dialog id="profile-dialog"><form method="dialog" id="profile-form"><div class="dialog-heading"><div><p class="eyebrow">YOUR PROFILE</p><h2>Study preferences</h2></div><button value="cancel" class="icon-button" aria-label="Close">×</button></div><label>Name<input id="profile-name-input" maxlength="60" autocomplete="name"></label><label>Exam<select id="profile-exam-input"><option value="CET">MHT-CET</option><option value="JEE">JEE Main</option><option value="NEET">NEET UG</option></select></label><label>Class<select id="profile-grade-input"><option value="11">Class 11</option><option value="12">Class 12</option></select></label><div class="dialog-actions"><button value="cancel" class="button button-quiet">Cancel</button><button id="save-profile" value="default" class="button button-primary">Save profile</button></div></form></dialog>
+  <dialog id="profile-dialog"><form id="profile-form"><div class="dialog-heading"><div><p class="eyebrow">YOUR PROFILE</p><h2>Study preferences</h2></div><button type="button" data-close-dialog="profile-dialog" class="icon-button" aria-label="Close">×</button></div><label>Name<input id="profile-name-input" maxlength="60" autocomplete="name"></label><label>Exam<select id="profile-exam-input"><option value="CET">MHT-CET</option><option value="JEE">JEE Main</option><option value="NEET">NEET UG</option></select></label><label>Class<select id="profile-grade-input"><option value="11">Class 11</option><option value="12">Class 12</option></select></label><div class="dialog-actions"><button type="button" data-close-dialog="profile-dialog" class="button button-quiet">Cancel</button><button id="save-profile" type="submit" class="button button-primary">Save profile</button></div></form></dialog>
+  <dialog id="task-dialog">
+    <form id="task-form">
+      <div class="dialog-heading"><h2>Edit study task</h2><button type="button" class="icon-button" data-close-dialog="task-dialog" aria-label="Close task editor">×</button></div>
+      <label>Task<input id="task-edit-text" maxlength="160" required></label>
+      <label>Chapter (optional)<input id="task-edit-chapter" maxlength="100"></label>
+      <div class="dialog-actions"><button type="button" class="button button-quiet" data-close-dialog="task-dialog">Cancel</button><button type="submit" class="button button-primary">Save task</button></div>
+    </form>
+  </dialog>
+  <dialog id="confirm-dialog">
+    <h2 id="confirm-title">Confirm action</h2><p id="confirm-message"></p>
+    <div class="dialog-actions"><button id="confirm-cancel" class="button button-quiet">Cancel</button><button id="confirm-accept" class="button button-danger">Confirm</button></div>
+  </dialog>
+  <dialog id="recovery-dialog">
+    <p class="eyebrow">SOFT FOCUS REMINDER</p><h2>Regain your focus</h2>
+    <p>Your session is still active. Return to your next study step, or end the timer deliberately.</p>
+    <p id="recovery-countdown"></p><p class="muted">This reminder does not block other Windows apps.</p>
+    <div class="dialog-actions"><button id="recovery-end" class="button button-quiet">End session</button><button id="recovery-return" class="button button-primary">Return to focus</button></div>
+  </dialog>
   <template id="empty-template"><div class="empty-state"><div class="empty-icon">✦</div><h3>Nothing here yet</h3><p>Start with a small study action and build your streak.</p></div></template>
+  <script src="math-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
   <script type="module" src="app.js"></script>
 </body>
