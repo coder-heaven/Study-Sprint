@@ -159,11 +159,13 @@ function createWindow() {
   mainWindow.webContents.on("will-attach-webview", event => event.preventDefault());
 
   const consoleErrors = [];
-  mainWindow.webContents.on("console-message", (_event, details, legacyMessage) => {
+  mainWindow.webContents.on("console-message", (_event, details, legacyMessage, legacyLine, legacySource) => {
     const level = typeof details === "object" ? details?.level : details;
     if (level === "error" || level === 3) {
       const message = typeof details === "object" ? details.message : String(legacyMessage ?? details);
-      consoleErrors.push(message);
+      const line = typeof details === "object" ? details.lineNumber : legacyLine;
+      const source = typeof details === "object" ? details.sourceId : legacySource;
+      consoleErrors.push(`${source || "renderer"}:${line || "?"} ${message}`);
     }
   });
   mainWindow.webContents.on("preload-error", (_event, preloadPath, error) => {
