@@ -118,7 +118,9 @@ async function handleAppRequest(request) {
       "Referrer-Policy": "no-referrer"
     };
     if (extname(file).toLowerCase() === ".html") headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY;
-    return new Response(request.method === "HEAD" ? null : body, { headers });
+    const textExtensions = new Set([".css", ".html", ".js", ".json", ".mjs", ".svg", ".webmanifest"]);
+    const payload = textExtensions.has(extname(file).toLowerCase()) ? body.toString("utf8") : body;
+    return new Response(request.method === "HEAD" ? null : payload, { headers });
   } catch {
     return response(404, "Not found");
   }
