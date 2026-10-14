@@ -215,7 +215,9 @@ function withTimeout(promise, timeoutMs, message) {
 }
 
 async function runSmokeTest(mainWindow, consoleErrors) {
-  const smokeResult = await mainWindow.webContents.executeJavaScript(`(async () => {
+  let smokeResult;
+  try {
+    smokeResult = await mainWindow.webContents.executeJavaScript(`(async () => {
     const waitForPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const visible = element => {
       if (!element || element.hidden || element.classList.contains("hidden")) return false;
@@ -265,7 +267,25 @@ async function runSmokeTest(mainWindow, consoleErrors) {
        pageErrors: window.studySprintDesktop && typeof window.studySprintDesktop.getPageErrors === "function"
          ? window.studySprintDesktop.getPageErrors() : []
     };
-  })()`, true);
+    })()`, true);
+  } catch (error) {
+    let pageDiagnostics = "unavailable";
+    try {
+      pageDiagnostics = JSON.stringify(await mainWindow.webContents.executeJavaScript(`({
+        url: location.href,
+        contentType: document.contentType,
+        readyState: document.readyState,
+        welcomeClass: document.querySelector("#welcome-screen")?.className || "missing",
+        appShellClass: document.querySelector(".app-shell")?.className || "missing",
+        pageErrors: window.studySprintDesktop && typeof window.studySprintDesktop.getPageErrors === "function"
+          ? window.studySprintDesktop.getPageErrors() : [],
+        scripts: [...document.scripts].map(script => script.src || "inline")
+      })`, true));
+    } catch (diagnosticError) {
+      pageDiagnostics = `diagnostic script failed: ${diagnosticError.message}`;
+    }
+    throw new Error(`Renderer smoke flow failed: ${error.message}\nPage diagnostics: ${pageDiagnostics}`);
+  }
 
   if (!smokeResult.nodeDisabled) throw new Error("Smoke test detected Node in the renderer");
   if (smokeResult.pageErrors.length) throw new Error(`Renderer page errors:\n${smokeResult.pageErrors.join("\n")}`);
