@@ -53,8 +53,8 @@ jobs:
         run: npm run build:pc --prefix desktop
       - name: Test desktop security and packaging
         run: npm test --prefix desktop
-      - name: Build Windows installer and portable executable
-        run: npm run dist:win --prefix desktop -- --publish never
+       - name: Build Windows installer and portable executable
+         run: npm run dist:win --prefix desktop
       - name: Smoke test the unpacked Windows executable
         run: node desktop/scripts/smoke-win.mjs "desktop/release/win-unpacked/Study Sprint PC.exe"
       - name: Generate SHA-256 checksums
