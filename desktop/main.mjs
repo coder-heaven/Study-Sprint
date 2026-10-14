@@ -105,6 +105,7 @@ async function handleAppRequest(request) {
   if (request.method !== "GET" && request.method !== "HEAD") return response(405, "Method not allowed");
   const file = requestedFile(request.url);
   if (!file) return response(404, "Not found");
+  if (IS_SMOKE_TEST) console.log(`Smoke request ${request.method} ${request.url} -> ${file}`);
 
   try {
     const fileInfo = await stat(file);
