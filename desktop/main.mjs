@@ -250,7 +250,7 @@ async function runSmokeTest(mainWindow, consoleErrors) {
     if (!visible(document.querySelector(".app-shell")) || visible(welcome)) throw new Error("Guest onboarding did not complete");
 
     const navigate = async view => {
-      const button = document.querySelector("[data-view=\"" + view + "\"]");
+      const button = document.querySelector("[data-view='" + view + "']");
       if (!button) throw new Error("Missing " + view + " navigation button");
       button.click();
       await waitForPaint();
